@@ -1,0 +1,107 @@
+#!/usr/bin/make -f
+# -*- makefile -*-
+
+# Headers ==============================================================================
+include $(DISTRIBUTION_REFROOT)/opt/bb/share/build-base/build-base.mk
+include $(DISTRIBUTION_REFROOT)/opt/bb/share/cmake-debhelper/cmake-debhelper-macros.mk
+
+SHELL := /bin/bash
+LIBNAME := corokafka
+DEBIAN_TARGET := lib$(LIBNAME)-dev
+DEBIAN_ROBO_TARGET := lib$(LIBNAME)-robo-dev
+DEBIAN_RUNTIME_TARGET := lib$(LIBNAME)0
+TMP_DIR = debian/tmp$(1)$(2)
+DEBIAN_DIR_STATIC := $(call TMP_DIR,64,static)
+DEBIAN_DIR_SHARED := $(call TMP_DIR,64,shared)
+DEBIAN_ROBO_DIR := $(call TMP_DIR,robo)
+BDEMETA_DIR := $(DEBIAN_ROBO_DIR)/$(PREFIX)/share/bdemeta/thirdparty/$(LIBNAME)
+RUNTIME_PACKAGE_DIR := $(INSTALL_DIR)-$(DEBIAN_RUNTIME_TARGET)
+VERSION := $(shell head -1 debian/changelog | awk '{split($$0,a,"(");split(a[2],b,")");print b[1]}')
+
+# Pass {ON,OFF} for shared builds
+# Pass {OFF,ON} for static builds
+LIBRARY_CMAKE_ARGS = -DCOROKAFKA_BUILD_SHARED=$(1) \
+					 -DCOROKAFKA_CPPKAFKA_STATIC_LIB=$(2) \
+					 -DCOROKAFKA_RDKAFKA_STATIC_LIB=$(2) \
+				     -DCMAKE_BUILD_TYPE=Debug \
+				     -DDPKG_REFROOT=$(DISTRIBUTION_REFROOT)
+VERSION := $(shell head -1 debian/changelog  | awk -F'[()]' '{print $$2}')
+MAJOR := $(shell cat corokafka/CMakeLists.txt | grep "COROKAFKA_VERSION_MAJOR " | awk -F'[() ]' '{print $$3}')
+MINOR := $(shell cat corokafka/CMakeLists.txt | grep "COROKAFKA_VERSION_MINOR " | awk -F'[() ]' '{print $$3}')
+LIB_VERSION := $(MAJOR).$(MINOR)
+
+# Called with:
+# (1) target
+# (2) dir
+define PACKAGE
+BB_DEBHELPER_CLEAN_TARGETS+=debian/$(1)-clean
+debian/$(1)-clean:
+	@rm -rf debian/tmprobo
+	@rm -rf debian/files
+	@rm -f debian/$(1)-*-stamp
+	@echo ============ CLEANED $@ ============
+
+BB_DEBHELPER_BINARY_TARGETS+=debian/$(1)-binary-stamp
+debian/$(1)-binary-stamp: debian/$(1)-prepare-stamp
+	mkdir -p $(2)/DEBIAN
+	$$(BIN_PATH)dpkg-gencontrol -p$(1) -P$(2)
+	$$(BIN_PATH)dpkg-deb -b $(2) ../
+	@touch $$@
+	@echo ============ PACKAGED $$@ ============
+endef
+
+DEBHELPER_64BITstatic_CMAKE_ARGS := $(call LIBRARY_CMAKE_ARGS,OFF,ON)
+DEBHELPER_64BITshared_CMAKE_ARGS := $(call LIBRARY_CMAKE_ARGS,ON,OFF)
+$(eval $(call DEBHELPER_BIARCH_BUILD,64,static))
+$(eval $(call DEBHELPER_BIARCH_BUILD,64,shared))
+$(eval $(call PACKAGE,$(DEBIAN_TARGET),$(DEBIAN_DIR_STATIC)))
+$(eval $(call PACKAGE,$(DEBIAN_RUNTIME_TARGET),$(DEBIAN_DIR_SHARED)))
+$(eval $(call PACKAGE,$(DEBIAN_ROBO_TARGET),$(DEBIAN_ROBO_DIR)))
+
+#==============================================================================
+#                             runtime DPKG
+#==============================================================================
+debian/$(DEBIAN_RUNTIME_TARGET)-prepare-stamp: debian/build64shared-stamp
+	# Remove the header files since we don't package them
+	@rm -rf $(DEBIAN_DIR_SHARED)/$(PREFIX)/include
+	@ln -sf lib$(LIBNAME).so.$(LIB_VERSION) $(DEBIAN_DIR_SHARED)/$(PREFIX)/lib64/lib$(LIBNAME)_64bit.so.$(LIB_VERSION)
+	@touch $@
+	@echo ============ PREPARED $@ ============
+
+#==============================================================================
+#                           development DPKG
+#==============================================================================
+debian/$(DEBIAN_TARGET)-prepare-stamp: debian/build64static-stamp
+	@touch $@
+	@echo ============ PREPARED $@ ============
+
+#==============================================================================
+#                            ROBO files
+#==============================================================================
+debian/$(DEBIAN_ROBO_TARGET)-prepare-stamp: debian/build64static-stamp
+	# Make output directories
+	@mkdir -p $(BDEMETA_DIR)
+	@cp -r debian/bdemeta $(BDEMETA_DIR)/package
+	@mkdir -p $(DEBIAN_ROBO_DIR)/$(PREFIX)/lib/pkgconfig
+	@mkdir -p $(DEBIAN_ROBO_DIR)/$(PREFIX)/lib64/pkgconfig
+	@mkdir -p $(DEBIAN_ROBO_DIR)/$(PREFIX)/lib64/robo
+	@bdemeta-genpkgconfig --prefix=$(PREFIX) --libdir=lib --version=$(VERSION) \
+		--srcdir=$(BDEMETA_DIR) \
+		--outputdir=$(DEBIAN_ROBO_DIR)/$(PREFIX)/lib/pkgconfig
+	@bdemeta-genpkgconfig --prefix=$(PREFIX) --libdir=lib64 --version=$(VERSION) \
+		--srcdir=$(BDEMETA_DIR) \
+		--outputdir=$(DEBIAN_ROBO_DIR)/$(PREFIX)/lib64/pkgconfig
+	# Make symlinks required for robo
+	@ln -sf ../lib$(LIBNAME).a  $(DEBIAN_ROBO_DIR)/$(PREFIX)/lib64/robo/lib$(LIBNAME).a
+	@touch $@
+	@echo ============ PREPARED PACKAGE $@ ============
+
+#==============================================================================
+#                             Package rules
+#==============================================================================
+$(DEBIAN_TARGET): debian/$(DEBIAN_TARGET)-binary-stamp
+$(DEBIAN_RUNTIME_TARGET): debian/$(DEBIAN_RUNTIME_TARGET)-binary-stamp
+$(DEBIAN_ROBO_TARGET): debian/$(DEBIAN_ROBO_TARGET)-binary-stamp
+
+# Footer ============================================================================
+include $(DISTRIBUTION_REFROOT)/opt/bb/share/cmake-debhelper/cmake-debhelper-rules.mk

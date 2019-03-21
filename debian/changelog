@@ -1,0 +1,6 @@
+corokafka (0.0.0.1) unstable; urgency=low
+
+  * 70ea16f Initial implementation
+  * 9526228 Initial commit
+
+ -- Alexander Damian <adamian@bloomberg.net>  Thu, 21 Mar 2019 09:35:19 -0400
