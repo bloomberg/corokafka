@@ -1,3 +1,9 @@
+corokafka (0.0.0.3) unstable; urgency=low
+
+  * b990e51 Added corokafka source directory
+
+ -- Alexander Damian <adamian@bloomberg.net>  Tue, 26 Mar 2019 17:10:16 -0400
+
 corokafka (0.0.0.2) unstable; urgency=low
 
   * b17e122 Changes to the debian rules file and rpath settings in cmake
