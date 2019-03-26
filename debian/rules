@@ -43,9 +43,9 @@ debian/$(1)-clean:
 
 BB_DEBHELPER_BINARY_TARGETS+=debian/$(1)-binary-stamp
 debian/$(1)-binary-stamp: debian/$(1)-prepare-stamp
-	mkdir -p $(2)/DEBIAN
-	$$(BIN_PATH)dpkg-gencontrol -p$(1) -P$(2)
-	$$(BIN_PATH)dpkg-deb -b $(2) ../
+	@mkdir -p $(2)/DEBIAN
+	@$$(BIN_PATH)dpkg-gencontrol -p$(1) -P$(2)
+	@$$(BIN_PATH)dpkg-deb -b $(2) ../
 	@touch $$@
 	@echo ============ PACKAGED $$@ ============
 endef
