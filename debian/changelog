@@ -1,3 +1,10 @@
+corokafka (0.0.0.2) unstable; urgency=low
+
+  * b17e122 Changes to the debian rules file and rpath settings in cmake
+  * 2c86f28 Initial implementation
+
+ -- Alexander Damian <adamian@bloomberg.net>  Tue, 26 Mar 2019 16:57:42 -0400
+
 corokafka (0.0.0.1) unstable; urgency=low
 
   * 70ea16f Initial implementation
