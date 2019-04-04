@@ -1,19 +1,19 @@
-# Local function to auto-generate main quantum.h header file
+# Local function to auto-generate main corokafka.h header file
 cmake_minimum_required(VERSION 3.10.3)
 function(make_header)
-    set(COROKAFKA_HEADER ${CMAKE_CURRENT_SOURCE_DIR}/corokafka.h)
+    set(MAIN_HEADER ${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}.h)
     file(GLOB INCLUDE_HEADERS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
             "*.h"
             "detail/*.h")
     list(SORT INCLUDE_HEADERS)
     foreach(header ${INCLUDE_HEADERS})
-        if (NOT ${header} MATCHES "corokafka.h")
-            SET(COROKAFKA_HEADERS "${COROKAFKA_HEADERS}#include <corokafka/${header}>\n")
+        if (NOT ${header} MATCHES "${PROJECT_NAME}.h")
+            SET(ALL_HEADERS "${ALL_HEADERS}#include <${PROJECT_NAME}/${header}>\n")
         endif()
     endforeach()
 
     #create file from template
-    configure_file(${PROJECT_SOURCE_DIR}/corokafka.h.in ${COROKAFKA_HEADER} @ONLY)
+    configure_file(${PROJECT_SOURCE_DIR}/${PROJECT_NAME}.h.in ${MAIN_HEADER} @ONLY)
 endfunction()
 
 # Run file generation function
@@ -26,7 +26,7 @@ file(GLOB SOURCE_FILES
 )
 
 add_library(${PROJECT_NAME} ${COROKAFKA_LIBRARY_TYPE} ${SOURCE_FILES})
-target_include_directories(${PROJECT_NAME} PRIVATE
+target_include_directories(${PROJECT_NAME} BEFORE PRIVATE
     ${PROJECT_SOURCE_DIR}
 )
 target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC

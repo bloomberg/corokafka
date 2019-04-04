@@ -1,13 +1,13 @@
 include(GoogleTest)
-set(TEST_TARGET corokafka_tests)
+set(TEST_TARGET ${PROJECT_NAME}_tests)
 file(GLOB SOURCE_FILES *.cpp)
 add_executable(${TEST_TARGET} ${SOURCE_FILES})
 add_dependencies(${TEST_TARGET} ${PROJECT_NAME})
-target_include_directories(${TEST_TARGET} PRIVATE
+target_include_directories(${TEST_TARGET} BEFORE PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${PROJECT_SOURCE_DIR}
 )
-target_include_directories(${TEST_TARGET} SYSTEM PUBLIC
+target_include_directories(${TEST_TARGET} SYSTEM BEFORE PUBLIC
     ${Boost_INCLUDE_DIRS}
     ${QUANTUM_INCLUDE_DIR}
     ${RDKAFKA_INCLUDE_DIR}

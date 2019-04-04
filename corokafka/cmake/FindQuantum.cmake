@@ -1,6 +1,6 @@
 # From https://github.com/mfontanini/cppkafka/blob/master/cmake/FindRdKafka.cmake
 find_path(QUANTUM_ROOT_DIR
-    NAMES include/librdkafka/rdkafka.h
+    NAMES include/quantum/quantum.h
 )
 find_path(QUANTUM_INCLUDE_DIR
     NAMES quantum/quantum.h
