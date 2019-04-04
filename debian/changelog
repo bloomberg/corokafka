@@ -1,3 +1,9 @@
+corokafka (0.0.0.4) unstable; urgency=low
+
+  * 571bef8 Small changes to CMakeLists.txt files
+
+ -- Alexander Damian <adamian@bloomberg.net>  Thu, 4 Apr 2019 09:38:16 -0400
+
 corokafka (0.0.0.3) unstable; urgency=low
 
   * b990e51 Added corokafka source directory
