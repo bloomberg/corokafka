@@ -1,3 +1,9 @@
+corokafka (0.0.0.6) unstable; urgency=low
+
+  * 3b5c299 Fixed consumer functions when topic string is not specified
+
+ -- Alexander Damian <adamian@bloomberg.net>  Mon, 15 Apr 2019 15:18:09 -0400
+
 corokafka (0.0.0.5) unstable; urgency=low
 
   * 1a385ba Added ConsumerManager::commit() method
