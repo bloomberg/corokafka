@@ -65,6 +65,12 @@ void ConsumerManager::unsubscribe(const std::string& topic)
     _impl->unsubscribe(topic);
 }
 
+void ConsumerManager::commit(const TopicPartition& topicPartition,
+                             const void* opaque)
+{
+    _impl->commit(topicPartition, opaque);
+}
+
 void ConsumerManager::shutdown()
 {
     _impl->shutdown();

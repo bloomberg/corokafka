@@ -121,26 +121,15 @@ public:
      * @warning This library does not extend the lifetime of this pointer. The application must ensure the
      *          memory location is still valid until the callback is invoked.
      */
-    void setOpaque(void* opaque);
+    void setOpaque(const void* opaque);
     /**
      * @brief Commits message with the retry strategy specified in the config for this topic.
      * @param opaque Application-specific pointer which will be returned inside the offset commit callback.
      * @remark This call is blocking until it succeeds or the last retry failed.
      * @remark If commit() is not called explicitly, it will be called by ~ReceivedMessage() if
-     *         'internal.consumer.auto.offset.persist=true' and 'internal.consumer.auto.offset.persist.strategy=commit'.
-     * @remark The application must set 'enable.auto.offset.store=false' and 'enable.auto.commit=false'.
+     *         'internal.consumer.auto.offset.persist=true'.
      */
-    void commit(void* opaque = nullptr);
-    /**
-     * @brief Stores the message offset locally in rdkafka. The offset will be committed when the commit
-     *        scheduler runs every 'auto.commit.interval.ms'.
-     * @param opaque Application-specific pointer which will be returned inside the offset commit callback.
-     * @remark If store_offset() is not called explicitly, it will be called by ~ReceivedMessage() if
-     *         'internal.consumer.auto.offset.persist=true' and 'internal.consumer.auto.offset.persist.strategy=store'.
-     * @remark The application must set 'enable.auto.offset.store=false', 'enable.auto.commit=true' as well as set
-     *         a proper value for 'auto.commit.interval.ms'.
-     */
-    void store_offset(void* opaque = nullptr);
+    void commit(const void* opaque = nullptr);
     /**
      * @brief Helper function to indicate if the message error is an EOF.
      * @return True if EOF was encountered for the partition, False otherwise.
@@ -191,7 +180,7 @@ private:
     P                           _payload;
     HeaderPack                  _headers;
     DeserializerError           _error;
-    void*                       _opaque{nullptr};
+    const void*                 _opaque{nullptr};
     bool                        _isPersisted{false};
     OffsetPersistSettings       _offsetSettings;
 };

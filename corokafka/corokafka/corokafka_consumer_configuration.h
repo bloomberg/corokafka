@@ -47,9 +47,8 @@ namespace corokafka {
  * internal.consumer.auto.offset.persist: {*'true','false'}. Enables auto-commit/auto-store inside the corokafka
  * once each ReceivedMessage has been destroyed.
  *
- * internal.consumer.auto.offset.persist.strategy: {'commit',*'store'}. Determines if offsets are committed or stored
- * locally. This setting only applies when 'internal.consumer.auto.offset.persist=true'. Some rdkafka settings will
- * be changed according to Note 2 below.
+ * internal.consumer.offset.persist.strategy: {'commit',*'store'}. Determines if offsets are committed or stored
+ * locally. Some rdkafka settings will be changed according to Note 2 below.
  *
  * internal.consumer.commit.exec: {'sync',*'async'}. Dictates if offset commits should be synchronous or asynchronous.
  *

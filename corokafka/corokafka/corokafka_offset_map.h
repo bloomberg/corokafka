@@ -31,21 +31,21 @@ public:
     {}
     
     // Indexed by partition and offset number
-    using MapType = std::map<TopicPartition, void*>;
+    using MapType = std::map<TopicPartition, const void*>;
     
-    void insert(const TopicPartition& position, void* opaque) {
+    void insert(const TopicPartition& position, const void* opaque) {
         if (opaque == nullptr) return;
         std::lock_guard<std::mutex> lock(*_mutex);
         _map[position] = opaque;
     }
     
-    void insert(TopicPartition&& position, void* opaque) {
+    void insert(TopicPartition&& position, const void* opaque) {
         if (opaque == nullptr) return;
         std::lock_guard<std::mutex> lock(*_mutex);
         _map[std::move(position)] = opaque;
     }
     
-    void* find(const TopicPartition& position) const {
+    const void* find(const TopicPartition& position) const {
         if (_map.empty()) return nullptr;
         std::lock_guard<std::mutex> lock(*_mutex);
         auto it = _map.find(position);
@@ -53,12 +53,12 @@ public:
         return it->second;
     }
 
-    void* remove(const TopicPartition& position) {
+    const void* remove(const TopicPartition& position) {
         if (_map.empty()) return nullptr;
         std::lock_guard<std::mutex> lock(*_mutex);
         auto it = _map.find(position);
         if (it == _map.end()) return nullptr;
-        void* ptr = it->second;
+        const void* ptr = it->second;
         _map.erase(it);
         return ptr;
     }

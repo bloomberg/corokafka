@@ -145,35 +145,29 @@ bool ReceivedMessage<K,P>::skip() const
 }
 
 template <typename K, typename P>
-void ReceivedMessage<K,P>::setOpaque(void* opaque)
+void ReceivedMessage<K,P>::setOpaque(const void* opaque)
 {
     _opaque = opaque;
 }
 
 template <typename K, typename P>
-void ReceivedMessage<K,P>::commit(void* opaque)
+void ReceivedMessage<K,P>::commit(const void* opaque)
 {
     _opaque = opaque;
     if (_committer.get_consumer().get_configuration().get_offset_commit_callback() && (_opaque != nullptr)) {
         _offsets.insert(TopicPartition(getTopic(), getPartition(), getOffset()), opaque);
     }
-    if (_offsetSettings._autoCommitExec == ExecMode::Sync) {
-        _committer.commit(_message);
+    if (_offsetSettings._autoOffsetPersistStrategy == OffsetPersistStrategy::Commit) {
+        if (_offsetSettings._autoCommitExec== ExecMode::Sync) {
+            _committer.commit(_message);
+        }
+        else { // async
+            _committer.get_consumer().async_commit(_message);
+        }
     }
-    else { // async
-        _committer.get_consumer().async_commit(_message);
+    else { //OffsetPersistStrategy::Store
+        _committer.get_consumer().store_offset(_message);
     }
-    _isPersisted = true;
-}
-
-template <typename K, typename P>
-void ReceivedMessage<K,P>::store_offset(void* opaque)
-{
-    _opaque = opaque;
-    if (_committer.get_consumer().get_configuration().get_offset_commit_callback() && (_opaque != nullptr)) {
-        _offsets.insert(TopicPartition(getTopic(), getPartition(), getOffset()), opaque);
-    }
-    _committer.get_consumer().store_offset(_message);
     _isPersisted = true;
 }
 

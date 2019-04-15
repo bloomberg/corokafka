@@ -38,13 +38,13 @@ public:
      * @brief Pause all consumption from this topic
      * @param topic The topic name
      */
-    void pause(const std::string& topic = std::string());
+    void pause(const std::string& topic = {});
     
     /**
      * @brief Resume all consumption from this topic
      * @param topic The topic name
      */
-    void resume(const std::string& topic = std::string());
+    void resume(const std::string& topic = {});
     
     /**
      * @brief Unsubscribe from this topic
@@ -52,7 +52,17 @@ public:
      * @remark Note that this function is irreversible. Once unsubscribed, a consumer can
      *         no longer be subscribed again during the lifetime of the Connector.
      */
-    void unsubscribe(const std::string& topic = std::string());
+    void unsubscribe(const std::string& topic = {});
+    
+    /**
+     * @brief Commits an offset. The behavior of this function depends on the 'internal.consumer.offset.persist.strategy' value.
+     * @param topicPartition The offset to commit.
+     * @param opaque Pointer which will be passed as-is via the 'OffsetCommitCallback'.
+     * @warning If this method is used, 'internal.consumer.auto.offset.persist' must be set to 'false' and NO commits
+     *          should be made via the ReceivedMessage API.
+     */
+    void commit(const TopicPartition& topicPartition,
+                const void* opaque = nullptr);
     
     /**
      * @brief Gracefully shut down all consumers and unsubscribe from all topics.

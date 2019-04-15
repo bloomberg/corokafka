@@ -26,7 +26,7 @@ const std::string ConsumerConfiguration::s_internalOptionsPrefix = "internal.con
 const Configuration::OptionSet ConsumerConfiguration::s_internalOptions = {
     "internal.consumer.read.size",
     "internal.consumer.auto.offset.persist",
-    "internal.consumer.auto.offset.persist.strategy",
+    "internal.consumer.offset.persist.strategy",
     "internal.consumer.commit.exec",
     "internal.consumer.commit.backoff.strategy",
     "internal.consumer.commit.backoff.interval.ms",

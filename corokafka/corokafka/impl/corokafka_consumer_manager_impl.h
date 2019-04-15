@@ -63,6 +63,9 @@ private:
     
     void unsubscribe(const std::string& topic);
     
+    void commit(const TopicPartition& topicPartition,
+                const void* opaque);
+    
     void shutdown();
     
     void poll();

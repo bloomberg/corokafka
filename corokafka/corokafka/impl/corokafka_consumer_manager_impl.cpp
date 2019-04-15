@@ -14,6 +14,7 @@
 ** limitations under the License.
 */
 #include <corokafka/impl/corokafka_consumer_manager_impl.h>
+#include <cppkafka/macros.h>
 #include <cmath>
 #include <tuple>
 
@@ -179,7 +180,7 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
     }
     
     const ConfigurationOption* persistStrategy =
-        Configuration::findConfig("internal.consumer.auto.offset.persist.strategy", topicEntry._configuration.getInternalConfiguration());
+        Configuration::findConfig("internal.consumer.offset.persist.strategy", topicEntry._configuration.getInternalConfiguration());
     if (persistStrategy) {
         if (StringEqualCompare()(persistStrategy->get_value(), "commit")) {
             topicEntry._autoOffsetPersistStrategy = OffsetPersistStrategy::Commit;
@@ -188,7 +189,7 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
             topicEntry._autoOffsetPersistStrategy = OffsetPersistStrategy::Store;
         }
         else {
-            throw std::runtime_error("Unknown internal.consumer.auto.offset.persist.strategy value");
+            throw std::runtime_error("Unknown internal.consumer.offset.persist.strategy value");
         }
     }
     
@@ -408,6 +409,39 @@ void ConsumerManagerImpl::unsubscribe(const std::string& topic)
     }
     it->second._consumer->unsubscribe();
     it->second._isSubscribed = false;
+}
+
+void ConsumerManagerImpl::commit(const TopicPartition& topicPartition,
+                                 const void* opaque)
+{
+    auto it = _consumers.find(topicPartition.get_topic());
+    if (it == _consumers.end()) {
+        throw std::runtime_error("Invalid topic");
+    }
+    ConsumerTopicEntry& entry = it->second;
+    TopicPartitionList topicPartitions{topicPartition};
+    if (entry._committer->get_consumer().get_configuration().get_offset_commit_callback() && (opaque != nullptr)) {
+        entry._offsets.insert(topicPartition, opaque);
+    }
+    if (entry._autoOffsetPersistStrategy == OffsetPersistStrategy::Commit) {
+        if (entry._autoCommitExec== ExecMode::Sync) {
+            entry._committer->commit(topicPartitions);
+        }
+        else { // async
+            entry._committer->get_consumer().async_commit(topicPartitions);
+        }
+    }
+    else { //OffsetPersistStrategy::Store
+#if (RD_KAFKA_VERSION >= RD_KAFKA_STORE_OFFSETS_SUPPORT_VERSION)
+        entry._committer->get_consumer().store_offsets(topicPartitions);
+#else
+        std::ostringstream oss;
+        oss << hex << "Current RdKafka version " << RD_KAFKA_VERSION
+            << " does not support this functionality. Must be greater than "
+            << RD_KAFKA_STORE_OFFSETS_SUPPORT_VERSION;
+        throw std::runtime_error(oss.str());
+#endif
+    }
 }
 
 void ConsumerManagerImpl::shutdown()
