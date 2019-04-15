@@ -372,43 +372,74 @@ ConsumerMetadata ConsumerManagerImpl::getMetadata(const std::string& topic)
     return makeMetadata(it->second);
 }
 
-void ConsumerManagerImpl::preprocess(const std::string& topic, bool enable)
+void ConsumerManagerImpl::preprocess(bool enable, const std::string& topic)
 {
-    auto it = _consumers.find(topic);
-    if (it == _consumers.end()) {
-        throw std::runtime_error("Invalid topic");
+    if (topic.empty()) {
+        for (auto&& consumer : _consumers) {
+            consumer.second._preprocess = enable;
+        }
     }
-    it->second._preprocess = enable;
+    else {
+        auto it = _consumers.find(topic);
+        if (it == _consumers.end()) {
+            throw std::runtime_error("Invalid topic");
+        }
+        it->second._preprocess = enable;
+    }
 }
 
 void ConsumerManagerImpl::pause(const std::string& topic)
 {
-    auto it = _consumers.find(topic);
-    if (it == _consumers.end()) {
-        throw std::runtime_error("Invalid topic");
+    if (topic.empty()) {
+        for (auto&& consumer : _consumers) {
+            consumer.second._consumer->pause();
+            consumer.second._isPaused = true;
+        }
     }
-    it->second._consumer->pause();
-    it->second._isPaused = true;
+    else {
+        auto it = _consumers.find(topic);
+        if (it == _consumers.end()) {
+            throw std::runtime_error("Invalid topic");
+        }
+        it->second._consumer->pause();
+        it->second._isPaused = true;
+    }
 }
 
 void ConsumerManagerImpl::resume(const std::string& topic)
 {
-    auto it = _consumers.find(topic);
-    if (it == _consumers.end()) {
-        throw std::runtime_error("Invalid topic");
+    if (topic.empty()) {
+        for (auto&& consumer : _consumers) {
+            consumer.second._consumer->resume();
+            consumer.second._isPaused = false;
+        }
     }
-    it->second._consumer->resume();
-    it->second._isPaused = false;
+    else {
+        auto it = _consumers.find(topic);
+        if (it == _consumers.end()) {
+            throw std::runtime_error("Invalid topic");
+        }
+        it->second._consumer->resume();
+        it->second._isPaused = false;
+    }
 }
 
 void ConsumerManagerImpl::unsubscribe(const std::string& topic)
 {
-    auto it = _consumers.find(topic);
-    if (it == _consumers.end()) {
-        throw std::runtime_error("Invalid topic");
+    if (topic.empty()) {
+        for (auto&& consumer : _consumers) {
+            consumer.second._consumer->unsubscribe();
+            consumer.second._isSubscribed = false;
+        }
     }
-    it->second._consumer->unsubscribe();
-    it->second._isSubscribed = false;
+    else {
+        auto it = _consumers.find(topic);
+        if (it == _consumers.end()) {
+            throw std::runtime_error("Invalid topic");
+        }
+        it->second._consumer->unsubscribe();
+        it->second._isSubscribed = false;
+    }
 }
 
 void ConsumerManagerImpl::commit(const TopicPartition& topicPartition,

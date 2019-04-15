@@ -79,11 +79,11 @@ public:
     
     /**
      * @brief Enables or disables the preprocessor callback (if registered)
-     * @param topic The topic name
      * @param enable True to enable, false to disable
+     * @param topic The topic name
      * @remark Note that the preprocessor is enabled by default
      */
-    void preprocess(const std::string& topic, bool enable);
+    void preprocess(bool enable, const std::string& topic = {});
     
 protected:
     using ConfigMap = ConfigurationBuilder::ConfigMap<ConsumerConfiguration>;
