@@ -1,3 +1,10 @@
+corokafka (0.0.0.7) unstable; urgency=low
+
+  * 57feb91 Added subscribe() method
+  * 7be1f6c Added support for committing an entire subscription list
+
+ -- Alexander Damian <adamian@bloomberg.net>  Wed, 17 Apr 2019 14:41:48 -0400
+
 corokafka (0.0.0.6) unstable; urgency=low
 
   * 3b5c299 Fixed consumer functions when topic string is not specified
