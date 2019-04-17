@@ -60,6 +60,12 @@ void ConsumerManager::resume(const std::string& topic)
     _impl->resume(topic);
 }
 
+void ConsumerManager::subscribe(const std::string& topic,
+                                TopicPartitionList partitionList)
+{
+    _impl->subscribe(topic, std::move(partitionList));
+}
+
 void ConsumerManager::unsubscribe(const std::string& topic)
 {
     _impl->unsubscribe(topic);

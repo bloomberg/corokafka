@@ -61,6 +61,9 @@ private:
     
     void resume(const std::string& topic);
     
+    void subscribe(const std::string& topic,
+                   TopicPartitionList partitionList);
+    
     void unsubscribe(const std::string& topic);
     
     void commit(const TopicPartition& topicPartition,

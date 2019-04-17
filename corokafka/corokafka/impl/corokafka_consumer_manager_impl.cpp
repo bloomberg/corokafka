@@ -423,12 +423,41 @@ void ConsumerManagerImpl::resume(const std::string& topic)
     }
 }
 
+void ConsumerManagerImpl::subscribe(const std::string& topic,
+                                    TopicPartitionList partitionList)
+{
+    auto it = _consumers.find(topic);
+    if (it == _consumers.end()) {
+        throw std::runtime_error("Invalid topic");
+    }
+    ConsumerTopicEntry& topicEntry = it->second;
+    if (topicEntry._isSubscribed) {
+        throw std::runtime_error("Already subscribed");
+    }
+    //subscribe or statically assign partitions to this consumer
+    topicEntry._isSubscribed = true;
+    topicEntry._setOffsetsOnStart = true;
+    if (!partitionList.empty()) {
+        //Overwrite the initial assignment
+        topicEntry._configuration.assignInitialPartitions(topicEntry._configuration.getPartitionStrategy(),
+                                                          std::move(partitionList));
+    }
+    if (topicEntry._configuration.getPartitionStrategy() == PartitionStrategy::Static) {
+        topicEntry._consumer->assign(topicEntry._configuration.getInitialPartitionAssignment());
+    }
+    else {
+        topicEntry._consumer->subscribe({topic});
+    }
+}
+
 void ConsumerManagerImpl::unsubscribe(const std::string& topic)
 {
     if (topic.empty()) {
         for (auto&& consumer : _consumers) {
-            consumer.second._consumer->unsubscribe();
-            consumer.second._isSubscribed = false;
+            if (consumer.second._isSubscribed) {
+                consumer.second._consumer->unsubscribe();
+                consumer.second._isSubscribed = false;
+            }
         }
     }
     else {
@@ -436,8 +465,9 @@ void ConsumerManagerImpl::unsubscribe(const std::string& topic)
         if (it == _consumers.end()) {
             throw std::runtime_error("Invalid topic");
         }
-        it->second._consumer->unsubscribe();
-        it->second._isSubscribed = false;
+        if (it->second._isSubscribed) {
+            it->second._consumer->unsubscribe();
+        }
     }
 }
 
@@ -626,7 +656,7 @@ void ConsumerManagerImpl::assignmentCallback(
                         TopicPartitionList& topicPartitions)
 {
     // Clear any throttling we may have
-    topicEntry._isAssigned = true;
+    topicEntry._isSubscribed = true;
     topicEntry._throttleDuration = std::chrono::milliseconds(0);
     PartitionStrategy strategy = topicEntry._configuration.getPartitionStrategy();
     if ((strategy == PartitionStrategy::Dynamic) &&
@@ -653,7 +683,7 @@ void ConsumerManagerImpl::revocationCallback(
                         ConsumerTopicEntry& topicEntry,
                         const TopicPartitionList& topicPartitions)
 {
-    topicEntry._isAssigned = false;
+    topicEntry._isSubscribed = false;
     CallbackInvoker<Callbacks::RebalanceCallback>
         ("revocation", topicEntry._configuration.getRebalanceCallback(), topicEntry._consumer.get())
             (makeMetadata(topicEntry), Error(RD_KAFKA_RESP_ERR__REVOKE_PARTITIONS), const_cast<TopicPartitionList&>(topicPartitions));

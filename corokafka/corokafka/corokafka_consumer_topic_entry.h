@@ -59,13 +59,12 @@ struct ConsumerTopicEntry : TopicEntry {
     {}
     //Members
     const ConnectorConfiguration&   _connectorConfiguration;
-    const ConsumerConfiguration     _configuration;
+    ConsumerConfiguration           _configuration;
     ConsumerPtr                     _consumer;
     CommitterPtr                    _committer;
     PollingStrategyPtr              _roundRobin;
     mutable OffsetMap               _offsets;
     bool                            _isPaused{false};
-    bool                            _isAssigned{false};
     bool                            _setOffsetsOnStart{true};
     bool                            _pauseOnStart{false};
     bool                            _isSubscribed{true};
