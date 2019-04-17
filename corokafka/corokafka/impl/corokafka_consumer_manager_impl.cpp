@@ -94,27 +94,27 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
     //Set the global callbacks
     if (topicEntry._configuration.getErrorCallback()) {
         auto errorFunc = std::bind(errorCallback2, std::ref(topicEntry), _1, _2, _3);
-        kafkaConfig.set_error_callback(errorFunc);
+        kafkaConfig.set_error_callback(std::move(errorFunc));
     }
     
     if (topicEntry._configuration.getThrottleCallback() || topicEntry._autoThrottle) {
         auto throttleFunc = std::bind(throttleCallback, std::ref(topicEntry), _1, _2, _3, _4);
-        kafkaConfig.set_throttle_callback(throttleFunc);
+        kafkaConfig.set_throttle_callback(std::move(throttleFunc));
     }
     
     if (topicEntry._configuration.getLogCallback()) {
         auto logFunc = std::bind(logCallback, std::ref(topicEntry), _1, _2, _3, _4);
-        kafkaConfig.set_log_callback(logFunc);
+        kafkaConfig.set_log_callback(std::move(logFunc));
     }
     
     if (topicEntry._configuration.getStatsCallback()) {
         auto statsFunc = std::bind(statsCallback, std::ref(topicEntry), _1, _2);
-        kafkaConfig.set_stats_callback(statsFunc);
+        kafkaConfig.set_stats_callback(std::move(statsFunc));
     }
     
     if (topicEntry._configuration.getOffsetCommitCallback()) {
         auto offsetCommitFunc = std::bind(offsetCommitCallback, std::ref(topicEntry), _1,  _2, _3);
-        kafkaConfig.set_offset_commit_callback(offsetCommitFunc);
+        kafkaConfig.set_offset_commit_callback(std::move(offsetCommitFunc));
     }
     
     if (topicEntry._configuration.getPreprocessorCallback()) {
@@ -339,19 +339,18 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
         ((topicEntry._configuration.getPartitionStrategy() == PartitionStrategy::Dynamic) &&
          !topicEntry._configuration.getInitialPartitionAssignment().empty())) {
         auto assignmentFunc = std::bind(&ConsumerManagerImpl::assignmentCallback, std::ref(topicEntry), _1);
-        topicEntry._consumer->set_assignment_callback(assignmentFunc);
+        topicEntry._consumer->set_assignment_callback(std::move(assignmentFunc));
     }
     if (topicEntry._configuration.getRebalanceCallback()) {
         auto revocationFunc = std::bind(&ConsumerManagerImpl::revocationCallback, std::ref(topicEntry), _1);
-        topicEntry._consumer->set_revocation_callback(revocationFunc);
+        topicEntry._consumer->set_revocation_callback(std::move(revocationFunc));
         
         auto rebalanceErrorFunc = std::bind(&ConsumerManagerImpl::rebalanceErrorCallback, std::ref(topicEntry), _1);
-        topicEntry._consumer->set_rebalance_error_callback(rebalanceErrorFunc);
+        topicEntry._consumer->set_rebalance_error_callback(std::move(rebalanceErrorFunc));
     }
     
     if (topicEntry._pauseOnStart) {
         topicEntry._consumer->pause(topic);
-        topicEntry._pauseOnStart = false;
     }
     
     //subscribe or statically assign partitions to this consumer
@@ -450,9 +449,29 @@ void ConsumerManagerImpl::commit(const TopicPartition& topicPartition,
         throw std::runtime_error("Invalid topic");
     }
     ConsumerTopicEntry& entry = it->second;
-    TopicPartitionList topicPartitions{topicPartition};
+    commitImpl(entry, TopicPartitionList{topicPartition}, opaque);
+}
+
+void ConsumerManagerImpl::commit(const TopicPartitionList& topicPartitions,
+                                 const void* opaque)
+{
+    if (topicPartitions.empty()) {
+        throw std::runtime_error("Must have at least one partition");
+    }
+    auto it = _consumers.find(topicPartitions.at(0).get_topic());
+    if (it == _consumers.end()) {
+        throw std::runtime_error("Invalid topic");
+    }
+    ConsumerTopicEntry& entry = it->second;
+    commitImpl(entry, topicPartitions, opaque);
+}
+
+void ConsumerManagerImpl::commitImpl(ConsumerTopicEntry& entry,
+                                     const TopicPartitionList& topicPartitions,
+                                     const void* opaque)
+{
     if (entry._committer->get_consumer().get_configuration().get_offset_commit_callback() && (opaque != nullptr)) {
-        entry._offsets.insert(topicPartition, opaque);
+        entry._offsets.insert(topicPartitions.at(0), opaque);
     }
     if (entry._autoOffsetPersistStrategy == OffsetPersistStrategy::Commit) {
         if (entry._autoCommitExec== ExecMode::Sync) {

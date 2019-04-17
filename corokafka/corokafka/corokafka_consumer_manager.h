@@ -65,6 +65,14 @@ public:
                 const void* opaque = nullptr);
     
     /**
+     * @brief Similar to the above commit() but supporting a list of partitions.
+     * @param topicPartitions Partitions on the *same* topic.
+     * @param opaque Pointer which will be passed as-is via the 'OffsetCommitCallback'.
+     */
+    void commit(const TopicPartitionList& topicPartitions,
+                const void* opaque = nullptr);
+    
+    /**
      * @brief Gracefully shut down all consumers and unsubscribe from all topics.
      * @remark Note that this method is automatically called in the destructor.
      */

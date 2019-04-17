@@ -66,6 +66,13 @@ private:
     void commit(const TopicPartition& topicPartition,
                 const void* opaque);
     
+    void commit(const TopicPartitionList& topicPartitions,
+                const void* opaque);
+    
+    void commitImpl(ConsumerTopicEntry& topicEntry,
+                    const TopicPartitionList& topicPartitions,
+                    const void* opaque);
+    
     void shutdown();
     
     void poll();

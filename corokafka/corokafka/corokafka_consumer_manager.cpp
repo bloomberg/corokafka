@@ -71,6 +71,12 @@ void ConsumerManager::commit(const TopicPartition& topicPartition,
     _impl->commit(topicPartition, opaque);
 }
 
+void ConsumerManager::commit(const TopicPartitionList& topicPartitions,
+                             const void* opaque)
+{
+    _impl->commit(topicPartitions, opaque);
+}
+
 void ConsumerManager::shutdown()
 {
     _impl->shutdown();
