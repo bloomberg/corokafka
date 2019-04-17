@@ -1,3 +1,9 @@
+corokafka (0.0.0.8) unstable; urgency=low
+
+  * 665f7bc Added query for configuration and topic list
+
+ -- Alexander Damian <adamian@bloomberg.net>  Wed, 17 Apr 2019 16:16:51 -0400
+
 corokafka (0.0.0.7) unstable; urgency=low
 
   * 57feb91 Added subscribe() method
