@@ -56,6 +56,10 @@ private:
                         ConfigMap&& configs);
 
     ProducerMetadata getMetadata(const std::string& topic);
+    
+    const ProducerConfiguration& getConfiguration(const std::string& topic) const;
+    
+    std::vector<std::string> getTopics() const;
 
     template <typename K, typename P>
     size_t send(const std::string& topic,

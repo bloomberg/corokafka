@@ -307,6 +307,25 @@ ProducerMetadata ProducerManagerImpl::getMetadata(const std::string& topic)
     return makeMetadata(it->second);
 }
 
+const ProducerConfiguration& ProducerManagerImpl::getConfiguration(const std::string& topic) const
+{
+    auto it = _producers.find(topic);
+    if (it == _producers.end()) {
+        throw std::runtime_error("Invalid topic");
+    }
+    return it->second._configuration;
+}
+
+std::vector<std::string> ProducerManagerImpl::getTopics() const
+{
+    std::vector<std::string> topics;
+    topics.reserve(_producers.size());
+    for (const auto& entry : _producers) {
+        topics.emplace_back(entry.first);
+    }
+    return topics;
+}
+
 void ProducerManagerImpl::waitForAcks(const std::string& topic)
 {
     auto it = _producers.find(topic);

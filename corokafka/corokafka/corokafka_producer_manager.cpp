@@ -45,6 +45,16 @@ ProducerMetadata ProducerManager::getMetadata(const std::string& topic)
     return _impl->getMetadata(topic);
 }
 
+const ProducerConfiguration& ProducerManager::getConfiguration(const std::string& topic) const
+{
+    return _impl->getConfiguration(topic);
+}
+
+std::vector<std::string> ProducerManager::getTopics() const
+{
+    return _impl->getTopics();
+}
+
 void ProducerManager::resetQueueFullTrigger(const std::string& topic)
 {
     return _impl->resetQueueFullTrigger(topic);

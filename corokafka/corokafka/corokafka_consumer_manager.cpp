@@ -93,5 +93,15 @@ void ConsumerManager::poll()
     _impl->poll();
 }
 
+const ConsumerConfiguration& ConsumerManager::getConfiguration(const std::string& topic) const
+{
+    return _impl->getConfiguration(topic);
+}
+
+std::vector<std::string> ConsumerManager::getTopics() const
+{
+    return _impl->getTopics();
+}
+
 }
 }

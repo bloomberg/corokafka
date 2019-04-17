@@ -524,6 +524,25 @@ void ConsumerManagerImpl::commitImpl(ConsumerTopicEntry& entry,
     }
 }
 
+const ConsumerConfiguration& ConsumerManagerImpl::getConfiguration(const std::string& topic) const
+{
+    auto it = _consumers.find(topic);
+    if (it == _consumers.end()) {
+        throw std::runtime_error("Invalid topic");
+    }
+    return it->second._configuration;
+}
+
+std::vector<std::string> ConsumerManagerImpl::getTopics() const
+{
+    std::vector<std::string> topics;
+    topics.reserve(_consumers.size());
+    for (const auto& entry : _consumers) {
+        topics.emplace_back(entry.first);
+    }
+    return topics;
+}
+
 void ConsumerManagerImpl::shutdown()
 {
     if (!_shutdownInitiated.test_and_set()) {
@@ -1267,7 +1286,9 @@ void ConsumerManagerImpl::exceptionHandler(const std::exception& ex,
 
 ConsumerMetadata ConsumerManagerImpl::makeMetadata(const ConsumerTopicEntry& topicEntry)
 {
-    return ConsumerMetadata(topicEntry._configuration.getTopic(), *topicEntry._consumer);
+    return ConsumerMetadata(topicEntry._configuration.getTopic(),
+                            *topicEntry._consumer,
+                            topicEntry._configuration.getPartitionStrategy());
 }
 
 int ConsumerManagerImpl::mapPartitionToQueue(int partition,

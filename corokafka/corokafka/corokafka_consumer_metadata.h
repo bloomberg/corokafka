@@ -72,12 +72,22 @@ public:
      */
     GroupInformation getGroupInformation() const;
     
+    /**
+     * @brief Get the current partition strategy.
+     * @return The strategy.
+     */
+    PartitionStrategy getPartitionStrategy() const;
+    
 private:
     ConsumerMetadata(const std::string& topic,
-                     Consumer& handle);
+                     Consumer& handle,
+                     PartitionStrategy strategy);
     ConsumerMetadata(const std::string& topic,
                      const Topic& kafkaTopic,
-                     Consumer& handle);
+                     Consumer& handle,
+                     PartitionStrategy strategy);
+    
+    PartitionStrategy _strategy;
 };
 
 }

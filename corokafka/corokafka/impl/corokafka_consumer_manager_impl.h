@@ -84,6 +84,10 @@ private:
     
     size_t getConsumerBatchSize() const;
     
+    const ConsumerConfiguration& getConfiguration(const std::string& topic) const;
+    
+    std::vector<std::string> getTopics() const;
+    
     //Callbacks
     static void errorCallback2(ConsumerTopicEntry& topicEntry,
                                KafkaHandleBase& handle,

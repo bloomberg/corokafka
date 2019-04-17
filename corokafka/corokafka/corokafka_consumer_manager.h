@@ -103,6 +103,19 @@ public:
      */
     void preprocess(bool enable, const std::string& topic = {});
     
+    /**
+     * @brief Get the configuration associated with this topic.
+     * @param topic The topic.
+     * @return A reference to the configuration.
+     */
+    const ConsumerConfiguration& getConfiguration(const std::string& topic) const;
+    
+    /**
+     * @brief Get all the managed topics
+     * @return The topic list.
+     */
+    std::vector<std::string> getTopics() const;
+    
 protected:
     using ConfigMap = ConfigurationBuilder::ConfigMap<ConsumerConfiguration>;
     ConsumerManager(quantum::Dispatcher& dispatcher,

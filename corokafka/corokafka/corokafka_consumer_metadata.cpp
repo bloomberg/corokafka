@@ -23,15 +23,19 @@ namespace corokafka {
 //=============================================================================
 
 ConsumerMetadata::ConsumerMetadata(const std::string& topic,
-                                   Consumer& handle) :
-    Metadata(topic, Topic(), handle)
+                                   Consumer& handle,
+                                   PartitionStrategy strategy) :
+    Metadata(topic, Topic(), handle),
+    _strategy(strategy)
 {
 }
 
 ConsumerMetadata::ConsumerMetadata(const std::string& topic,
                                    const Topic& kafkaTopic,
-                                   Consumer& handle) :
-    Metadata(topic, kafkaTopic, handle)
+                                   Consumer& handle,
+                                   PartitionStrategy strategy) :
+    Metadata(topic, kafkaTopic, handle),
+    _strategy(strategy)
 {
 }
 
@@ -86,6 +90,11 @@ const TopicPartitionList& ConsumerMetadata::getPartitionAssignment() const
 GroupInformation ConsumerMetadata::getGroupInformation() const
 {
     return _handle.get_consumer_group(static_cast<const Consumer&>(_handle).get_member_id());
+}
+
+PartitionStrategy ConsumerMetadata::getPartitionStrategy() const
+{
+    return _strategy;
 }
 
 }

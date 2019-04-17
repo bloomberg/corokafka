@@ -125,6 +125,19 @@ public:
     ProducerMetadata getMetadata(const std::string& topic);
     
     /**
+     * @brief Get the configuration associated with this topic.
+     * @param topic The topic.
+     * @return A reference to the configuration.
+     */
+    const ProducerConfiguration& getConfiguration(const std::string& topic) const;
+    
+    /**
+     * @brief Get all the managed topics.
+     * @return The topic list.
+     */
+    std::vector<std::string> getTopics() const;
+    
+    /**
      * @brief In edgeTriggered mode, re-enable the queue full notification callback.
      * @param topic The topic for which to reset the callback.
      * @note This method only works if the application has previously registered a QueueFullCallback with this topic.
