@@ -1,9 +1,7 @@
 # CoroKafka library
-Coroutine-based Kafka connector library. Powerful, scalable and easy to use C++ library built on top of
-`librdkafka`, `cppkafka` and `quantum`, supporting any number of parallel producers and consumers.
+Coroutine-based Kafka messaging library (using [boost::coroutine2](https://www.boost.org/doc/libs/1_65_0/libs/coroutine2/doc/html/index.html) framework). Powerful, scalable and easy to use C++ library built on top of `librdkafka`, `cppkafka` and `quantum`, supporting any number of parallel producers and consumers.
 Producing and consuming of messages is simplified by allowing applications to use their own native message
-formats which are automatically serialized and deserialized by the connector. Integrated support for `rdkafka` headers.
-Currently the library only supports static topics.
+formats which are automatically serialized and deserialized by the connector. Message processing spreads to optimal number of parallel coroutines and threads. Integrated support for `rdkafka` headers. Currently the library only supports static topics and admin API is not yet present.
 
 Compiles for -std=gnu++11, -std=gnu++14 and -std=gnu++17.
 
@@ -16,7 +14,7 @@ See [API documentation](https://bbgithub.dev.bloomberg.com/pages/eor/corokafka/)
 ```
 Note that this project is dependent on the following libraries which must appear on your application link line:
 * `cppkafka`
-* `rdkafka` (Only if statically linking. Otherwise cppkafka.so has librdkafka.so in its rpath)
+* `rdkafka` (static linking only)
 * `boost_context`
 * `pthread`
 
