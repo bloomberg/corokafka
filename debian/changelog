@@ -1,3 +1,10 @@
+corokafka (0.0.0.9) unstable; urgency=low
+
+  * 9c67088 Added forceSync support when committing
+  * dd8078e Update README.md
+
+ -- Alexander Damian <adamian@bloomberg.net>  Tue, 23 Apr 2019 15:57:01 -0400
+
 corokafka (0.0.0.8) unstable; urgency=low
 
   * 665f7bc Added query for configuration and topic list
