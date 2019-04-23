@@ -67,14 +67,17 @@ private:
     void unsubscribe(const std::string& topic);
     
     void commit(const TopicPartition& topicPartition,
-                const void* opaque);
+                const void* opaque,
+                bool forceSync);
     
     void commit(const TopicPartitionList& topicPartitions,
-                const void* opaque);
+                const void* opaque,
+                bool forceSync);
     
     void commitImpl(ConsumerTopicEntry& topicEntry,
                     const TopicPartitionList& topicPartitions,
-                    const void* opaque);
+                    const void* opaque,
+                    bool forceSync);
     
     void shutdown();
     

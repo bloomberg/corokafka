@@ -118,9 +118,9 @@ public:
     void shutdown();
     
     /**
-     * @brief Get Kafka metadata associated with this topic
-     * @param topic The topic to query
-     * @return The metadata object
+     * @brief Get Kafka metadata associated with this topic.
+     * @param topic The topic to query.
+     * @return The metadata object.
      */
     ProducerMetadata getMetadata(const std::string& topic);
     

@@ -229,26 +229,26 @@ const Callbacks::StatsCallback& Configuration::getStatsCallback() const
     return _statsCallback;
 }
 
-const ConfigurationOption* Configuration::getConfiguration(const std::string& name) const
+const ConfigurationOption* Configuration::getConfigurationOption(const std::string& name) const
 {
-    const ConfigurationOption* option = findConfig(name, _config);
+    const ConfigurationOption* option = findConfigOption(name, _config);
     if (!option) {
-        option = findConfig(name, _internalConfig);
+        option = findConfigOption(name, _internalConfig);
     }
     return option;
 }
 
-const ConfigurationOption* Configuration::getTopicConfiguration(const std::string& name) const
+const ConfigurationOption* Configuration::getTopicConfigurationOption(const std::string& name) const
 {
-    const ConfigurationOption* option = findConfig(name, _topicConfig);
+    const ConfigurationOption* option = findConfigOption(name, _topicConfig);
     if (!option) {
-        option = findConfig(name, _internalTopicConfig);
+        option = findConfigOption(name, _internalTopicConfig);
     }
     return option;
 }
 
-const ConfigurationOption* Configuration::findConfig(const std::string& name,
-                                                     const Options& config)
+const ConfigurationOption* Configuration::findConfigOption(const std::string& name,
+                                                           const Options& config)
 {
     const auto it = std::find_if(config.cbegin(), config.cend(),
                                  [&name](const ConfigurationOption& config)->bool {

@@ -72,15 +72,17 @@ void ConsumerManager::unsubscribe(const std::string& topic)
 }
 
 void ConsumerManager::commit(const TopicPartition& topicPartition,
-                             const void* opaque)
+                             const void* opaque,
+                             bool forceSync)
 {
-    _impl->commit(topicPartition, opaque);
+    _impl->commit(topicPartition, opaque, forceSync);
 }
 
 void ConsumerManager::commit(const TopicPartitionList& topicPartitions,
-                             const void* opaque)
+                             const void* opaque,
+                             bool forceSync)
 {
-    _impl->commit(topicPartitions, opaque);
+    _impl->commit(topicPartitions, opaque, forceSync);
 }
 
 void ConsumerManager::shutdown()

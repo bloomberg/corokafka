@@ -80,13 +80,13 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
     kafkaConfig.set_default_topic_configuration(TopicConfiguration(topicEntry._configuration.getTopicConfiguration()));
     
     const ConfigurationOption* autoThrottle =
-        Configuration::findConfig("internal.consumer.auto.throttle", topicEntry._configuration.getInternalConfiguration());
+        Configuration::findConfigOption("internal.consumer.auto.throttle", topicEntry._configuration.getInternalConfiguration());
     if (autoThrottle) {
         topicEntry._autoThrottle = StringEqualCompare()(autoThrottle->get_value(), "true");
     }
     
     const ConfigurationOption* throttleMultiplier =
-        Configuration::findConfig("internal.consumer.auto.throttle.multiplier", topicEntry._configuration.getInternalConfiguration());
+        Configuration::findConfigOption("internal.consumer.auto.throttle.multiplier", topicEntry._configuration.getInternalConfiguration());
     if (throttleMultiplier) {
         topicEntry._throttleMultiplier = std::stol(throttleMultiplier->get_value());
     }
@@ -123,7 +123,7 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
     
     bool roundRobinPolling = false;
     const ConfigurationOption* pollStrategy =
-        Configuration::findConfig("internal.consumer.poll.strategy", topicEntry._configuration.getInternalConfiguration());
+        Configuration::findConfigOption("internal.consumer.poll.strategy", topicEntry._configuration.getInternalConfiguration());
     if (pollStrategy) {
         if (StringEqualCompare()(pollStrategy->get_value(), "roundrobin")) {
             roundRobinPolling = true;
@@ -142,31 +142,31 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
     
     //Set internal config options
     const ConfigurationOption* pauseOnStart =
-        Configuration::findConfig("internal.consumer.pause.on.start", topicEntry._configuration.getInternalConfiguration());
+        Configuration::findConfigOption("internal.consumer.pause.on.start", topicEntry._configuration.getInternalConfiguration());
     if (pauseOnStart) {
         topicEntry._pauseOnStart = StringEqualCompare()(pauseOnStart->get_value(), "true");
     }
     
     const ConfigurationOption* skipUnknownHeaders =
-        Configuration::findConfig("internal.consumer.skip.unknown.headers", topicEntry._configuration.getInternalConfiguration());
+        Configuration::findConfigOption("internal.consumer.skip.unknown.headers", topicEntry._configuration.getInternalConfiguration());
     if (skipUnknownHeaders) {
         topicEntry._skipUnknownHeaders = StringEqualCompare()(skipUnknownHeaders->get_value(), "true");
     }
     
     const ConfigurationOption* consumerTimeout =
-        Configuration::findConfig("internal.consumer.timeout.ms", topicEntry._configuration.getInternalConfiguration());
+        Configuration::findConfigOption("internal.consumer.timeout.ms", topicEntry._configuration.getInternalConfiguration());
     if (consumerTimeout) {
         topicEntry._consumer->set_timeout(std::chrono::milliseconds(std::stoll(consumerTimeout->get_value())));
     }
     
     const ConfigurationOption* pollTimeout =
-        Configuration::findConfig("internal.consumer.poll.timeout.ms", topicEntry._configuration.getInternalConfiguration());
+        Configuration::findConfigOption("internal.consumer.poll.timeout.ms", topicEntry._configuration.getInternalConfiguration());
     if (pollTimeout) {
         topicEntry._pollTimeout = std::chrono::milliseconds(std::stoll(pollTimeout->get_value()));
     }
     
     const ConfigurationOption* logLevel =
-        Configuration::findConfig("internal.consumer.log.level", topicEntry._configuration.getInternalConfiguration());
+        Configuration::findConfigOption("internal.consumer.log.level", topicEntry._configuration.getInternalConfiguration());
     if (logLevel) {
         LogLevel level = logLevelFromString(logLevel->get_value());
         topicEntry._consumer->set_log_level(level);
@@ -174,13 +174,13 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
     }
     
     const ConfigurationOption* autoPersist =
-        Configuration::findConfig("internal.consumer.auto.offset.persist", topicEntry._configuration.getInternalConfiguration());
+        Configuration::findConfigOption("internal.consumer.auto.offset.persist", topicEntry._configuration.getInternalConfiguration());
     if (autoPersist) {
         topicEntry._autoOffsetPersist = StringEqualCompare()(autoPersist->get_value(), "true");
     }
     
     const ConfigurationOption* persistStrategy =
-        Configuration::findConfig("internal.consumer.offset.persist.strategy", topicEntry._configuration.getInternalConfiguration());
+        Configuration::findConfigOption("internal.consumer.offset.persist.strategy", topicEntry._configuration.getInternalConfiguration());
     if (persistStrategy) {
         if (StringEqualCompare()(persistStrategy->get_value(), "commit")) {
             topicEntry._autoOffsetPersistStrategy = OffsetPersistStrategy::Commit;
@@ -206,7 +206,7 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
     }
     
     const ConfigurationOption* commitExec =
-        Configuration::findConfig("internal.consumer.commit.exec", topicEntry._configuration.getInternalConfiguration());
+        Configuration::findConfigOption("internal.consumer.commit.exec", topicEntry._configuration.getInternalConfiguration());
     if (commitExec) {
         if (StringEqualCompare()(commitExec->get_value(), "sync")) {
             topicEntry._autoCommitExec = ExecMode::Sync;
@@ -220,13 +220,13 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
     }
     
     const ConfigurationOption* numRetriesOption =
-        Configuration::findConfig("internal.consumer.commit.num.retries", topicEntry._configuration.getInternalConfiguration());
+        Configuration::findConfigOption("internal.consumer.commit.num.retries", topicEntry._configuration.getInternalConfiguration());
     if (numRetriesOption) {
         topicEntry._committer->set_maximum_retries(std::stoll(numRetriesOption->get_value()));
     }
     
     const ConfigurationOption* backoffStrategyOption =
-        Configuration::findConfig("internal.consumer.commit.backoff.strategy", topicEntry._configuration.getInternalConfiguration());
+        Configuration::findConfigOption("internal.consumer.commit.backoff.strategy", topicEntry._configuration.getInternalConfiguration());
     if (backoffStrategyOption) {
         if (StringEqualCompare()(backoffStrategyOption->get_value(), "linear")) {
             topicEntry._committer->set_backoff_policy(BackoffPerformer::BackoffPolicy::LINEAR);
@@ -240,7 +240,7 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
     }
     
     const ConfigurationOption* backoffInterval =
-        Configuration::findConfig("internal.consumer.commit.backoff.interval.ms", topicEntry._configuration.getInternalConfiguration());
+        Configuration::findConfigOption("internal.consumer.commit.backoff.interval.ms", topicEntry._configuration.getInternalConfiguration());
     if (backoffInterval) {
         std::chrono::milliseconds interval(std::stoll(backoffInterval->get_value()));
         topicEntry._committer->set_initial_backoff(interval);
@@ -248,19 +248,19 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
     }
     
     const ConfigurationOption* maxBackoff =
-        Configuration::findConfig("internal.consumer.commit.max.backoff.ms", topicEntry._configuration.getInternalConfiguration());
+        Configuration::findConfigOption("internal.consumer.commit.max.backoff.ms", topicEntry._configuration.getInternalConfiguration());
     if (maxBackoff) {
         topicEntry._committer->set_maximum_backoff(std::chrono::milliseconds(std::stoll(maxBackoff->get_value())));
     }
     
     const ConfigurationOption* batchSize =
-        Configuration::findConfig("internal.consumer.read.size", topicEntry._configuration.getInternalConfiguration());
+        Configuration::findConfigOption("internal.consumer.read.size", topicEntry._configuration.getInternalConfiguration());
     if (batchSize) {
         topicEntry._batchSize = std::stoll(batchSize->get_value());
     }
     
     const ConfigurationOption* threadRangeLow =
-        Configuration::findConfig("internal.consumer.receive.callback.thread.range.low", topicEntry._configuration.getInternalConfiguration());
+        Configuration::findConfigOption("internal.consumer.receive.callback.thread.range.low", topicEntry._configuration.getInternalConfiguration());
     if (threadRangeLow) {
         int value = std::stoi(threadRangeLow->get_value());
         if (value < topicEntry._receiveCallbackThreadRange.first || value > topicEntry._receiveCallbackThreadRange.second) {
@@ -270,7 +270,7 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
     }
     
     const ConfigurationOption* threadRangeHigh =
-        Configuration::findConfig("internal.consumer.receive.callback.thread.range.high", topicEntry._configuration.getInternalConfiguration());
+        Configuration::findConfigOption("internal.consumer.receive.callback.thread.range.high", topicEntry._configuration.getInternalConfiguration());
     if (threadRangeHigh) {
         int value = std::stoi(threadRangeHigh->get_value());
         if (value < topicEntry._receiveCallbackThreadRange.first || value > topicEntry._receiveCallbackThreadRange.second) {
@@ -280,7 +280,7 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
     }
     
     const ConfigurationOption* receiveCallbackExec =
-        Configuration::findConfig("internal.consumer.receive.callback.exec", topicEntry._configuration.getInternalConfiguration());
+        Configuration::findConfigOption("internal.consumer.receive.callback.exec", topicEntry._configuration.getInternalConfiguration());
     if (receiveCallbackExec) {
         if (StringEqualCompare()(receiveCallbackExec->get_value(), "sync")) {
             topicEntry._receiveCallbackExec = ExecMode::Sync;
@@ -294,7 +294,7 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
     }
     
     const ConfigurationOption* receiveThread =
-        Configuration::findConfig("internal.consumer.receive.invoke.thread", topicEntry._configuration.getInternalConfiguration());
+        Configuration::findConfigOption("internal.consumer.receive.invoke.thread", topicEntry._configuration.getInternalConfiguration());
     if (receiveThread) {
         if (StringEqualCompare()(receiveThread->get_value(), "io")) {
             topicEntry._receiveOnIoThread = true;
@@ -309,19 +309,19 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
     }
 
     const ConfigurationOption* batchPrefetch =
-        Configuration::findConfig("internal.consumer.batch.prefetch", topicEntry._configuration.getInternalConfiguration());
+        Configuration::findConfigOption("internal.consumer.batch.prefetch", topicEntry._configuration.getInternalConfiguration());
     if (batchPrefetch) {
         topicEntry._batchPrefetch = StringEqualCompare()(batchPrefetch->get_value(), "true");
     }
     
     const ConfigurationOption* preprocessMessages =
-        Configuration::findConfig("internal.consumer.preprocess.messages", topicEntry._configuration.getInternalConfiguration());
+        Configuration::findConfigOption("internal.consumer.preprocess.messages", topicEntry._configuration.getInternalConfiguration());
     if (preprocessMessages) {
         topicEntry._preprocess = StringEqualCompare()(preprocessMessages->get_value(), "true");
     }
     
     const ConfigurationOption* invokeThread =
-        Configuration::findConfig("internal.consumer.preprocess.invoke.thread", topicEntry._configuration.getInternalConfiguration());
+        Configuration::findConfigOption("internal.consumer.preprocess.invoke.thread", topicEntry._configuration.getInternalConfiguration());
     if (invokeThread) {
         if (StringEqualCompare()(invokeThread->get_value(), "io")) {
             topicEntry._preprocessOnIoThread = true;
@@ -472,18 +472,20 @@ void ConsumerManagerImpl::unsubscribe(const std::string& topic)
 }
 
 void ConsumerManagerImpl::commit(const TopicPartition& topicPartition,
-                                 const void* opaque)
+                                 const void* opaque,
+                                 bool forceSync)
 {
     auto it = _consumers.find(topicPartition.get_topic());
     if (it == _consumers.end()) {
         throw std::runtime_error("Invalid topic");
     }
     ConsumerTopicEntry& entry = it->second;
-    commitImpl(entry, TopicPartitionList{topicPartition}, opaque);
+    commitImpl(entry, TopicPartitionList{topicPartition}, opaque, forceSync);
 }
 
 void ConsumerManagerImpl::commit(const TopicPartitionList& topicPartitions,
-                                 const void* opaque)
+                                 const void* opaque,
+                                 bool forceSync)
 {
     if (topicPartitions.empty()) {
         throw std::runtime_error("Must have at least one partition");
@@ -493,18 +495,19 @@ void ConsumerManagerImpl::commit(const TopicPartitionList& topicPartitions,
         throw std::runtime_error("Invalid topic");
     }
     ConsumerTopicEntry& entry = it->second;
-    commitImpl(entry, topicPartitions, opaque);
+    commitImpl(entry, topicPartitions, opaque, forceSync);
 }
 
 void ConsumerManagerImpl::commitImpl(ConsumerTopicEntry& entry,
                                      const TopicPartitionList& topicPartitions,
-                                     const void* opaque)
+                                     const void* opaque,
+                                     bool forceSync)
 {
     if (entry._committer->get_consumer().get_configuration().get_offset_commit_callback() && (opaque != nullptr)) {
         entry._offsets.insert(topicPartitions.at(0), opaque);
     }
-    if (entry._autoOffsetPersistStrategy == OffsetPersistStrategy::Commit) {
-        if (entry._autoCommitExec== ExecMode::Sync) {
+    if (entry._autoOffsetPersistStrategy == OffsetPersistStrategy::Commit || forceSync) {
+        if ((entry._autoCommitExec == ExecMode::Sync) || forceSync) {
             entry._committer->commit(topicPartitions);
         }
         else { // async

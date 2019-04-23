@@ -120,18 +120,18 @@ public:
     const Callbacks::StatsCallback& getStatsCallback() const;
     
     /**
-     * @brief Gets the value for a certain configuration.
+     * @brief Gets the value for a specific configuration.
      * @param name The name of the configuration option.
      * @return A pointer to the configuration object or null if it's not found.
      */
-    const ConfigurationOption* getConfiguration(const std::string& name) const;
+    const ConfigurationOption* getConfigurationOption(const std::string& name) const;
     
     /**
-     * @brief Gets the value for a certain topic configuration.
+     * @brief Gets the value for a specific topic configuration.
      * @param name The name of the topic configuration option.
      * @return A pointer to the configuration object or null if it's not found.
      */
-    const ConfigurationOption* getTopicConfiguration(const std::string& name) const;
+    const ConfigurationOption* getTopicConfigurationOption(const std::string& name) const;
     
     /**
      * @brief Comparison operator for ordered containers.
@@ -160,8 +160,8 @@ protected:
     virtual ~Configuration() = default;
     
 private:
-    static const ConfigurationOption* findConfig(const std::string& name,
-                                                 const Options& config);
+    static const ConfigurationOption* findConfigOption(const std::string& name,
+                                                       const Options& config);
         
     void filterOptions(Options&& config,
                        Options&& topicConfig);

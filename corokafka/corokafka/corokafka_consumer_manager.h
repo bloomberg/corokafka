@@ -68,19 +68,25 @@ public:
      * @brief Commits an offset. The behavior of this function depends on the 'internal.consumer.offset.persist.strategy' value.
      * @param topicPartition The offset to commit.
      * @param opaque Pointer which will be passed as-is via the 'OffsetCommitCallback'.
+     * @param forceSync If true, run the commit synchronously. Otherwise run it according to the
+     *                  'internal.consumer.commit.exec' setting.
      * @warning If this method is used, 'internal.consumer.auto.offset.persist' must be set to 'false' and NO commits
      *          should be made via the ReceivedMessage API.
      */
     void commit(const TopicPartition& topicPartition,
-                const void* opaque = nullptr);
+                const void* opaque = nullptr,
+                bool forceSync = false);
     
     /**
      * @brief Similar to the above commit() but supporting a list of partitions.
      * @param topicPartitions Partitions on the *same* topic.
      * @param opaque Pointer which will be passed as-is via the 'OffsetCommitCallback'.
+     * @param forceSync If true, run the commit synchronously. Otherwise run it according to the
+     *                  'internal.consumer.commit.exec' setting.
      */
     void commit(const TopicPartitionList& topicPartitions,
-                const void* opaque = nullptr);
+                const void* opaque = nullptr,
+                bool forceSync = false);
     
     /**
      * @brief Gracefully shut down all consumers and unsubscribe from all topics.
