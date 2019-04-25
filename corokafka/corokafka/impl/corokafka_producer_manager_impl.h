@@ -242,19 +242,15 @@ size_t ProducerManagerImpl::send(const std::string& topic,
                                  const HeaderPack& headers,
                                  void* opaque)
 {
-    auto it = _producers.find(topic);
-    if (it == _producers.end()) {
-        throw std::runtime_error("Invalid topic");
-    }
-    ProducerTopicEntry& entry = it->second;
-    ConcreteMessageBuilder<ByteArray> builder = serializeMessage(entry, &key, &payload, &headers, opaque);
+    ProducerTopicEntry& topicEntry = _producers.at(topic);
+    ConcreteMessageBuilder<ByteArray> builder = serializeMessage(topicEntry, &key, &payload, &headers, opaque);
     if (builder.topic().empty()) {
         //Serializing failed
         return 0;
     }
     builder.user_data(new PackedOpaque(opaque, std::promise<DeliveryReport>()));
     if (!builder.payload().empty()) {
-        produceMessage(entry, builder);
+        produceMessage(topicEntry, builder);
     }
     return builder.payload().size();
 }
@@ -266,11 +262,7 @@ std::future<DeliveryReport> ProducerManagerImpl::postImpl(const std::string& top
                                                           HEADERS&& headers,
                                                           void* opaque)
 {
-    auto it = _producers.find(topic);
-    if (it == _producers.end()) {
-        throw std::runtime_error("Invalid topic");
-    }
-    ProducerTopicEntry& topicEntry = it->second;
+    ProducerTopicEntry& topicEntry = _producers.at(topic);
     if (topicEntry._payloadPolicy == Producer::PayloadPolicy::PASSTHROUGH_PAYLOAD) {
         throw std::runtime_error("Invalid async operation for pass-through payload policy - use send() instead.");
     }
@@ -285,7 +277,7 @@ std::future<DeliveryReport> ProducerManagerImpl::postImpl(const std::string& top
         std::unique_lock<std::mutex> lock(_messageQueueMutex);
         _messageQueue.emplace_back(_dispatcher.post<BuilderTuple>(
                 serializeCoro<K,P,HEADERS>,
-                it->second,
+                topicEntry,
                 std::forward<K>(key),
                 std::forward<P>(payload),
                 std::forward<HEADERS>(headers),

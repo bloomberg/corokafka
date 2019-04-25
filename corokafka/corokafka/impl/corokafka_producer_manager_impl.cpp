@@ -131,27 +131,27 @@ void ProducerManagerImpl::setup(const std::string& topic, ProducerTopicEntry& to
     
     //Set the global callbacks
     if (topicEntry._configuration.getPartitionerCallback()) {
-        auto partitionerFunc = std::bind(&ProducerManagerImpl::partitionerCallback, std::ref(topicEntry), _1, _2, _3);
+        auto partitionerFunc = std::bind(&partitionerCallback, std::ref(topicEntry), _1, _2, _3);
         topicConfig.set_partitioner_callback(partitionerFunc);
     }
     
     if (topicEntry._configuration.getErrorCallback()) {
-        auto errorFunc = std::bind(&ProducerManagerImpl::errorCallback2, std::ref(topicEntry), _1, _2, _3);
+        auto errorFunc = std::bind(&errorCallback2, std::ref(topicEntry), _1, _2, _3);
         kafkaConfig.set_error_callback(errorFunc);
     }
     
     if (topicEntry._configuration.getThrottleCallback() || topicEntry._autoThrottle) {
-        auto throttleFunc = std::bind(&ProducerManagerImpl::throttleCallback, std::ref(topicEntry), _1, _2, _3, _4);
+        auto throttleFunc = std::bind(&throttleCallback, std::ref(topicEntry), _1, _2, _3, _4);
         kafkaConfig.set_throttle_callback(throttleFunc);
     }
     
     if (topicEntry._configuration.getLogCallback()) {
-        auto logFunc = std::bind(&ProducerManagerImpl::logCallback, std::ref(topicEntry), _1, _2, _3, _4);
+        auto logFunc = std::bind(&logCallback, std::ref(topicEntry), _1, _2, _3, _4);
         kafkaConfig.set_log_callback(logFunc);
     }
     
     if (topicEntry._configuration.getStatsCallback()) {
-        auto statsFunc = std::bind(&ProducerManagerImpl::statsCallback, std::ref(topicEntry), _1, _2);
+        auto statsFunc = std::bind(&statsCallback, std::ref(topicEntry), _1, _2);
         kafkaConfig.set_stats_callback(statsFunc);
     }
     
@@ -255,19 +255,19 @@ void ProducerManagerImpl::setup(const std::string& topic, ProducerTopicEntry& to
     
     // Set the buffered producer callbacks
     auto produceSuccessFunc = std::bind(
-        &ProducerManagerImpl::produceSuccessCallback, std::ref(topicEntry), _1);
+        &produceSuccessCallback, std::ref(topicEntry), _1);
     topicEntry._producer->set_produce_success_callback(produceSuccessFunc);
         
     auto produceTerminationFunc = std::bind(
-        &ProducerManagerImpl::produceTerminationCallback, std::ref(topicEntry), _1);
+        &produceTerminationCallback, std::ref(topicEntry), _1);
     topicEntry._producer->set_produce_termination_callback(produceTerminationFunc);
     
     auto flushFailureFunc = std::bind(
-        &ProducerManagerImpl::flushFailureCallback, std::ref(topicEntry), _1, _2);
+        &flushFailureCallback, std::ref(topicEntry), _1, _2);
     topicEntry._producer->set_flush_failure_callback(flushFailureFunc);
 
     auto flushTerminationFunc = std::bind(
-        &ProducerManagerImpl::flushTerminationCallback, std::ref(topicEntry), _1, _2);
+        &flushTerminationCallback, std::ref(topicEntry), _1, _2);
     topicEntry._producer->set_flush_termination_callback(flushTerminationFunc);
     
     if (topicEntry._configuration.getQueueFullCallback()) {
@@ -293,27 +293,19 @@ void ProducerManagerImpl::setup(const std::string& topic, ProducerTopicEntry& to
         else { //default
             topicEntry._producer->set_queue_full_notification(ProducerType::QueueFullNotification::OncePerMessage);
         }
-        auto queueFullFunc = std::bind(&ProducerManagerImpl::queueFullCallback, std::ref(topicEntry), _1);
+        auto queueFullFunc = std::bind(&queueFullCallback, std::ref(topicEntry), _1);
         topicEntry._producer->set_queue_full_callback(queueFullFunc);
     }
 }
 
 ProducerMetadata ProducerManagerImpl::getMetadata(const std::string& topic)
 {
-    auto it = _producers.find(topic);
-    if (it == _producers.end()) {
-        throw std::runtime_error("Invalid topic");
-    }
-    return makeMetadata(it->second);
+    return makeMetadata(_producers.at(topic));
 }
 
 const ProducerConfiguration& ProducerManagerImpl::getConfiguration(const std::string& topic) const
 {
-    auto it = _producers.find(topic);
-    if (it == _producers.end()) {
-        throw std::runtime_error("Invalid topic");
-    }
-    return it->second._configuration;
+    return _producers.at(topic)._configuration;
 }
 
 std::vector<std::string> ProducerManagerImpl::getTopics() const
@@ -328,21 +320,13 @@ std::vector<std::string> ProducerManagerImpl::getTopics() const
 
 void ProducerManagerImpl::waitForAcks(const std::string& topic)
 {
-    auto it = _producers.find(topic);
-    if (it == _producers.end()) {
-        throw std::runtime_error("Invalid topic");
-    }
-    it->second._producer->wait_for_acks();
+    _producers.at(topic)._producer->wait_for_acks();
 }
 
 void ProducerManagerImpl::waitForAcks(const std::string& topic,
                                       std::chrono::milliseconds timeout)
 {
-    auto it = _producers.find(topic);
-    if (it == _producers.end()) {
-        throw std::runtime_error("Invalid topic");
-    }
-    it->second._producer->wait_for_acks(timeout);
+    _producers.at(topic)._producer->wait_for_acks(timeout);
 }
 
 void ProducerManagerImpl::shutdown()
@@ -411,11 +395,7 @@ void ProducerManagerImpl::post()
 
 void ProducerManagerImpl::resetQueueFullTrigger(const std::string& topic)
 {
-    auto it = _producers.find(topic);
-    if (it == _producers.end()) {
-        throw std::runtime_error("Invalid topic");
-    }
-    it->second._queueFullTrigger = true;
+    _producers.at(topic)._queueFullTrigger = true;
 }
 
 void ProducerManagerImpl::enableMessageFanout(bool value)

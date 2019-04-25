@@ -66,27 +66,31 @@ public:
     
     /**
      * @brief Commits an offset. The behavior of this function depends on the 'internal.consumer.offset.persist.strategy' value.
-     * @param topicPartition The offset to commit.
+     * @param topicPartition The offset to commit. Must have a valid topic, partition and offset or just a topic (see note).
      * @param opaque Pointer which will be passed as-is via the 'OffsetCommitCallback'.
      * @param forceSync If true, run the commit synchronously. Otherwise run it according to the
      *                  'internal.consumer.commit.exec' setting.
+     * @return Error object. If the number of retries reach 0, error contains RD_KAFKA_RESP_ERR__FAIL.
+     * @note If only the topic is supplied, this API will commit all offsets in the current partition assignment.
+     *       This is only valid if 'internal.consumer.offset.persist.strategy=commit'.
      * @warning If this method is used, 'internal.consumer.auto.offset.persist' must be set to 'false' and NO commits
-     *          should be made via the ReceivedMessage API.
+     *          should be made via the ReceivedMessage::commit() API.
      */
-    void commit(const TopicPartition& topicPartition,
-                const void* opaque = nullptr,
-                bool forceSync = false);
+    Error commit(const TopicPartition& topicPartition,
+                 const void* opaque = nullptr,
+                 bool forceSync = false);
     
     /**
      * @brief Similar to the above commit() but supporting a list of partitions.
-     * @param topicPartitions Partitions on the *same* topic.
+     * @param topicPartitions Partitions on the *same* topic. Each TopicPartition must have a valid topic, partition and offset.
      * @param opaque Pointer which will be passed as-is via the 'OffsetCommitCallback'.
      * @param forceSync If true, run the commit synchronously. Otherwise run it according to the
      *                  'internal.consumer.commit.exec' setting.
+     * @return Error object. If the number of retries reach 0, error contains RD_KAFKA_RESP_ERR__FAIL.
      */
-    void commit(const TopicPartitionList& topicPartitions,
-                const void* opaque = nullptr,
-                bool forceSync = false);
+    Error commit(const TopicPartitionList& topicPartitions,
+                 const void* opaque = nullptr,
+                 bool forceSync = false);
     
     /**
      * @brief Gracefully shut down all consumers and unsubscribe from all topics.

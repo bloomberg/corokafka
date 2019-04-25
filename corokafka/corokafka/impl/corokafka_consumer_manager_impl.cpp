@@ -117,6 +117,10 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
         kafkaConfig.set_offset_commit_callback(std::move(offsetCommitFunc));
     }
     
+    auto offsetCommitErrorFunc = std::bind(
+        &offsetCommitErrorCallback, std::ref(topicEntry), _1);
+    topicEntry._committer->set_error_callback(offsetCommitErrorFunc);
+    
     if (topicEntry._configuration.getPreprocessorCallback()) {
         topicEntry._preprocessorCallback = std::bind(preprocessorCallback, std::ref(topicEntry), _1);
     }
@@ -364,11 +368,7 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
 
 ConsumerMetadata ConsumerManagerImpl::getMetadata(const std::string& topic)
 {
-    auto it = _consumers.find(topic);
-    if (it == _consumers.end()) {
-        throw std::runtime_error("Invalid topic");
-    }
-    return makeMetadata(it->second);
+    return makeMetadata(_consumers.at(topic));
 }
 
 void ConsumerManagerImpl::preprocess(bool enable, const std::string& topic)
@@ -379,11 +379,7 @@ void ConsumerManagerImpl::preprocess(bool enable, const std::string& topic)
         }
     }
     else {
-        auto it = _consumers.find(topic);
-        if (it == _consumers.end()) {
-            throw std::runtime_error("Invalid topic");
-        }
-        it->second._preprocess = enable;
+        _consumers.at(topic)._preprocess = enable;
     }
 }
 
@@ -396,12 +392,9 @@ void ConsumerManagerImpl::pause(const std::string& topic)
         }
     }
     else {
-        auto it = _consumers.find(topic);
-        if (it == _consumers.end()) {
-            throw std::runtime_error("Invalid topic");
-        }
-        it->second._consumer->pause();
-        it->second._isPaused = true;
+        ConsumerTopicEntry& consumerTopicEntry = _consumers.at(topic);
+        consumerTopicEntry._consumer->pause();
+        consumerTopicEntry._isPaused = true;
     }
 }
 
@@ -414,23 +407,16 @@ void ConsumerManagerImpl::resume(const std::string& topic)
         }
     }
     else {
-        auto it = _consumers.find(topic);
-        if (it == _consumers.end()) {
-            throw std::runtime_error("Invalid topic");
-        }
-        it->second._consumer->resume();
-        it->second._isPaused = false;
+        ConsumerTopicEntry& consumerTopicEntry = _consumers.at(topic);
+        consumerTopicEntry._consumer->resume();
+        consumerTopicEntry._isPaused = false;
     }
 }
 
 void ConsumerManagerImpl::subscribe(const std::string& topic,
                                     TopicPartitionList partitionList)
 {
-    auto it = _consumers.find(topic);
-    if (it == _consumers.end()) {
-        throw std::runtime_error("Invalid topic");
-    }
-    ConsumerTopicEntry& topicEntry = it->second;
+    ConsumerTopicEntry& topicEntry = _consumers.at(topic);
     if (topicEntry._isSubscribed) {
         throw std::runtime_error("Already subscribed");
     }
@@ -461,79 +447,87 @@ void ConsumerManagerImpl::unsubscribe(const std::string& topic)
         }
     }
     else {
-        auto it = _consumers.find(topic);
-        if (it == _consumers.end()) {
-            throw std::runtime_error("Invalid topic");
-        }
-        if (it->second._isSubscribed) {
-            it->second._consumer->unsubscribe();
+        ConsumerTopicEntry& consumerTopicEntry = _consumers.at(topic);
+        if (consumerTopicEntry._isSubscribed) {
+            consumerTopicEntry._consumer->unsubscribe();
         }
     }
 }
 
-void ConsumerManagerImpl::commit(const TopicPartition& topicPartition,
-                                 const void* opaque,
-                                 bool forceSync)
+Error ConsumerManagerImpl::commit(const TopicPartition& topicPartition,
+                                  const void* opaque,
+                                  bool forceSync)
 {
-    auto it = _consumers.find(topicPartition.get_topic());
-    if (it == _consumers.end()) {
-        throw std::runtime_error("Invalid topic");
-    }
-    ConsumerTopicEntry& entry = it->second;
-    commitImpl(entry, TopicPartitionList{topicPartition}, opaque, forceSync);
+    return commitImpl(_consumers.at(topicPartition.get_topic()), TopicPartitionList{topicPartition}, opaque, forceSync);
 }
 
-void ConsumerManagerImpl::commit(const TopicPartitionList& topicPartitions,
-                                 const void* opaque,
-                                 bool forceSync)
+Error ConsumerManagerImpl::commit(const TopicPartitionList& topicPartitions,
+                                  const void* opaque,
+                                  bool forceSync)
 {
     if (topicPartitions.empty()) {
-        throw std::runtime_error("Must have at least one partition");
+        return RD_KAFKA_RESP_ERR_INVALID_PARTITIONS;
     }
-    auto it = _consumers.find(topicPartitions.at(0).get_topic());
-    if (it == _consumers.end()) {
-        throw std::runtime_error("Invalid topic");
-    }
-    ConsumerTopicEntry& entry = it->second;
-    commitImpl(entry, topicPartitions, opaque, forceSync);
+    return commitImpl(_consumers.at(topicPartitions.at(0).get_topic()), topicPartitions, opaque, forceSync);
 }
 
-void ConsumerManagerImpl::commitImpl(ConsumerTopicEntry& entry,
-                                     const TopicPartitionList& topicPartitions,
-                                     const void* opaque,
-                                     bool forceSync)
+Error ConsumerManagerImpl::commitImpl(ConsumerTopicEntry& entry,
+                                      const TopicPartitionList& topicPartitions,
+                                      const void* opaque,
+                                      bool forceSync)
 {
-    if (entry._committer->get_consumer().get_configuration().get_offset_commit_callback() && (opaque != nullptr)) {
-        entry._offsets.insert(topicPartitions.at(0), opaque);
-    }
-    if (entry._autoOffsetPersistStrategy == OffsetPersistStrategy::Commit || forceSync) {
-        if ((entry._autoCommitExec == ExecMode::Sync) || forceSync) {
-            entry._committer->commit(topicPartitions);
+    try {
+        const TopicPartition& headPartition = topicPartitions.at(0);
+        if (entry._committer->get_consumer().get_configuration().get_offset_commit_callback() && (opaque != nullptr)) {
+            entry._offsets.insert(headPartition, opaque);
         }
-        else { // async
-            entry._committer->get_consumer().async_commit(topicPartitions);
+        if (entry._autoOffsetPersistStrategy == OffsetPersistStrategy::Commit || forceSync) {
+            if ((entry._autoCommitExec == ExecMode::Sync) || forceSync) {
+                if (headPartition.get_partition() == RD_KAFKA_PARTITION_UA) {
+                    //commit the current assignment
+                    entry._committer->commit();
+                }
+                else {
+                    entry._committer->commit(topicPartitions);
+                }
+            }
+            else { // async
+                if (headPartition.get_partition() == RD_KAFKA_PARTITION_UA) {
+                    //commit the current assignment
+                    entry._committer->get_consumer().async_commit();
+                }
+                else {
+                    entry._committer->get_consumer().async_commit(topicPartitions);
+                }
+            }
+        }
+        else { //OffsetPersistStrategy::Store
+    #if (RD_KAFKA_VERSION >= RD_KAFKA_STORE_OFFSETS_SUPPORT_VERSION)
+            entry._committer->get_consumer().store_offsets(topicPartitions);
+    #else
+            std::ostringstream oss;
+            oss << hex << "Current RdKafka version " << RD_KAFKA_VERSION
+                << " does not support this functionality. Must be greater than "
+                << RD_KAFKA_STORE_OFFSETS_SUPPORT_VERSION;
+            throw std::runtime_error(oss.str());
+    #endif
         }
     }
-    else { //OffsetPersistStrategy::Store
-#if (RD_KAFKA_VERSION >= RD_KAFKA_STORE_OFFSETS_SUPPORT_VERSION)
-        entry._committer->get_consumer().store_offsets(topicPartitions);
-#else
-        std::ostringstream oss;
-        oss << hex << "Current RdKafka version " << RD_KAFKA_VERSION
-            << " does not support this functionality. Must be greater than "
-            << RD_KAFKA_STORE_OFFSETS_SUPPORT_VERSION;
-        throw std::runtime_error(oss.str());
-#endif
+    catch (const HandleException& ex) {
+        return ex.get_error();
     }
+    catch (const std::exception& ex) {
+        return RD_KAFKA_RESP_ERR__FAIL; //no more retries left
+    }
+    catch (...) {
+        return RD_KAFKA_RESP_ERR_UNKNOWN;
+    }
+    return {};
 }
 
 const ConsumerConfiguration& ConsumerManagerImpl::getConfiguration(const std::string& topic) const
 {
-    auto it = _consumers.find(topic);
-    if (it == _consumers.end()) {
-        throw std::runtime_error("Invalid topic");
-    }
-    return it->second._configuration;
+    return _consumers.at(topic)._configuration;
 }
 
 std::vector<std::string> ConsumerManagerImpl::getTopics() const
@@ -661,6 +655,16 @@ void ConsumerManagerImpl::offsetCommitCallback(
     CallbackInvoker<Callbacks::OffsetCommitCallback>
         ("offset commit", topicEntry._configuration.getOffsetCommitCallback(), &consumer)
             (makeMetadata(topicEntry), error, topicPartitions, topicEntry._offsets.remove(topicPartitions.front()));
+}
+
+bool ConsumerManagerImpl::offsetCommitErrorCallback(
+                        ConsumerTopicEntry& topicEntry,
+                        Error error)
+{
+    report(topicEntry, LogLevel::LogErr, error.get_error(), "Failed to commit offset.", nullptr);
+    return ((error.get_error() != RD_KAFKA_RESP_ERR_OFFSET_OUT_OF_RANGE) &&
+            (error.get_error() != RD_KAFKA_RESP_ERR_OFFSET_METADATA_TOO_LARGE) &&
+            (error.get_error() != RD_KAFKA_RESP_ERR_INVALID_COMMIT_OFFSET_SIZE));
 }
 
 bool ConsumerManagerImpl::preprocessorCallback(

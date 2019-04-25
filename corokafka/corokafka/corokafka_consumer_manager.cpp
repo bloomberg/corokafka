@@ -71,18 +71,18 @@ void ConsumerManager::unsubscribe(const std::string& topic)
     _impl->unsubscribe(topic);
 }
 
-void ConsumerManager::commit(const TopicPartition& topicPartition,
-                             const void* opaque,
-                             bool forceSync)
+Error ConsumerManager::commit(const TopicPartition& topicPartition,
+                              const void* opaque,
+                              bool forceSync)
 {
-    _impl->commit(topicPartition, opaque, forceSync);
+    return _impl->commit(topicPartition, opaque, forceSync);
 }
 
-void ConsumerManager::commit(const TopicPartitionList& topicPartitions,
-                             const void* opaque,
-                             bool forceSync)
+Error ConsumerManager::commit(const TopicPartitionList& topicPartitions,
+                              const void* opaque,
+                              bool forceSync)
 {
-    _impl->commit(topicPartitions, opaque, forceSync);
+    return _impl->commit(topicPartitions, opaque, forceSync);
 }
 
 void ConsumerManager::shutdown()

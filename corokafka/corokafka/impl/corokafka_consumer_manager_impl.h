@@ -66,18 +66,18 @@ private:
     
     void unsubscribe(const std::string& topic);
     
-    void commit(const TopicPartition& topicPartition,
-                const void* opaque,
-                bool forceSync);
+    Error commit(const TopicPartition& topicPartition,
+                 const void* opaque,
+                 bool forceSync);
     
-    void commit(const TopicPartitionList& topicPartitions,
-                const void* opaque,
-                bool forceSync);
+    Error commit(const TopicPartitionList& topicPartitions,
+                 const void* opaque,
+                 bool forceSync);
     
-    void commitImpl(ConsumerTopicEntry& topicEntry,
-                    const TopicPartitionList& topicPartitions,
-                    const void* opaque,
-                    bool forceSync);
+    Error commitImpl(ConsumerTopicEntry& topicEntry,
+                     const TopicPartitionList& topicPartitions,
+                     const void* opaque,
+                     bool forceSync);
     
     void shutdown();
     
@@ -118,6 +118,8 @@ private:
                                      Consumer& consumer,
                                      Error error,
                                      const TopicPartitionList& topicPartitions);
+    static bool offsetCommitErrorCallback(ConsumerTopicEntry& topicEntry,
+                                          Error error);
     static bool preprocessorCallback(ConsumerTopicEntry& topicEntry,
                                      TopicPartition hint);
     static void assignmentCallback(ConsumerTopicEntry& topicEntry,

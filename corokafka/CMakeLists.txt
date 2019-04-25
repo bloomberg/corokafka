@@ -123,7 +123,6 @@ if (Boost_FOUND)
     endif()
     set(Boost_USE_STATIC_LIBS ${COROKAFKA_BOOST_STATIC_LIBS})
     set(Boost_USE_MULTITHREADED ${COROKAFKA_BOOST_USE_MULTITHREADED})
-    link_directories(${Boost_LIBRARY_DIRS})
     if (COROKAFKA_VERBOSE_MAKEFILE)
         message(STATUS "Boost include dir: ${Boost_INCLUDE_DIRS}")
         message(STATUS "Boost library dir: ${Boost_LIBRARY_DIRS}")
@@ -155,10 +154,10 @@ if (NOT CPPKAFKA_FOUND)
 endif()
 
 link_directories(
-    ${Boost_LIBRARY_DIRS}
-    ${QUANTUM_ROOT_DIR}
-    ${RDKAFKA_ROOT_DIR}
     ${CPPKAFKA_ROOT_DIR}
+    ${RDKAFKA_ROOT_DIR}
+    ${QUANTUM_ROOT_DIR}
+    ${Boost_LIBRARY_DIRS}
 )
 
 add_subdirectory(${PROJECT_NAME})
