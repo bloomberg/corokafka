@@ -44,11 +44,16 @@ namespace corokafka {
  * 'internal.consumer.poll.strategy=roundrobin', the actual timeout per message will be
  * 'internal.consumer.poll.timeout.ms/internal.consumer.read.size'. When value is 0, there is no timeout.
  *
- * internal.consumer.auto.offset.persist: {*'true','false'}. Enables auto-commit/auto-store inside the corokafka
- * once each ReceivedMessage has been destroyed.
+ * internal.consumer.auto.offset.persist: {'true',*'false'}. Enables auto-commit/auto-store inside the
+ * ReceivedMessage destructor.
+ *
+ * internal.consumer.auto.offset.persist.on.exception: {'true',*'false'}. Dictates if the offset persist should be
+ * aborted as a result of an exception. This could allow the application to reprocess a message following an exception.
+ * This is only valid if 'internal.consumer.auto.offset.persist=true'.
  *
  * internal.consumer.offset.persist.strategy: {'commit',*'store'}. Determines if offsets are committed or stored
- * locally. Some rdkafka settings will be changed according to Note 2 below.
+ * locally. Some rdkafka settings will be changed according to Note 2 below. If 'store' is chosen,
+ * 'auto.commit.interval.ms > 0'.
  *
  * internal.consumer.commit.exec: {'sync',*'async'}. Dictates if offset commits should be synchronous or asynchronous.
  *
@@ -134,11 +139,11 @@ namespace corokafka {
  *
  * NOTE 2:
  * -------
- *      Commit strategy:
+ *      internal.consumer.offset.persist.strategy=commit:
  *          'enable.auto.commit=false'
  *          'enable.auto.offset.store=false'
  *          'auto.commit.interval.ms=0'
- *      Store strategy:
+ *      internal.consumer.offset.persist.strategy=store:
  *          'enable.auto.commit=true'
  *          'enable.auto.offset.store=false'
  */

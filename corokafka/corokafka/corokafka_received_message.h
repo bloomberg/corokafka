@@ -28,6 +28,7 @@ namespace corokafka {
 //==========================================================================
 struct OffsetPersistSettings {
     bool                    _autoOffsetPersist;
+    bool                    _autoOffsetPersistOnException;
     OffsetPersistStrategy   _autoOffsetPersistStrategy;
     ExecMode                _autoCommitExec;
 };
@@ -125,11 +126,12 @@ public:
     /**
      * @brief Commits message with the retry strategy specified in the config for this topic.
      * @param opaque Application-specific pointer which will be returned inside the offset commit callback.
+     * @return Error object. If the number of retries reaches 0, the error contains RD_KAFKA_RESP_ERR__FAIL.
      * @remark This call is blocking until it succeeds or the last retry failed.
      * @remark If commit() is not called explicitly, it will be called by ~ReceivedMessage() if
      *         'internal.consumer.auto.offset.persist=true'.
      */
-    void commit(const void* opaque = nullptr);
+    Error commit(const void* opaque = nullptr);
     /**
      * @brief Helper function to indicate if the message error is an EOF.
      * @return True if EOF was encountered for the partition, False otherwise.
@@ -172,6 +174,7 @@ private:
     void validateKeyError() const;
     void validatePayloadError() const;
     void validateHeadersError() const;
+    Error doCommit();
     
     BackoffCommitter&           _committer;
     OffsetMap&                  _offsets;

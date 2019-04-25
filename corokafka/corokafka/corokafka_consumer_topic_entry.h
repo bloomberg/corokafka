@@ -81,6 +81,7 @@ struct ConsumerTopicEntry : TopicEntry {
     ExecMode                        _receiveCallbackExec{ExecMode::Async};
     bool                            _receiveOnIoThread{true};
     bool                            _autoOffsetPersist{true};
+    bool                            _autoOffsetPersistOnException{false};
     OffsetPersistStrategy           _autoOffsetPersistStrategy{OffsetPersistStrategy::Store};
     ExecMode                        _autoCommitExec{ExecMode::Async};
     bool                            _batchPrefetch{false};

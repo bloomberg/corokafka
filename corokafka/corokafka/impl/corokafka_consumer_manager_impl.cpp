@@ -183,6 +183,12 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
         topicEntry._autoOffsetPersist = StringEqualCompare()(autoPersist->get_value(), "true");
     }
     
+    const ConfigurationOption* autoPersistOnException =
+        Configuration::findConfigOption("internal.consumer.auto.offset.persist.on.exception", topicEntry._configuration.getInternalConfiguration());
+    if (autoPersistOnException) {
+        topicEntry._autoOffsetPersistOnException = StringEqualCompare()(autoPersist->get_value(), "true");
+    }
+    
     const ConfigurationOption* persistStrategy =
         Configuration::findConfigOption("internal.consumer.offset.persist.strategy", topicEntry._configuration.getInternalConfiguration());
     if (persistStrategy) {
@@ -1039,9 +1045,7 @@ int ConsumerManagerImpl::invokeReceiver(ConsumerTopicEntry& entry,
            std::get<1>(std::move(deserializedMessage)), //payload
            std::get<2>(std::move(deserializedMessage)), //headers
            std::get<3>(std::move(deserializedMessage)), //error
-           OffsetPersistSettings{entry._autoOffsetPersist,
-                                 entry._autoOffsetPersistStrategy,
-                                 entry._autoCommitExec});
+           makeOffsetPersistSettings(entry));
     return 0;
 }
 
@@ -1192,9 +1196,7 @@ int ConsumerManagerImpl::receiverMultipleBatchesTask(quantum::ThreadPromise<int>
              std::get<1>(std::get<1>(std::move(messageTuple))), //payload
              std::get<2>(std::get<1>(std::move(messageTuple))), //headers
              std::get<3>(std::get<1>(std::move(messageTuple))), //error
-             OffsetPersistSettings{entry._autoOffsetPersist,
-                                   entry._autoOffsetPersistStrategy,
-                                   entry._autoCommitExec});
+             makeOffsetPersistSettings(entry));
     }
     return promise->set(0);
 }
@@ -1217,9 +1219,7 @@ int ConsumerManagerImpl::invokeSingleBatchReceiver(ConsumerTopicEntry& entry,
              std::get<1>(std::move(deserializedMessage)), //payload
              std::get<2>(std::move(deserializedMessage)), //headers
              std::get<3>(std::move(deserializedMessage)), //error
-             OffsetPersistSettings{entry._autoOffsetPersist,
-                                   entry._autoOffsetPersistStrategy,
-                                   entry._autoCommitExec});
+             makeOffsetPersistSettings(entry));
     }
     if (rawIx != rawMessages.size()) {
         throw std::runtime_error("Not all messages were processed");
@@ -1302,6 +1302,14 @@ int ConsumerManagerImpl::mapPartitionToQueue(int partition,
                                              const std::pair<int,int>& range)
 {
     return (partition % (range.second - range.first + 1)) + range.first;
+}
+
+OffsetPersistSettings ConsumerManagerImpl::makeOffsetPersistSettings(const ConsumerTopicEntry& topicEntry)
+{
+    return {topicEntry._autoOffsetPersist,
+            topicEntry._autoOffsetPersistOnException,
+            topicEntry._autoOffsetPersistStrategy,
+            topicEntry._autoCommitExec};
 }
 
 }

@@ -47,24 +47,10 @@ ReceivedMessage<K,P>::~ReceivedMessage()
         // auto-persistence is turned off or the offset has been persisted manually
         return;
     }
-    if (!_message) {
-        return;
-    }
-    if (std::uncaught_exception()) {
+    if (std::uncaught_exception() && !_offsetSettings._autoOffsetPersistOnException) {
         return; // don't commit if we are being destroyed as the result of an exception
     }
-    if (_offsetSettings._autoOffsetPersistStrategy == OffsetPersistStrategy::Commit) {
-        if (_offsetSettings._autoCommitExec== ExecMode::Sync) {
-            _committer.commit(_message);
-        }
-        else { // async
-            _committer.get_consumer().async_commit(_message);
-        }
-    }
-    else {
-        _committer.get_consumer().store_offset(_message);
-    }
-    _isPersisted = true;
+    doCommit();
 }
 
 template <typename K, typename P>
@@ -151,24 +137,13 @@ void ReceivedMessage<K,P>::setOpaque(const void* opaque)
 }
 
 template <typename K, typename P>
-void ReceivedMessage<K,P>::commit(const void* opaque)
+Error ReceivedMessage<K,P>::commit(const void* opaque)
 {
     _opaque = opaque;
     if (_committer.get_consumer().get_configuration().get_offset_commit_callback() && (_opaque != nullptr)) {
         _offsets.insert(TopicPartition(getTopic(), getPartition(), getOffset()), opaque);
     }
-    if (_offsetSettings._autoOffsetPersistStrategy == OffsetPersistStrategy::Commit) {
-        if (_offsetSettings._autoCommitExec== ExecMode::Sync) {
-            _committer.commit(_message);
-        }
-        else { // async
-            _committer.get_consumer().async_commit(_message);
-        }
-    }
-    else { //OffsetPersistStrategy::Store
-        _committer.get_consumer().store_offset(_message);
-    }
-    _isPersisted = true;
+    return doCommit();
 }
 
 template <typename K, typename P>
@@ -280,6 +255,38 @@ void ReceivedMessage<K,P>::validateHeadersError() const
     if (_error.isHeaderError()) {
         throw std::runtime_error("Header deserialization error");
     }
+}
+
+template <typename K, typename P>
+Error ReceivedMessage<K,P>::doCommit()
+{
+    try {
+        if (!_message) {
+            return RD_KAFKA_RESP_ERR__BAD_MSG;
+        }
+        if (_offsetSettings._autoOffsetPersistStrategy == OffsetPersistStrategy::Commit) {
+            if (_offsetSettings._autoCommitExec== ExecMode::Sync) {
+                _committer.commit(_message);
+            }
+            else { // async
+                _committer.get_consumer().async_commit(_message);
+            }
+        }
+        else { //OffsetPersistStrategy::Store
+            _committer.get_consumer().store_offset(_message);
+        }
+        _isPersisted = true;
+    }
+    catch (const HandleException& ex) {
+        return ex.get_error();
+    }
+    catch (const std::exception& ex) {
+        return RD_KAFKA_RESP_ERR__FAIL; //no more retries left
+    }
+    catch (...) {
+        return RD_KAFKA_RESP_ERR_UNKNOWN;
+    }
+    return {};
 }
 
 }

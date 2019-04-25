@@ -196,6 +196,8 @@ private:
     deserializeMessage(ConsumerTopicEntry& entry,
                        const Message& kafkaMessage);
     
+    static OffsetPersistSettings makeOffsetPersistSettings(const ConsumerTopicEntry& topicEntry);
+    
     using Consumers = std::unordered_map<std::string,
                                          ConsumerTopicEntry,
                                          std::hash<std::string>,
