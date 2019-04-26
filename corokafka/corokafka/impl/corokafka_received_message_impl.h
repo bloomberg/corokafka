@@ -280,7 +280,7 @@ Error ReceivedMessage<K,P>::doCommit()
     catch (const HandleException& ex) {
         return ex.get_error();
     }
-    catch (const std::exception& ex) {
+    catch (const ActionTerminatedException& ex) {
         return RD_KAFKA_RESP_ERR__FAIL; //no more retries left
     }
     catch (...) {

@@ -65,6 +65,7 @@ using HandleException           = cppkafka::HandleException;
 using InvalidConfigOptionType   = cppkafka::InvalidConfigOptionType;
 using ParseException            = cppkafka::ParseException;
 using QueueException            = cppkafka::QueueException;
+using ActionTerminatedException = cppkafka::ActionTerminatedException;
 using UnexpectedVersion         = cppkafka::UnexpectedVersion;
 
 }
