@@ -1,3 +1,12 @@
+corokafka (0.0.0.10) unstable; urgency=low
+
+  * accd2cc fixed namespace and setting the consumer error callback
+  * 3abbc7d Support for cppkafka::ActionTerminatedException
+  * 2fa16e8 Added error retrun code to ReceivedMessage and a config option to prevent from committing if there's an exception while in the destructor
+  * 5d2539c Added return code for commit as well as commit error callback
+
+ -- Alexander Damian <adamian@bloomberg.net>  Tue, 14 May 2019 18:32:13 -0400
+
 corokafka (0.0.0.9) unstable; urgency=low
 
   * 9c67088 Added forceSync support when committing
