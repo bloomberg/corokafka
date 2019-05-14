@@ -30,10 +30,11 @@ target_include_directories(${PROJECT_NAME} BEFORE PRIVATE
     ${PROJECT_SOURCE_DIR}
 )
 target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC
+                ${PROJECT_SOURCE_DIR}/../../quantum/quantum
     ${CPPKAFKA_INCLUDE_DIR}
     ${RDKAFKA_INCLUDE_DIR}
     ${Boost_INCLUDE_DIRS}
-    ${QUANTUM_INCLUDE_DIR}
+   # ${QUANTUM_INCLUDE_DIR}
 )
 
 # Properly set the output directory

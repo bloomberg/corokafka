@@ -117,10 +117,6 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
         kafkaConfig.set_offset_commit_callback(std::move(offsetCommitFunc));
     }
     
-    auto offsetCommitErrorFunc = std::bind(
-        &offsetCommitErrorCallback, std::ref(topicEntry), _1);
-    topicEntry._committer->set_error_callback(offsetCommitErrorFunc);
-    
     if (topicEntry._configuration.getPreprocessorCallback()) {
         topicEntry._preprocessorCallback = std::bind(preprocessorCallback, std::ref(topicEntry), _1);
     }
@@ -143,6 +139,9 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
     if (roundRobinPolling) {
         topicEntry._roundRobin.reset(new RoundRobinPollStrategy(*topicEntry._consumer));
     }
+    
+    auto offsetCommitErrorFunc = std::bind(&offsetCommitErrorCallback, std::ref(topicEntry), _1);
+    topicEntry._committer->set_error_callback(offsetCommitErrorFunc);
     
     //Set internal config options
     const ConfigurationOption* pauseOnStart =

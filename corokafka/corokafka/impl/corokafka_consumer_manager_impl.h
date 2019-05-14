@@ -27,8 +27,6 @@
 #include <corokafka/corokafka_utils.h>
 #include <boost/any.hpp>
 
-using namespace BloombergLP;
-
 namespace Bloomberg {
 namespace corokafka {
 

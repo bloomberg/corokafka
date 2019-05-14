@@ -24,8 +24,6 @@
 #include <corokafka/corokafka_configuration_builder.h>
 #include <quantum/quantum.h>
 
-using namespace BloombergLP;
-
 namespace Bloomberg {
 namespace corokafka {
 
