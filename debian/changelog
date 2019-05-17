@@ -1,3 +1,9 @@
+corokafka (0.0.0.12) unstable; urgency=low
+
+  * eee5281 Changed install dir for pkgconfig file
+
+ -- Alexander Damian <adamian@bloomberg.net>  Fri, 17 May 2019 15:19:30 -0400
+
 corokafka (0.0.0.11) unstable; urgency=low
 
   * d6af15a Added pkgconfig file
