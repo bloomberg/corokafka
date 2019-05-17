@@ -4,7 +4,8 @@ include $(DISTRIBUTION_REFROOT)/opt/bb/share/bbtoolchain-cmake-debhelper/bbtoolc
 
 # Pass {ON,OFF} for shared builds
 # Pass {OFF,ON} for static builds
-LIBRARY_CMAKE_ARGS = -DCOROKAFKA_BUILD_SHARED=$(1) \
+LIBRARY_CMAKE_ARGS = -DCOROKAFKA_PKGCONFIG_DIR=lib64/pkgconfig \
+                     -DCOROKAFKA_BUILD_SHARED=$(1) \
 					 -DCOROKAFKA_CPPKAFKA_STATIC_LIB=$(2) \
 					 -DCOROKAFKA_RDKAFKA_STATIC_LIB=$(2) \
 					 -DCOROKAFKA_BOOST_STATIC_LIBS=ON \
