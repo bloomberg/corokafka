@@ -2,31 +2,21 @@ Source: corokafka
 Section: unknown
 Priority: extra
 Build-Depends:
-    cmake,
-    cmake-debhelper,
-    build-base,
-	bdemeta-genpkgconfig,
-    std2nativestd,
+    bbtoolchain-cmake-debhelper,
+    cmake-configure-bb-target,
+    plink,
 	valgrind,
     libcppkafka-dev,
     libquantum-dev,
     librapidjson-v1-dev,
     libboost-headers-dev,
-    libbsl-dev
 Maintainer: Alexander Damian <adamian@bloomberg.net>
 Vcs-Git: bbgithub.dev.bloomberg.com/eor/corokafka
 Standards-Version: 4.1.3.0
 
-Package: libcorokafka0
-Architecture: amd64
-Depends: libcppkafka0
-Description: Runtime libraries.
-
 Package: libcorokafka-dev
 Architecture: amd64
 Depends:
-    libcorokafka0 (= ${binary:Version}),
-    libbsl-dev,
     libcppkafka-dev,
     libquantum-dev,
     librapidjson-v1-dev,
@@ -35,9 +25,4 @@ Description: Coroutine-based Kafka library. Scalable and easy to use C++ library
     librdkafka, cppkafka and quantum, allowing multiple parallel producers and consumers. Producing and consuming of
     messages is simplified by allowing applications to use their own native message formats which are automatically
     serialized and de-serialized by the library. Compiles for -std=gnu++11, -std=gnu++14 and -std=gnu++17.
-
-Package: libcorokafka-robo-dev
-Architecture: amd64
-Depends: libcorokafka-dev
-Description: Robometa files
 

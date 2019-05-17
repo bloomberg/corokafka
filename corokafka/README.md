@@ -39,6 +39,7 @@ Various **CMake** options can be used to configure the output:
 * `QUANTUM_ROOT_DIR`           : Specify a different Quantum install directory.
 * `BOOST_ROOT`                 : Specify a different Boost install directory.
 * `GTEST_ROOT`                 : Specify a different GTest install directory.
+* `COROKAFKA_PKGCONFIG_DIR`    : Install location of the .pc file. Default is `share/pkgconfig`.
 
 Note: options must be preceded with `-D` when passed as arguments to CMake.
 

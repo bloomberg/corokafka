@@ -30,11 +30,10 @@ target_include_directories(${PROJECT_NAME} BEFORE PRIVATE
     ${PROJECT_SOURCE_DIR}
 )
 target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC
-                ${PROJECT_SOURCE_DIR}/../../quantum/quantum
     ${CPPKAFKA_INCLUDE_DIR}
     ${RDKAFKA_INCLUDE_DIR}
     ${Boost_INCLUDE_DIRS}
-   # ${QUANTUM_INCLUDE_DIR}
+    ${QUANTUM_INCLUDE_DIR}
 )
 
 # Properly set the output directory
@@ -94,4 +93,14 @@ install(
     LIBRARY DESTINATION ${LIBDIR}
     ARCHIVE DESTINATION ${LIBDIR}
     COMPONENT library
+)
+
+# Generate package configuration file
+set(PKG_CONFIG ${PROJECT_SOURCE_DIR}/package/corokafka.pc)
+configure_file(${PROJECT_SOURCE_DIR}/corokafka.pc.in ${PKG_CONFIG} @ONLY)
+
+install(
+    FILES ${PKG_CONFIG}
+    DESTINATION ${COROKAFKA_PKGCONFIG_DIR}
+    COMPONENT pkgconfig
 )

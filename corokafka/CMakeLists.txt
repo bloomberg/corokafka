@@ -66,6 +66,10 @@ if (COROKAFKA_BUILD_SHARED)
     endif()
 endif()
 
+if (NOT COROKAFKA_PKGCONFIG_DIR)
+    set(COROKAFKA_PKGCONFIG_DIR share/pkgconfig)
+endif()
+
 # Determine if this is a 32 or 64 bit build
 string(FIND ${CMAKE_CXX_FLAGS} "-m64" BITNESS)
 

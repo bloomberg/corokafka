@@ -1,0 +1,14 @@
+prefix=@CMAKE_INSTALL_PREFIX@
+exec_prefix=${prefix}
+libdir=${prefix}/lib
+sharedlibdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: corokafka
+Url: https://github.com/bloomberg/corokafka
+Description: Coroutine wrapper on top of Cppkafka using Bloomberg's Quantum library.
+Version: @COROKAFKA_VERSION@
+Requires:
+Requires.private: cppkafka quantum
+Libs: -L${libdir} -L${sharedlibdir} -L@CPPKAFKA_ROOT_DIR@/lib -L@CPPKAFKA_ROOT_DIR@/lib64 -lcppkafka
+Cflags: -I${includedir} -I@QUANTUM_INCLUDE_DIR@ -I@CPPKAFKA_INCLUDE_DIR@
