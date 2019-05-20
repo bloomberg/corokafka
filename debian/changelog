@@ -1,3 +1,9 @@
+corokafka (0.0.0.13) unstable; urgency=low
+
+  * f5dd49e Fixes to corokafka.pc.in and refactored consumer manager preprocess method
+
+ -- Alexander Damian <adamian@bloomberg.net>  Mon, 20 May 2019 15:37:40 -0400
+
 corokafka (0.0.0.12) unstable; urgency=low
 
   * eee5281 Changed install dir for pkgconfig file
