@@ -53,7 +53,9 @@ private:
     
     ConsumerMetadata getMetadata(const std::string& topic);
     
-    void preprocess(bool enable, const std::string& topic);
+    void preprocess(const std::string& topic, bool enable);
+    
+    void preprocess(bool enable);
     
     void pause(const std::string& topic);
     

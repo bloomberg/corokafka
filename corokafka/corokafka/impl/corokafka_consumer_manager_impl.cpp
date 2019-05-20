@@ -376,15 +376,15 @@ ConsumerMetadata ConsumerManagerImpl::getMetadata(const std::string& topic)
     return makeMetadata(_consumers.at(topic));
 }
 
-void ConsumerManagerImpl::preprocess(bool enable, const std::string& topic)
+void ConsumerManagerImpl::preprocess(const std::string& topic, bool enable)
 {
-    if (topic.empty()) {
-        for (auto&& consumer : _consumers) {
-            consumer.second._preprocess = enable;
-        }
-    }
-    else {
-        _consumers.at(topic)._preprocess = enable;
+    _consumers.at(topic)._preprocess = enable;
+}
+
+void ConsumerManagerImpl::preprocess(bool enable)
+{
+    for (auto&& consumer : _consumers) {
+        consumer.second._preprocess = enable;
     }
 }
 

@@ -105,11 +105,13 @@ public:
     
     /**
      * @brief Enables or disables the preprocessor callback (if registered)
-     * @param enable True to enable, false to disable
      * @param topic The topic name
+     * @param enable True to enable, false to disable
      * @remark Note that the preprocessor is enabled by default
+     * @remark The overload with no topic will act on all topics.
      */
-    void preprocess(bool enable, const std::string& topic = {});
+    void preprocess(const std::string& topic, bool enable);
+    void preprocess(bool enable);
     
     /**
      * @brief Get the configuration associated with this topic.
