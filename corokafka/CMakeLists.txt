@@ -27,7 +27,6 @@ if (COROKAFKA_VERBOSE_MAKEFILE)
 endif()
 
 #Global options
-set(MODE 64)
 set(LINKER_LANGUAGE CXX)
 set(CMAKE_INCLUDE_DIRECTORIES_BEFORE ON)
 set(CMAKE_BUILD_TYPE Debug)
@@ -44,7 +43,7 @@ else()
 endif()
 #Set compile flags if CXXFLAGS environment variable is not set
 if (NOT DEFINED ENV{CXXFLAGS})
-    set(CMAKE_CXX_FLAGS "-Wall -Wextra -Werror -Wabi -O0 -m${MODE} -std=c++${CMAKE_CXX_STANDARD} -ftemplate-backtrace-limit=0")
+    set(CMAKE_CXX_FLAGS "-Wall -Wextra -Werror -Wabi -O0 -m64 -std=c++${CMAKE_CXX_STANDARD} -ftemplate-backtrace-limit=0")
 endif()
 if (COROKAFKA_VERBOSE_MAKEFILE)
     message(STATUS "CMAKE_CXX_FLAGS = ${CMAKE_CXX_FLAGS}")
@@ -75,10 +74,9 @@ math(EXPR BITS "8*${CMAKE_SIZEOF_VOID_P}")
 
 # Properly set the output directory
 if (${BITS} EQUAL 64)
-    set(LIBDIR "lib64")
-else()
-    set(LIBDIR "lib")
+    set(MODE 64)
 endif()
+set(LIBDIR "lib${MODE}")
 
 add_definitions(
         -D_REENTRANT
