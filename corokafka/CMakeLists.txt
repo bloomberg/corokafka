@@ -71,7 +71,14 @@ if (NOT COROKAFKA_PKGCONFIG_DIR)
 endif()
 
 # Determine if this is a 32 or 64 bit build
-string(FIND ${CMAKE_CXX_FLAGS} "-m64" BITNESS)
+math(EXPR BITS "8*${CMAKE_SIZEOF_VOID_P}")
+
+# Properly set the output directory
+if (${BITS} EQUAL 64)
+    set(LIBDIR "lib64")
+else()
+    set(LIBDIR "lib")
+endif()
 
 add_definitions(
         -D_REENTRANT

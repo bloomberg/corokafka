@@ -36,13 +36,6 @@ target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC
     ${QUANTUM_INCLUDE_DIR}
 )
 
-# Properly set the output directory
-if (${BITNESS} EQUAL -1)
-    set(LIBDIR "lib")
-else()
-    set(LIBDIR "lib64")
-endif()
-
 set_target_properties(${PROJECT_NAME}
     PROPERTIES
     ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${LIBDIR}"
