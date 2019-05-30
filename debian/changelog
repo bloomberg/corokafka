@@ -1,3 +1,11 @@
+corokafka (0.0.0.14) unstable; urgency=low
+
+  * 2c41a47 Fixed null metadata handle in the log callback and also the zero timeout issue when flushing
+  * bde98c4 Fix MODE cmake var
+  * 33af84e Changed method for determining bitness
+
+ -- Alexander Damian <adamian@bloomberg.net>  Thu, 30 May 2019 14:59:32 -0400
+
 corokafka (0.0.0.13) unstable; urgency=low
 
   * f5dd49e Fixes to corokafka.pc.in and refactored consumer manager preprocess method
