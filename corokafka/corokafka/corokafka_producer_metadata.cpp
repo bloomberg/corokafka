@@ -23,16 +23,16 @@ namespace corokafka {
 //=============================================================================
 
 ProducerMetadata::ProducerMetadata(const std::string& topic,
-                                   BufferedProducer<ByteArray>& producer) :
-    Metadata(topic, Topic(), producer.get_producer()),
+                                   BufferedProducer<ByteArray>* producer) :
+    Metadata(topic, Topic(), producer ? &producer->get_producer() : nullptr),
     _bufferedProducer(producer)
 {
 }
 
 ProducerMetadata::ProducerMetadata(const std::string& topic,
                                    const Topic& kafkaTopic,
-                                   BufferedProducer<ByteArray>& producer) :
-    Metadata(topic, kafkaTopic, producer.get_producer()),
+                                   BufferedProducer<ByteArray>* producer) :
+    Metadata(topic, kafkaTopic, producer ? &producer->get_producer() : nullptr),
     _bufferedProducer(producer)
 {
 }
@@ -49,31 +49,43 @@ const TopicPartitionList& ProducerMetadata::getTopicPartitions() const
 
 Metadata::OffsetWatermarkList ProducerMetadata::queryOffsetWatermarks() const
 {
+    if (!_handle) {
+        throw std::runtime_error("Null producer");
+    }
     OffsetWatermarkList offsets;
     for (const auto& partition : getTopicPartitions()) {
-        offsets.emplace_back(partition.get_partition(), _handle.query_offsets(partition));
+        offsets.emplace_back(partition.get_partition(), _handle->query_offsets(partition));
     }
     return offsets;
 }
 
 TopicPartitionList ProducerMetadata::queryOffsetsAtTime(Timestamp timestamp) const
 {
+    if (!_handle) {
+        throw std::runtime_error("Null producer");
+    }
     KafkaHandleBase::TopicPartitionsTimestampsMap timestampMap;
     std::chrono::milliseconds epochTime = timestamp.time_since_epoch();
     for (const auto& partition : getTopicPartitions()) {
         timestampMap[partition] = epochTime;
     }
-    return _handle.get_offsets_for_times(timestampMap);
+    return _handle->get_offsets_for_times(timestampMap);
 }
 
 size_t ProducerMetadata::getOutboundQueueLength() const
 {
-    return _handle.get_out_queue_length();
+    if (!_handle) {
+        throw std::runtime_error("Null producer");
+    }
+    return _handle->get_out_queue_length();
 }
 
 size_t ProducerMetadata::getInternalQueueLength() const
 {
-    return _bufferedProducer.get_buffer_size();
+    if (!_handle) {
+        throw std::runtime_error("Null producer");
+    }
+    return _bufferedProducer->get_buffer_size();
 }
 
 }

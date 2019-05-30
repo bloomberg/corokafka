@@ -1,0 +1,7 @@
+#ifndef BLOOMBERG_COROKAFKA__MACROS_H
+#define BLOOMBERG_COROKAFKA__MACROS_H
+
+//https://github.com/edenhill/librdkafka/issues/1950
+#define RD_KAFKA_ZERO_TIMEOUT_FLUSH_FIX 0x000b0600 //v0.11.6.00
+
+#endif //BLOOMBERG_COROKAFKA__MACROS_H

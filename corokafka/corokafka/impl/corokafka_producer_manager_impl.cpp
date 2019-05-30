@@ -702,7 +702,7 @@ void ProducerManagerImpl::exceptionHandler(const std::exception& ex,
 
 ProducerMetadata ProducerManagerImpl::makeMetadata(const ProducerTopicEntry& topicEntry)
 {
-    return ProducerMetadata(topicEntry._configuration.getTopic(), *topicEntry._producer);
+    return ProducerMetadata(topicEntry._configuration.getTopic(), topicEntry._producer.get());
 }
 
 void* ProducerManagerImpl::setPackedOpaqueFuture(const Message& kafkaMessage)

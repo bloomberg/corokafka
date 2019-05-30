@@ -76,6 +76,18 @@ public:
     virtual TopicPartitionList queryOffsetsAtTime(Timestamp timestamp) const = 0;
     
     /**
+     * @brief Indicates if the rdkafka consumer/producer handle is valid and set
+     * @return True if it's valid, False otherwise.
+     */
+    operator bool() const;
+    
+    /**
+     * @brief Get the underlying rdkafka producer/consumer handle.
+     * @return The handle. If the handle is invalid, 0 is returned.
+     */
+    uint64_t getHandle() const;
+    
+    /**
      * @brief Get the topic name.
      * @return The name.
      */
@@ -104,12 +116,12 @@ protected:
     // Constructor
     Metadata(const std::string& topic,
              const Topic& kafkaTopic,
-             KafkaHandleBase& handle);
+             KafkaHandleBase* handle);
     
     const Topic& getTopicObject() const;
     
     const std::string&            _topic;
-    KafkaHandleBase&              _handle;
+    KafkaHandleBase*              _handle;
     mutable Topic                 _kafkaTopic;
     mutable TopicPartitionList    _partitions;
 };

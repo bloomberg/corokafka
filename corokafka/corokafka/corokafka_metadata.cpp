@@ -24,11 +24,21 @@ namespace corokafka {
 // Constructor
 Metadata::Metadata(const std::string& topic,
                    const Topic& kafkaTopic,
-                   KafkaHandleBase& handle) :
+                   KafkaHandleBase* handle) :
     _topic(topic),
     _handle(handle),
     _kafkaTopic(Topic::make_non_owning(kafkaTopic.get_handle()))
 {
+}
+
+Metadata::operator bool() const
+{
+    return _handle != nullptr;
+}
+
+uint64_t Metadata::getHandle() const
+{
+    return _handle == nullptr ? 0 : (uint64_t)_handle->get_handle();
 }
 
 const std::string& Metadata::getTopic() const
@@ -38,20 +48,29 @@ const std::string& Metadata::getTopic() const
 
 const Topic& Metadata::getTopicObject() const
 {
+    if (!_handle) {
+        throw std::runtime_error("Null handle");
+    }
     if (!_kafkaTopic) {
-        _kafkaTopic = _handle.get_topic(_topic);
+        _kafkaTopic = _handle->get_topic(_topic);
     }
     return _kafkaTopic;
 }
 
 TopicMetadata Metadata::getTopicMetadata() const
 {
-    return _handle.get_metadata(getTopicObject());
+    if (!_handle) {
+        throw std::runtime_error("Null handle");
+    }
+    return _handle->get_metadata(getTopicObject());
 }
 
 std::string Metadata::getInternalName() const
 {
-    return _handle.get_name();
+    if (!_handle) {
+        throw std::runtime_error("Null handle");
+    }
+    return _handle->get_name();
 }
 
 bool Metadata::isPartitionAvailable(int partition) const

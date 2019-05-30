@@ -22,6 +22,7 @@
 #include <corokafka/corokafka_message.h>
 #include <corokafka/corokafka_producer_configuration.h>
 #include <corokafka/corokafka_connector_configuration.h>
+#include <corokafka/detail/corokafka_macros.h>
 #include <quantum/quantum.h>
 
 namespace Bloomberg {
@@ -61,9 +62,9 @@ struct ProducerTopicEntry : TopicEntry {
     bool                                _autoThrottle{false};
     uint16_t                            _throttleMultiplier{1};
     bool                                _waitForAcks{false};
-    bool                                _flushWaitForAcks{false};
+    bool                                _flushWaitForAcks{rd_kafka_version() >= RD_KAFKA_ZERO_TIMEOUT_FLUSH_FIX ? false : true};
     std::chrono::milliseconds           _waitForAcksTimeout{0};
-    std::chrono::milliseconds           _flushWaitForAcksTimeout{0};
+    std::chrono::milliseconds           _flushWaitForAcksTimeout{rd_kafka_version() >= RD_KAFKA_ZERO_TIMEOUT_FLUSH_FIX ? 0 : 100};
     bool                                _forceSyncFlush{false};
     bool                                _preserveMessageOrder{false};
     bool                                _skipUnknownHeaders{true};

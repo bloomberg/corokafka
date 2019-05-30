@@ -1293,7 +1293,7 @@ void ConsumerManagerImpl::exceptionHandler(const std::exception& ex,
 ConsumerMetadata ConsumerManagerImpl::makeMetadata(const ConsumerTopicEntry& topicEntry)
 {
     return ConsumerMetadata(topicEntry._configuration.getTopic(),
-                            *topicEntry._consumer,
+                            topicEntry._consumer.get(),
                             topicEntry._configuration.getPartitionStrategy());
 }
 

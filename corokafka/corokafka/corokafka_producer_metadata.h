@@ -61,13 +61,13 @@ public:
     size_t getInternalQueueLength() const;
 private:
     ProducerMetadata(const std::string& topic,
-                     BufferedProducer<ByteArray>& producer);
+                     BufferedProducer<ByteArray>* producer);
     ProducerMetadata(const std::string& topic,
                      const Topic& kafkaTopic,
-                     BufferedProducer<ByteArray>& producer);
+                     BufferedProducer<ByteArray>* producer);
     
     //Members
-    BufferedProducer<ByteArray>& _bufferedProducer;
+    BufferedProducer<ByteArray>* _bufferedProducer;
 };
 
 }}
