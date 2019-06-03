@@ -1,7 +1,7 @@
 # CoroKafka library
-Coroutine-based Kafka messaging library (using [boost::coroutine2](https://www.boost.org/doc/libs/1_65_0/libs/coroutine2/doc/html/index.html) framework). Powerful, scalable and easy to use C++ library built on top of `librdkafka`, `cppkafka` and `quantum`, supporting any number of parallel producers and consumers.
+Coroutine-based Kafka messaging library (using [boost::coroutine2](https://www.boost.org/doc/libs/1_65_0/libs/coroutine2/doc/html/index.html) framework). Scalable and easy to use C++ library built on top of `cppkafka` and `quantum`, supporting any number of parallel producers and consumers.
 Producing and consuming of messages is simplified by allowing applications to use their own native message
-formats which are automatically serialized and deserialized by the connector. Message processing spreads to optimal number of parallel coroutines and threads. Integrated support for `rdkafka` headers. Currently the library only supports static topics and admin API is not yet present.
+formats which are automatically serialized and deserialized by the connector. Message processing spreads to optimal number of parallel coroutines and threads. Integrated support for `rdkafka` headers. Currently the library only supports static topics and admin API is not yet available.
 
 Compiles for -std=gnu++11, -std=gnu++14 and -std=gnu++17.
 
@@ -12,11 +12,12 @@ See [API documentation](https://bbgithub.dev.bloomberg.com/pages/eor/corokafka/)
 > cmake -B build <options> .
 > cd build && make install
 ```
-Note that this project is dependent on the following libraries which must appear on your application link line:
+Note that this project is dependent on the following libraries:
 * `cppkafka`
-* `rdkafka` (static linking only)
-* `boost_context`
-* `pthread`
+* `Bloomberg.quantum`
+
+Depending on the linking options below, you may need to add
+`-lcorokafka -lcppkafka -lrdkafka -lboost-context -lpthread -lrt -lssl -lcrypto -ldl -lz` on your link line, when building your final application.
 
 To use the library simply include `<corokafka/corokafka.h>` in your application. 
 
@@ -52,11 +53,12 @@ used directly. Additional configuration options specific to `corokafka` are also
 
 ## Producer example
 In the following example we will be producing some messages with a key of type `size_t`, a payload of type
-`std::string` and no header.
+`std::string` and a simple header called _Header1_
 ```
 //==========================================================================
 //                          Producer setup
 //==========================================================================
+#include <quantum/quantum.h>
 #include <corokafka/corokafka.h>
 
 // Define a delivery report callback (optional - see documentation for all available callbacks)
@@ -81,24 +83,36 @@ void deliveryReportCallback(const corokafka::ProducerMetadata& metadata,
 
 // Define a log callback (optional - see documentation for all available callbacks)
 void logCallback(const corokafka::Metadata& metadata,
-               int level,
-               const std::string& facility,
-               const std::string& message)
+                 corokafka::LogLevel level,
+                 const std::string& facility,
+                 const std::string& message)
 {
     std::cout << "Log from: " << metadata.getInternalName()
               << " facility: " << facility
               << " text: " << message << std::endl;
 }
 
-// Define a serializer (mandatory - see documentation for mandatory callbacks)
-// We will send a message with a 'size_t' key and a 'std::string' payload
-corokafka::ConcreteSerializerWithoutHeader<size_t, std::string>::Packed
-serializerCallback(const size_t& key, const std::string& payload)
+// Define a key and payload serializer (mandatory - see documentation for mandatory callbacks)
+// We will send a message with a 'size_t' key and a 'std::string' payload. 
+// If using headers (optionally), a header serializer will also be needed.
+corokafka::ByteArray
+keySerializerCallback(const size_t& key)
 {
-    return corokafka::ConcreteSerializerWithoutHeader<size_t, std::string>::Packed
-        (corokafka::ByteArray(reinterpret_cast<const uint8_t*>(&key),
-         reinterpret_cast<const uint8_t*>(&key) + sizeof(size_t)),
-         corokafka::ByteArray(payload.begin(), payload.end()));
+    return {reinterpret_cast<const uint8_t*>(&key),
+            reinterpret_cast<const uint8_t*>(&key) + sizeof(size_t)};
+}
+
+// Optional
+corokafka::ByteArray
+headerSerializerCallback(const std::string& header)
+{
+    return {header.begin(), header.end()};
+}
+
+corokafka::ByteArray
+payloadSerializerCallback(const std::string& payload)
+{
+    return {payload.begin(), payload.end()};
 }
 
 // Create a topic configuration (optional)
@@ -109,7 +123,7 @@ std::initializer_list<corokafka::ConfigurationOption > topicOptions = {
 
 // Create a producer configuration (only 'metadata.broker.list' setting is mandatory)
 std::initializer_list<corokafka::ConfigurationOption > configOptions = {
-	{ "metadata.broker.list", "some_broker.query.bms.bloomberg.com:port" },
+	{ "metadata.broker.list", "broker_url:port" },
 	{ "api.version.request", true },
 	{ "internal.producer.retries", 5 }
 };
@@ -119,9 +133,9 @@ std::initializer_list<corokafka::ConfigurationOption > configOptions = {
 corokafka::ProducerConfiguration config("my-topic", configOptions, topicOptions);
 
 // Add the callbacks
-config.setCallback(logCallback);
-config.setCallback(deliveryReportCallback);
-config.setCallback<size_t, std::string>(serializerCallback);
+config.setKeyCallback<size_t>(keySerializerCallback);
+config.setHeaderCallback<std::string>("Header1", headerSerializerCallback);
+config.setPayloadCallback<std::string>(payloadSerializerCallback);
 
 // Create the connector config (optional)
 corokafka::ConnectorConfiguration connectorConfiguration;
@@ -137,20 +151,21 @@ corokafka::Connector connector(std::move(builder));
 // Produce 10 messages
 corokafka::ProducerManager& producer = connector.producer(); //get handle on producer
 
-for (size_t i = 0; i < 10; ++i) {
-	std::ostringstream ss;
-	ss << "Hello world " << i;
-	std::tuple<size_t, std::string> message(i, ss.str());
+// Create a header pack (optional - only if using headers)
+corokafka::HeaderPack headers;
+headers.push_back("Header1", "This is my header"); //add a header
 
+// Produce 10 messages. 'i' represents the 'key'
+for (size_t i = 0; i < 10; ++i) { 
 	//produce a message synchronously (async production also available)
-	producer.send("my-topic", message);
+	producer.send("my-topic", i, "Hello world", headers);
 }
 
 ```
 
 ## Consumer example
 In the following example we will be consuming messages with a key of type `size_t`, a payload of type
-`std::string` and no header.
+`std::string` and a simple header called _Header1_.
 ```
 //==========================================================================
 //                 Message worker queue and processor
@@ -166,46 +181,80 @@ void messageProcessor()
     {
         if (!messages.empty()) {
             std::lock_guard<std::mutex> lock(messageMutex);
-            corokafka::ReceivedMessageWithoutHeader<size_t, std::string> message = std::move(messages.front());
+            corokafka::ReceivedMessage<size_t, std::string> message = std::move(messages.front());
             messages.pop_front();
-            if (message && !message.getError()) {
-                std::cout << "Dequeued message from topic: " << message.getTopic()
-                          << " with key: " << message.getKey()
-                          << " payload: " << (std::string)message.getPayload()
-                          << std::endl;
-                message.commit(); //commit the message which will trigger 'on commit' callback
+           
+            //get the headers
+            corokafka::HeaderPack headers = std::move(message).getHeaders();
+            std::string headerName;
+            std::string headerValue;
+            if (headers) {
+                headerName = headers.getAt<std::string>(0).name();
+                headerValue = headers.getAt<std::string>(0).value();
             }
+            
+            //print the message
+            std::ostringstream oss;
+            oss << "Received message from topic: " << message.getTopic()
+                      << " partition: " << message.getPartition()
+                      << " offset: " << message.getOffset()
+                      << " key: " << message.getKey()
+                      << " header: " << headerName << " :: " << headerValue
+                      << " payload: " << message.getPayload()
+                      << std::endl;
+            std::cout << oss.str() << std::endl;
+            
+            //commit the message. This can also be done automatically (see consumer configuration).
+            message.commit();
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        // Pause a little. Typically this could be implemented with a condition variable being signalled
+        // when a message gets enqueued.
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 }
 
 //==========================================================================
 //                             Consumer setup
 //==========================================================================
+#include <quantum/quantum.h>
+#include <corokafka/corokafka.h>
 
-// Define some callback (optional - see documentation for all available callbacks)
+// Define a log callback (optional - see documentation for all available callbacks)
 void logCallback(const corokafka::Metadata& metadata,
-               int level,
-               const std::string& facility,
-               const std::string& message)
+                 corokafka::LogLevel level,
+                 const std::string& facility,
+                 const std::string& message)
 {
     std::cout << "Log from: " << metadata.getInternalName()
               << " facility: " << facility
               << " text: " << message << std::endl;
 }
 
-// Define a deserializer callback (mandatory)
-corokafka::ConcreteDeserializerWithoutHeader<size_t, std::string>::Unpacked
-deserializerCallback(const corokafka::Buffer& key, const corokafka::Buffer& payload)
+// Define deserializers (mandatory for key and payload)
+size_t
+keyDeserializerCallback(const corokafka::Buffer& key)
 {
-    return corokafka::ConcreteDeserializerWithoutHeader<size_t, std::string>::Unpacked
-        (*reinterpret_cast<const size_t*>(key.get_data()), std::string(payload.begin(), payload.end()));
+    return *static_cast<const size_t*>((void*)key.get_data());
+}
+
+// Optional header deserializer
+std::string
+headerDeserializerCallback(const corokafka::Buffer& header)
+{
+    return {header.begin(), header.end()};
+}
+
+std::string
+payloadDeserializerCallback(const corokafka::Buffer& payload)
+{
+    return {payload.begin(), payload.end()};
 }
 
 // Define a receiver callback (mandatory)
-void receiverCallback(corokafka::ReceivedMessageWithoutHeader<size_t, std::string> message)
+void receiverCallback(corokafka::ReceivedMessage<size_t, std::string> message)
 {
+    if (!message) return; //invalid message
+     
     if (message.getError()) {
         std::cout << "Enqueued message from topic: " << message.getTopic()
                   << " with error: " << message.getError().to_string()
@@ -213,7 +262,9 @@ void receiverCallback(corokafka::ReceivedMessageWithoutHeader<size_t, std::strin
     }
     else {
         std::cout << "Enqueued message from topic: " << message.getTopic()
-                  << " with key: " << message.getKey()
+                  << " partition: " << message.getPartition()
+                  << " offset: " << message.getOffset()
+                  << " key: " << message.getKey()
                   << " payload: " << (std::string)message.getPayload()
                   << std::endl;
     }
@@ -225,7 +276,7 @@ void receiverCallback(corokafka::ReceivedMessageWithoutHeader<size_t, std::strin
 
 // Create the producer and topic config
 std::initializer_list<corokafka::ConfigurationOption > configOptions = {
-	{ "metadata.broker.list", "some_broker.query.bms.bloomberg.com:port" },
+	{ "metadata.broker.list", "broker_url:port" },
 	{ "group.id", "my-group" },
 	{ "api.version.request", true },
 	{ "enable.partition.eof", true },
@@ -235,14 +286,16 @@ std::initializer_list<corokafka::ConfigurationOption > configOptions = {
 	{ "partition.assignment.strategy", "roundrobin" },
 	{ "internal.consumer.pause.on.start", false }
 };
-corokafka::ConsumerConfiguration config(topic, configOptions, {});
+corokafka::ConsumerConfiguration config("my-topic", configOptions, {});
 
 //add the callbacks
 config.setCallback(logCallback);
-config.setCallback<size_t, std::string>(deserializerCallback);
+config.setKeyCallback<size_t>(keyDeserializerCallback);
+config.setHeaderCallback<std::string>("Header1", headerDeserializerCallback);
+config.setPayloadCallback<std::string>(payloadDeserializerCallback);
 config.setCallback<size_t, std::string>(receiverCallback);
 
-// Optionally set initial partition assignment
+// Optionally set initial partition assignment (4 partitions per topic)
 config.assignInitialPartitions(corokafka::PartitionStrategy::Dynamic,
 						   {{topic, 0, corokafka::TopicPartition::OFFSET_BEGINNING},
 						    {topic, 1, corokafka::TopicPartition::OFFSET_BEGINNING},

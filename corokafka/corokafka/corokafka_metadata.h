@@ -79,7 +79,7 @@ public:
      * @brief Indicates if the rdkafka consumer/producer handle is valid and set
      * @return True if it's valid, False otherwise.
      */
-    operator bool() const;
+    explicit operator bool() const;
     
     /**
      * @brief Get the underlying rdkafka producer/consumer handle.
