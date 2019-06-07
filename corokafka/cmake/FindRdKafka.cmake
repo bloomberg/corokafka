@@ -21,8 +21,8 @@ find_path(RDKAFKA_INCLUDE_DIR
 if (COROKAFKA_CMAKE_VERBOSE)
     get_property(FIND_LIBRARY_32 GLOBAL PROPERTY FIND_LIBRARY_USE_LIB32_PATHS)
     get_property(FIND_LIBRARY_64 GLOBAL PROPERTY FIND_LIBRARY_USE_LIB64_PATHS)
-    MESSAGE(STATUS "RDKAFKA search 32-bit library paths: ${FIND_LIBRARY_32}")
-    MESSAGE(STATUS "RDKAFKA search 64-bit library paths: ${FIND_LIBRARY_64}")
+    message(STATUS "RDKAFKA search 32-bit library paths: ${FIND_LIBRARY_32}")
+    message(STATUS "RDKAFKA search 64-bit library paths: ${FIND_LIBRARY_64}")
 endif()
 
 find_library(RDKAFKA_LIBRARY

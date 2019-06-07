@@ -41,6 +41,7 @@
 #include <corokafka/corokafka_sent_message.h>
 #include <corokafka/corokafka_serializer.h>
 #include <corokafka/corokafka_utils.h>
+#include <corokafka/detail/corokafka_macros.h>
 #include <corokafka/detail/corokafka_namespace_forwarding.h>
 
 #endif //BLOOMBERG_COROKAFKA_H

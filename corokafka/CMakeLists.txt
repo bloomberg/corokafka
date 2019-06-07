@@ -19,6 +19,8 @@ option(COROKAFKA_ENABLE_TESTS "Generate tests target." OFF)
 option(COROKAFKA_BOOST_STATIC_LIBS "Link with Boost static libraries." ON)
 option(COROKAFKA_BOOST_USE_MULTITHREADED "Use Boost multithreaded libraries." ON)
 option(COROKAFKA_BOOST_USE_VALGRIND "Use valgrind headers for Boost." OFF)
+option(COROKAFKA_WERROR "Turn all warnings to errors." OFF)
+
 if (COROKAFKA_INSTALL_ROOT)
     set(CMAKE_INSTALL_PREFIX ${COROKAFKA_INSTALL_ROOT})
 endif()
@@ -35,15 +37,22 @@ set(CMAKE_BUILD_TYPE Debug)
 if (NOT DEFINED ENV{CXX})
     set(CMAKE_CXX_COMPILER g++)
 endif()
+
 #Set the compiler if the CXX_STANDARD environment variable is not set
 if (NOT DEFINED ENV{CXXSTANDARD})
     set(CMAKE_CXX_STANDARD 14)
 else()
     set(CMAKE_CXX_STANDARD $ENV{CXXSTANDARD})
 endif()
+
+#Enable errors
+if (COROKAFKA_WERROR)
+    set(WERROR "-Werror")
+endif()
+
 #Set compile flags if CXXFLAGS environment variable is not set
-if (NOT DEFINED ENV{CXXFLAGS})
-    set(CMAKE_CXX_FLAGS "-Wall -Wextra -Werror -Wabi -O0 -m64 -std=c++${CMAKE_CXX_STANDARD} -ftemplate-backtrace-limit=0")
+if (NOT DEFINED ENV{CXXFLAGS} AND NOT DEFINED CMAKE_CXX_FLAGS)
+    set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wabi ${WERROR} -O0 -m64 -std=c++${CMAKE_CXX_STANDARD} -ftemplate-backtrace-limit=0")
 endif()
 if (COROKAFKA_VERBOSE_MAKEFILE)
     message(STATUS "CMAKE_CXX_FLAGS = ${CMAKE_CXX_FLAGS}")
@@ -79,10 +88,10 @@ endif()
 set(LIBDIR "lib${MODE}")
 
 add_definitions(
-        -D_REENTRANT
-        -D_THREAD_SAFE
-        -D_POSIX_PTHREAD_SEMANTICS
-        -D__FUNCTION__=__FILE__
+    -D_REENTRANT
+    -D_THREAD_SAFE
+    -D_POSIX_PTHREAD_SEMANTICS
+    -D__FUNCTION__=__FILE__
 )
 
 if(COROKAFKA_BUILD_SHARED)
@@ -146,20 +155,19 @@ endif()
 # Find the quantum library installation
 find_package(Quantum MODULE REQUIRED)
 if (NOT QUANTUM_FOUND)
-    message(STATUS "Quantum_FOUND = ${Quantum_FOUND}")
-    message(FATAL_ERROR "Could not find Quantum library. Please set QUANTUM_ROOT_DIR properly.")
+    message(FATAL_ERROR "Could not find Quantum library. Please set QUANTUM_ROOT_DIR to the Quantum install folder.")
 endif()
 
 # Find the rdkafka library installation
 find_package(RdKafka MODULE REQUIRED)
 if (NOT RDKAFKA_FOUND)
-    message(FATAL_ERROR "Could not find RdKafka library. Please set RDKAFKA_ROOT_DIR properly.")
+    message(FATAL_ERROR "Could not find RdKafka library. Please set RDKAFKA_ROOT_DIR to the RdKafka install folder.")
 endif()
 
 # Find the cppkafka library installation
 find_package(CppKafka MODULE REQUIRED)
 if (NOT CPPKAFKA_FOUND)
-    message(FATAL_ERROR "Could not find CppKafka library. Please set CPPKAFKA_ROOT_DIR properly.")
+    message(FATAL_ERROR "Could not find CppKafka library. Please set CPPKAFKA_ROOT_DIR to the CppKafka install folder.")
 endif()
 
 link_directories(

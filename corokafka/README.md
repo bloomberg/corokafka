@@ -1,7 +1,6 @@
 # CoroKafka library
-Coroutine-based Kafka messaging library (using [boost::coroutine2](https://www.boost.org/doc/libs/1_65_0/libs/coroutine2/doc/html/index.html) framework). Scalable and easy to use C++ library built on top of `cppkafka` and `quantum`, supporting any number of parallel producers and consumers.
-Producing and consuming of messages is simplified by allowing applications to use their own native message
-formats which are automatically serialized and deserialized by the connector. Message processing spreads to optimal number of parallel coroutines and threads. Integrated support for `rdkafka` headers. Currently the library only supports static topics and admin API is not yet available.
+Coroutine-based Kafka messaging library (using [boost::coroutine2](https://www.boost.org/doc/libs/1_65_0/libs/coroutine2/doc/html/index.html) framework). Scalable and easy to use C++ library built on top of [cppkafka](https://github.com/mfontanini/cppkafka) and [quantum](https://github.com/bloomberg/quantum), supporting any number of parallel producers and consumers.
+Producing and consuming of messages is simplified by allowing applications to use their own native message formats which are automatically serialized and deserialized by the connector. Message processing spreads to optimal number of parallel coroutines and threads. Integrated support for `rdkafka` headers. Currently the library only supports static topics and admin API is not yet available.
 
 Compiles for -std=gnu++11, -std=gnu++14 and -std=gnu++17.
 
@@ -13,7 +12,7 @@ See [API documentation](https://bbgithub.dev.bloomberg.com/pages/eor/corokafka/)
 > cd build && make install
 ```
 Note that this project is dependent on the following libraries:
-* `cppkafka`
+* `cppkafka` (depends internally on `rdkafka` and `boost`)
 * `Bloomberg.quantum`
 
 Depending on the linking options below, you may need to add
