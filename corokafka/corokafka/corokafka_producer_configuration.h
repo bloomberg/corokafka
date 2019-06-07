@@ -26,64 +26,6 @@ namespace corokafka {
 //========================================================================
 //                       PRODUCER CONFIGURATION
 //========================================================================
-/*
- * Kafka-connector specific configs
- * -----------------------------------------------------------------------
- * Description: These configuration options are additional to the librdkafka ones. Options
- *              pertaining to a producer start with 'internal.producer' and for topics start with 'internal.topic'.
- *              Default values are marked with a * or are in {}.
- *
- * internal.producer.timeout.ms: {1000} Sets the timeout on poll and flush operations.
- *
- * internal.producer.retries: {0} Sets the number of times to retry sending a message from the internal queue before
- * giving up. Note that this setting is independent of the rdkafka setting 'message.send.max.retries'. This setting
- * applies to each individual message and not to entire batches of messages which 'message.send.max.retries' does.
- *
- * internal.producer.payload.policy: {'passthrough',*'copy'}. Sets the payload policy on the producer.
- * For sync producers, use 'passthrough' for maximum performance.
- *
- * internal.producer.preserve.message.order: {'true',*'false'}. Set to 'true' if strict message order must be preserved.
- * When setting this, rdkafka option 'max.in.flight' will be set to 1 to avoid possible reordering of packets.
- * Messages will be buffered and sent sequentially, waiting for broker acks before the next one is processed.
- * This ensures delivery guarantee at the cost of performance. The internal buffer queue size can be
- * checked via ProducerMetadata::getInternalQueueLength().
- * An intermediate, solution with better performance would be to set this setting to 'false' and set 'max.in.flight=1'
- * which will skip internal buffering altogether. This will guarantee ordering but not delivery.
- *
- * internal.producer.max.queue.length: {10000} Maximum size of the internal queue when producing asynchronously
- * with strict order preservation.
- *
- * internal.producer.wait.for.acks: {'true',*'false'} If set to true, then the producer will wait up to the
- * timeout specified when producing a message via send() or post().
- *
- * internal.producer.wait.for.acks.timeout.ms: {0} Set the maximum timeout for the producer to wait for broker acks
- * when producing a message via send() or post(). Set to -1 for infinite timeout.
- *
- * internal.producer.flush.wait.for.acks: {'true',*'false'} If set to true, then the producer will wait up to the
- * timeout specified when flushing the internal queue.
- *
- * internal.producer.flush.wait.for.acks.timeout.ms: {0} Set the maximum timeout for the producer to wait for broker acks
- * when flushing the internal queue (see above). Set to -1 for infinite timeout.
- *
- * internal.producer.log.level: {'emergency','alert','critical','error','warning','notice',*'info','debug'}.
- * Sets the log level for this producer. Note that if the rdkafka 'debug' property is set, internal.producer.log.level
- * will be automatically adjusted to 'debug'.
- *
- * internal.producer.skip.unknown.headers: {*'true','false'}. If unknown headers are encountered (i.e. for which there
- * is no registered serializer), they will be skipped. If set to false, an error will be thrown.
- *
- * internal.producer.auto.throttle: {'true',*'false'}. When enabled, the producers will be automatically paused/resumed
- * when throttled by the 'throttle time x multiplier'.
- *
- * internal.producer.auto.throttle.multiplier: {1}. Change this value to pause the producer by
- * 'throttle time x multiplier' instead. This only works if 'internal.producer.auto.throttle=true'.
- *
- * internal.producer.queue.full.notification: {'edgeTriggered',*'oncePerMessage','eachOccurence'}.
- * When registering a QueueFullCallback, this setting determines when the callback will be raised. If set to
- * 'edgeTriggered', the callback will be raised once after which the application must reset the edge via
- * ProducerManager::resetQueueFullTrigger() in order to re-enable it again.
- *
- */
 class ProducerConfiguration : public Configuration
 {
     friend class Configuration;

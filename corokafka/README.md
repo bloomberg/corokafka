@@ -4,7 +4,7 @@ Producing and consuming of messages is simplified by allowing applications to us
 
 Compiles for -std=gnu++11, -std=gnu++14 and -std=gnu++17.
 
-See [API documentation](https://bbgithub.dev.bloomberg.com/pages/eor/corokafka/) for more details.
+See [API documentation](https://bbgithub.dev.bloomberg.com/pages/eor/corokafka/corokafka) and available [configuration](https://bbgithub.dev.bloomberg.com/pages/eor/corokafka/corokafka/CONFIGURATION.md) options for more details.
 
 ## Building and installing
 ```shell
