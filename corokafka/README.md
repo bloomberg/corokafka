@@ -46,13 +46,13 @@ Note: options must be preceded with `-D` when passed as arguments to CMake.
 ## Configuration
 Since `corokafka` is built on top of `rdkafka`, all configuration [options](https://github.com/accelerated/librdkafka/blob/master/CONFIGURATION.md) available in `rdkafka` can be
 used directly. Additional configuration options specific to `corokafka` are also exposed. 
-* [Connector configuration](https://bbgithub.dev.bloomberg.com/eor/corokafka/blob/master/corokafka/corokafka/corokafka_connector_configuration.h#L30-L82)
+* [Connector configuration](https://bbgithub.dev.bloomberg.com/eor/corokafka/blob/master/corokafka/corokafka/corokafka_connector_configuration.h#L30)
 * [Producer configuration](https://bbgithub.dev.bloomberg.com/eor/corokafka/blob/master/corokafka/CONFIGURATION.md#producer-configuration)
 * [Consumer configuration](https://bbgithub.dev.bloomberg.com/eor/corokafka/blob/master/corokafka/CONFIGURATION.md#consumer-configuration)
 
 ## Producer example
 In the following example we will be producing some messages with a key of type `size_t`, a payload of type
-`std::string` and a simple header called _Header1_
+`std::string` and a simple header called _Header1_. For full producer API see [here](https://bbgithub.dev.bloomberg.com/eor/corokafka/blob/master/corokafka/corokafka/corokafka_producer_manager.h#L34).
 ```
 //==========================================================================
 //                          Producer setup
@@ -164,7 +164,7 @@ for (size_t i = 0; i < 10; ++i) {
 
 ## Consumer example
 In the following example we will be consuming messages with a key of type `size_t`, a payload of type
-`std::string` and a simple header called _Header1_.
+`std::string` and a simple header called _Header1_. For full consumer API see [here](https://bbgithub.dev.bloomberg.com/eor/corokafka/blob/master/corokafka/corokafka/corokafka_consumer_manager.h#L32).
 ```
 //==========================================================================
 //                 Message worker queue and processor
