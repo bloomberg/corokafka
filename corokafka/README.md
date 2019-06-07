@@ -4,7 +4,7 @@ Producing and consuming of messages is simplified by allowing applications to us
 
 Compiles for -std=gnu++11, -std=gnu++14 and -std=gnu++17.
 
-See [API documentation](https://bbgithub.dev.bloomberg.com/pages/eor/corokafka/corokafka) and available [configuration](https://bbgithub.dev.bloomberg.com/pages/eor/corokafka/corokafka/CONFIGURATION.md) options for more details.
+See [API documentation](https://bbgithub.dev.bloomberg.com/eor/corokafka/tree/master/corokafka) and available [configuration](https://bbgithub.dev.bloomberg.com/eor/corokafka/blob/master/corokafka/CONFIGURATION.md) options for more details.
 
 ## Building and installing
 ```shell
@@ -46,9 +46,9 @@ Note: options must be preceded with `-D` when passed as arguments to CMake.
 ## Configuration
 Since `corokafka` is built on top of `rdkafka`, all configuration [options](https://github.com/accelerated/librdkafka/blob/master/CONFIGURATION.md) available in `rdkafka` can be
 used directly. Additional configuration options specific to `corokafka` are also exposed. 
-* [Connector configuration](https://bbgithub.dev.bloomberg.com/eor/corokafka/blob/master/corokafka/src/corokafka_connector_configuration.h#L30)
-* [Producer configuration](https://bbgithub.dev.bloomberg.com/eor/corokafka/blob/master/corokafka/src/corokafka_producer_configuration.h#L26:L86)
-* [Consumer configuration](https://bbgithub.dev.bloomberg.com/eor/corokafka/blob/master/corokafka/src/corokafka_consumer_configuration.h#L26:L145)
+* [Connector configuration](https://bbgithub.dev.bloomberg.com/eor/corokafka/blob/master/corokafka/corokafka/corokafka_connector_configuration.h#L30-L82)
+* [Producer configuration](https://bbgithub.dev.bloomberg.com/eor/corokafka/blob/master/corokafka/CONFIGURATION.md#producer-configuration)
+* [Consumer configuration](https://bbgithub.dev.bloomberg.com/eor/corokafka/blob/master/corokafka/CONFIGURATION.md#consumer-configuration)
 
 ## Producer example
 In the following example we will be producing some messages with a key of type `size_t`, a payload of type
