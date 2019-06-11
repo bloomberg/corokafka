@@ -931,7 +931,7 @@ std::vector<bool> ConsumerManagerImpl::executePreprocessorCallbacks(
     std::vector<bool> skipMessages(messages.size(), false);
     std::vector<quantum::CoroFuturePtr<int>> futures;
     futures.reserve(callbackThreadRangeSize);
-    auto inputIt = std::cbegin(messages);
+    auto inputIt = messages.cbegin();
     size_t batchIndex = 0;
     
     // Run the preprocessor callbacks in batches
@@ -985,7 +985,7 @@ int ConsumerManagerImpl::deserializeBatchCoro(quantum::CoroContext<std::vector<D
     std::vector<DeserializedMessage> deserializedMessages(messages.size()); //pre-allocate default constructed messages
     std::vector<quantum::CoroContextPtr<int>> futures;
     futures.reserve(numCoros);
-    auto inputIt = std::cbegin(messages);
+    auto inputIt = messages.cbegin();
     size_t batchIndex = 0;
     
     // Post unto all the coroutine threads.

@@ -45,7 +45,8 @@ private:
 class HeaderPack
 {
 public:
-    using ListType = std::deque<std::pair<std::string, boost::any>>;
+    using HeaderNode = std::pair<std::string, boost::any>;
+    using ListType = std::deque<HeaderNode>;
     
     HeaderPack& push_front(const std::string& name, boost::any&& header) {
         if (name.empty()) {
@@ -94,7 +95,7 @@ public:
     }
     
     void erase(const std::string& name) {
-        _headers.erase(std::remove_if(_headers.begin(), _headers.end(), [&name](const auto& entry)->bool {
+        _headers.erase(std::remove_if(_headers.begin(), _headers.end(), [&name](const HeaderNode& entry)->bool {
             return StringEqualCompare()(entry.first, name);
         }), _headers.end());
     }
@@ -170,7 +171,7 @@ private:
             throw std::out_of_range("Invalid position");
         }
         size_t index = -1;
-        return std::find_if(_headers.begin(), _headers.end(), [&](const auto& entry)->bool {
+        return std::find_if(_headers.begin(), _headers.end(), [&](const HeaderNode& entry)->bool {
             if (StringEqualCompare()(entry.first, name)) {
                 return (++index == nameIndex);
             }
