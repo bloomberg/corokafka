@@ -21,6 +21,7 @@
 #include <corokafka/corokafka_utils.h>
 #include <corokafka/corokafka_message.h>
 #include <corokafka/corokafka_consumer_configuration.h>
+#include <corokafka/corokafka_throttle_control.h>
 #include <corokafka/corokafka_connector_configuration.h>
 #include <quantum/quantum.h>
 
@@ -55,6 +56,15 @@ struct ConsumerTopicEntry : TopicEntry {
         _coroQueueIdRangeForAny(coroQueueIdRangeForAny),
         _receiveCallbackThreadRange(0, numIoThreads-1)
     {}
+    ConsumerTopicEntry(const ConsumerTopicEntry&) = delete;
+    ConsumerTopicEntry(ConsumerTopicEntry&& other) :
+        _connectorConfiguration(other._connectorConfiguration),
+        _configuration(std::move(other._configuration)),
+        _consumer(std::move(other._consumer)),
+        _coroQueueIdRangeForAny(other._coroQueueIdRangeForAny),
+        _receiveCallbackThreadRange(other._receiveCallbackThreadRange)
+    {}
+    
     //Members
     const ConnectorConfiguration&   _connectorConfiguration;
     ConsumerConfiguration           _configuration;
@@ -70,10 +80,6 @@ struct ConsumerTopicEntry : TopicEntry {
     quantum::ThreadContext<int>::Ptr _pollFuture{nullptr};
     size_t                          _batchSize{100};
     std::chrono::milliseconds       _pollTimeout{0};
-    std::chrono::steady_clock::time_point _throttleTime;
-    std::chrono::milliseconds       _throttleDuration{0};
-    bool                            _autoThrottle{false};
-    uint16_t                        _throttleMultiplier{1};
     std::pair<int,int>              _coroQueueIdRangeForAny;
     std::pair<int,int>              _receiveCallbackThreadRange;
     ExecMode                        _receiveCallbackExec{ExecMode::Async};
@@ -88,6 +94,7 @@ struct ConsumerTopicEntry : TopicEntry {
     Callbacks::PreprocessorCallback _preprocessorCallback;
     bool                            _preprocess{true};
     bool                            _preprocessOnIoThread{true};
+    ThrottleControl                 _throttleControl;
 };
 
 }}

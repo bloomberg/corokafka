@@ -103,22 +103,6 @@ void handleException(const std::exception& ex,
     }
 }
 
-bool reduceThrottling(const std::chrono::steady_clock::time_point& currentTime,
-                      std::chrono::steady_clock::time_point& throttleTime,
-                      std::chrono::milliseconds& throttleDuration)
-{
-    if (throttleDuration == std::chrono::milliseconds(0)) {
-        return true;
-    }
-    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime-throttleTime);
-    if (elapsed > throttleDuration) {
-        throttleDuration = std::chrono::milliseconds(0);
-        return true;
-    }
-    throttleDuration -= elapsed;
-    return false;
-}
-
 }
 }
 

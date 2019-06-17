@@ -22,6 +22,7 @@
 #include <corokafka/corokafka_message.h>
 #include <corokafka/corokafka_producer_configuration.h>
 #include <corokafka/corokafka_connector_configuration.h>
+#include <corokafka/corokafka_throttle_control.h>
 #include <corokafka/detail/corokafka_macros.h>
 #include <quantum/quantum.h>
 
@@ -52,15 +53,18 @@ struct ProducerTopicEntry : TopicEntry {
         _configuration(std::move(configuration)),
         _producer(std::move(producer))
     {}
+    ProducerTopicEntry(const ProducerTopicEntry&) = delete;
+    ProducerTopicEntry(ProducerTopicEntry&& other) :
+        _connectorConfiguration(other._connectorConfiguration),
+        _configuration(std::move(other._configuration)),
+        _producer(std::move(other._producer))
+    {}
+    
     const ConnectorConfiguration&       _connectorConfiguration;
     ProducerConfiguration               _configuration;
     ProducerPtr                         _producer;
     size_t                              _topicHash{0};
     quantum::ThreadFuture<int>::Ptr     _pollFuture{nullptr};
-    std::chrono::steady_clock::time_point _throttleTime;
-    std::chrono::milliseconds           _throttleDuration{0};
-    bool                                _autoThrottle{false};
-    uint16_t                            _throttleMultiplier{1};
     bool                                _waitForAcks{false};
     bool                                _flushWaitForAcks{rd_kafka_version() >= RD_KAFKA_ZERO_TIMEOUT_FLUSH_FIX ? false : true};
     std::chrono::milliseconds           _waitForAcksTimeout{0};
@@ -73,6 +77,7 @@ struct ProducerTopicEntry : TopicEntry {
     LogLevel                            _logLevel{LogLevel::LogInfo};
     QueueFullNotification               _queueFullNotification{QueueFullNotification::OncePerMessage};
     bool                                _queueFullTrigger{true};
+    ThrottleControl                     _throttleControl;
 };
 
 }

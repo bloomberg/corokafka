@@ -120,13 +120,13 @@ void ProducerManagerImpl::setup(const std::string& topic, ProducerTopicEntry& to
     const ConfigurationOption* autoThrottle =
         Configuration::findConfigOption("internal.producer.auto.throttle", topicEntry._configuration.getInternalConfiguration());
     if (autoThrottle) {
-        topicEntry._autoThrottle = StringEqualCompare()(autoThrottle->get_value(), "true");
+        topicEntry._throttleControl.autoThrottle() = StringEqualCompare()(autoThrottle->get_value(), "true");
     }
     
     const ConfigurationOption* throttleMultiplier =
         Configuration::findConfigOption("internal.producer.auto.throttle.multiplier", topicEntry._configuration.getInternalConfiguration());
     if (throttleMultiplier) {
-        topicEntry._throttleMultiplier = std::stol(throttleMultiplier->get_value());
+        topicEntry._throttleControl.throttleMultiplier() = std::stol(throttleMultiplier->get_value());
     }
     
     //Set the global callbacks
@@ -140,7 +140,7 @@ void ProducerManagerImpl::setup(const std::string& topic, ProducerTopicEntry& to
         kafkaConfig.set_error_callback(errorFunc);
     }
     
-    if (topicEntry._configuration.getThrottleCallback() || topicEntry._autoThrottle) {
+    if (topicEntry._configuration.getThrottleCallback() || topicEntry._throttleControl.autoThrottle()) {
         auto throttleFunc = std::bind(&throttleCallback, std::ref(topicEntry), _1, _2, _3, _4);
         kafkaConfig.set_throttle_callback(throttleFunc);
     }
@@ -443,17 +443,14 @@ void ProducerManagerImpl::throttleCallback(
                         int32_t brokerId,
                         std::chrono::milliseconds throttleDuration)
 {
-    if (topicEntry._autoThrottle) {
+    if (topicEntry._throttleControl.autoThrottle()) {
         //calculate throttle periods
-        bool throttleOn = (topicEntry._throttleDuration.count() == 0) && (throttleDuration.count() > 0);
-        bool throttleOff = (topicEntry._throttleDuration.count() > 0) && (throttleDuration.count() == 0);
-        topicEntry._throttleDuration = throttleDuration * topicEntry._throttleMultiplier;
-        topicEntry._throttleTime = std::chrono::steady_clock::now();
-        if (throttleOn) {
+        ThrottleControl::Status status = topicEntry._throttleControl.handleThrottleCallback(throttleDuration);
+        if (status._on) {
             //Get partition metadata
             handle.pause(topicEntry._configuration.getTopic());
         }
-        else if (throttleOff) {
+        else if (status._off) {
             handle.resume(topicEntry._configuration.getTopic());
             topicEntry._forceSyncFlush = true;
         }
@@ -561,13 +558,9 @@ void ProducerManagerImpl::report(
 void ProducerManagerImpl::adjustThrottling(ProducerTopicEntry& topicEntry,
                                            const std::chrono::steady_clock::time_point& now)
 {
-    if (topicEntry._autoThrottle) {
-        if (topicEntry._throttleDuration > std::chrono::milliseconds(0)) {
-            if (reduceThrottling(now, topicEntry._throttleTime, topicEntry._throttleDuration)) {
-                topicEntry._producer->get_producer().resume(topicEntry._configuration.getTopic());
-                topicEntry._forceSyncFlush = true;
-            }
-        }
+    if (topicEntry._throttleControl.reduceThrottling(now)) {
+        topicEntry._producer->get_producer().resume(topicEntry._configuration.getTopic());
+        topicEntry._forceSyncFlush = true;
     }
 }
 

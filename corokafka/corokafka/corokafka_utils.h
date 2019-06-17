@@ -64,12 +64,6 @@ void handleException(const std::exception& ex,
 
 using ByteArray = std::vector<uint8_t>;
 
-// Throttling helper
-// Returns true if throttling is over, false is we are still throttling
-bool reduceThrottling(const std::chrono::steady_clock::time_point& currentTime,
-                      std::chrono::steady_clock::time_point& throttleTime,
-                      std::chrono::milliseconds& throttleDuration);
-
 //======================================================================================================================
 //                                               String comparisons
 //======================================================================================================================

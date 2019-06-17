@@ -82,13 +82,13 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
     const ConfigurationOption* autoThrottle =
         Configuration::findConfigOption("internal.consumer.auto.throttle", topicEntry._configuration.getInternalConfiguration());
     if (autoThrottle) {
-        topicEntry._autoThrottle = StringEqualCompare()(autoThrottle->get_value(), "true");
+        topicEntry._throttleControl.autoThrottle() = StringEqualCompare()(autoThrottle->get_value(), "true");
     }
     
     const ConfigurationOption* throttleMultiplier =
         Configuration::findConfigOption("internal.consumer.auto.throttle.multiplier", topicEntry._configuration.getInternalConfiguration());
     if (throttleMultiplier) {
-        topicEntry._throttleMultiplier = std::stol(throttleMultiplier->get_value());
+        topicEntry._throttleControl.throttleMultiplier() = std::stol(throttleMultiplier->get_value());
     }
     
     //Set the global callbacks
@@ -97,7 +97,7 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
         kafkaConfig.set_error_callback(std::move(errorFunc));
     }
     
-    if (topicEntry._configuration.getThrottleCallback() || topicEntry._autoThrottle) {
+    if (topicEntry._configuration.getThrottleCallback() || topicEntry._throttleControl.autoThrottle()) {
         auto throttleFunc = std::bind(throttleCallback, std::ref(topicEntry), _1, _2, _3, _4);
         kafkaConfig.set_throttle_callback(std::move(throttleFunc));
     }
@@ -121,7 +121,7 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
         topicEntry._preprocessorCallback = std::bind(preprocessorCallback, std::ref(topicEntry), _1);
     }
     
-    bool roundRobinPolling = false;
+    bool roundRobinPolling = false; //default is batch
     const ConfigurationOption* pollStrategy =
         Configuration::findConfigOption("internal.consumer.poll.strategy", topicEntry._configuration.getInternalConfiguration());
     if (pollStrategy) {
@@ -606,21 +606,15 @@ void ConsumerManagerImpl::throttleCallback(
                         int32_t brokerId,
                         std::chrono::milliseconds throttleDuration)
 {
-    if (topicEntry._autoThrottle) {
+    if (!topicEntry._isPaused) {
         //calculate throttle periods
         Consumer& consumer = static_cast<Consumer&>(handle);
-        bool throttleOn = (topicEntry._throttleDuration.count() == 0) && (throttleDuration.count() > 0);
-        bool throttleOff = (topicEntry._throttleDuration.count() > 0) && (throttleDuration.count() == 0);
-        topicEntry._throttleDuration = throttleDuration * topicEntry._throttleMultiplier;
-        topicEntry._throttleTime = std::chrono::steady_clock::now();
-        if (!topicEntry._isPaused) {
-            // Pause/resume only if this consumer has not been explicitly paused by the user
-            if (throttleOn) {
-                consumer.pause();
-            }
-            else if (throttleOff) {
-                consumer.resume();
-            }
+        ThrottleControl::Status status = topicEntry._throttleControl.handleThrottleCallback(throttleDuration);
+        if (status._on) {
+            consumer.pause();
+        }
+        else if (status._off) {
+            consumer.resume();
         }
     }
     CallbackInvoker<Callbacks::ThrottleCallback>
@@ -688,7 +682,7 @@ void ConsumerManagerImpl::assignmentCallback(
 {
     // Clear any throttling we may have
     topicEntry._isSubscribed = true;
-    topicEntry._throttleDuration = std::chrono::milliseconds(0);
+    topicEntry._throttleControl.reset();
     PartitionStrategy strategy = topicEntry._configuration.getPartitionStrategy();
     if ((strategy == PartitionStrategy::Dynamic) &&
         !topicEntry._configuration.getInitialPartitionAssignment().empty() &&
@@ -733,15 +727,9 @@ void ConsumerManagerImpl::rebalanceErrorCallback(
 void ConsumerManagerImpl::adjustThrottling(ConsumerTopicEntry& topicEntry,
                                            const std::chrono::steady_clock::time_point& now)
 {
-    if (topicEntry._autoThrottle) {
-        if (topicEntry._throttleDuration > std::chrono::milliseconds(0)) {
-            if (reduceThrottling(now, topicEntry._throttleTime, topicEntry._throttleDuration)) {
-                if (!topicEntry._isPaused) {
-                    // Resume only if this consumer is not paused explicitly by the user
-                    topicEntry._consumer->resume();
-                }
-            }
-        }
+    if (!topicEntry._isPaused && topicEntry._throttleControl.reduceThrottling(now)) {
+        // Resume only if this consumer is not paused explicitly by the user
+        topicEntry._consumer->resume();
     }
 }
 
@@ -1152,17 +1140,23 @@ int ConsumerManagerImpl::pollBatchCoro(quantum::CoroContext<int>::Ptr ctx,
 {
     try{
         // get the messages from the prefetch future, or
-        std::vector<Message> raw = (entry._batchPrefetch && entry._messagePrefetchFuture)
-            ? entry._messagePrefetchFuture->get(ctx)
-            : ctx->postAsyncIo<std::vector<Message>>((int)quantum::IQueue::QueueId::Any,
-                                                     true,
-                                                     messageBatchReceiveTask,
-                                                     entry)->get(ctx);
-        // start the IO task to get messages in batches
-        if (entry._batchPrefetch) {
+        std::vector<Message> raw;
+        if (entry._batchPrefetch)
+        {
+            if (entry._messagePrefetchFuture) {
+                //get the pre-fetched batch
+                raw = entry._messagePrefetchFuture->get(ctx);
+            }
             // start pre-fetching for the next batch
             entry._messagePrefetchFuture = ctx->postAsyncIo<std::vector<Message>>
                 ((int)quantum::IQueue::QueueId::Any, true, messageBatchReceiveTask, entry);
+        }
+        else {
+            raw = ctx->postAsyncIo<std::vector<Message>>(
+                                 (int)quantum::IQueue::QueueId::Any,
+                                 true,
+                                 messageBatchReceiveTask,
+                                 entry)->get(ctx);
         }
 
         std::vector<DeserializedMessage> deserializedMessages = ctx->post<std::vector<DeserializedMessage>>
