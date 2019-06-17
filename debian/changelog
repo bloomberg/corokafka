@@ -1,3 +1,15 @@
+corokafka (0.0.0.15) unstable; urgency=low
+
+  * 087c634 Added throttle manager
+  * b711aa4 Fixed compiler issues for c++11
+  * 8fc6f1b Added links to producer and consumer APIs
+  * 486bada Fixed broken links
+  * 35067df Moved configuration into separate .md file
+  * 64f8484 Added links to README.md and made -Werror optional
+  * 0079a4e Fixed README.md file with up-to-date code samples
+
+ -- Alexander Damian <adamian@bloomberg.net>  Mon, 17 Jun 2019 13:45:35 -0400
+
 corokafka (0.0.0.14) unstable; urgency=low
 
   * 2c41a47 Fixed null metadata handle in the log callback and also the zero timeout issue when flushing
