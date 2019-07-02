@@ -1,11 +1,26 @@
 cmake_minimum_required(VERSION 3.10.3)
-project(corokafka LANGUAGES CXX)
+project(CoroKafka LANGUAGES CXX)
+set(PROJECT_TARGET_NAME corokafka)
+if (${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.12.0")
+    # Use <package>_ROOT variable to find configuration files
+    cmake_policy(SET CMP0074 NEW)
+endif()
+
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/")
+
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
+include(CoroKafkaHelpers)
+
+set(CMAKE_FIND_PACKAGE_PREFER_CONFIG TRUE) #CMake > 3.15
 
 # Set the version number.
 set(COROKAFKA_VERSION_MAJOR 0)
 set(COROKAFKA_VERSION_MINOR 1)
 set(COROKAFKA_VERSION "${COROKAFKA_VERSION_MAJOR}.${COROKAFKA_VERSION_MINOR}")
+if (COROKAFKA_VERBOSE_MAKEFILE)
+    message(STATUS "Current library version: ${COROKAFKA_VERSION}")
+endif()
 
 # CMake options
 option(COROKAFKA_VERBOSE_MAKEFILE "Enable verbose cmake output." ON)
@@ -19,14 +34,18 @@ option(COROKAFKA_ENABLE_TESTS "Generate tests target." OFF)
 option(COROKAFKA_BOOST_STATIC_LIBS "Link with Boost static libraries." ON)
 option(COROKAFKA_BOOST_USE_MULTITHREADED "Use Boost multithreaded libraries." ON)
 option(COROKAFKA_BOOST_USE_VALGRIND "Use valgrind headers for Boost." OFF)
-option(COROKAFKA_WERROR "Turn all warnings to errors." OFF)
 
 if (COROKAFKA_INSTALL_ROOT)
     set(CMAKE_INSTALL_PREFIX ${COROKAFKA_INSTALL_ROOT})
 endif()
-if (COROKAFKA_VERBOSE_MAKEFILE)
-    message(STATUS "Current library version: ${COROKAFKA_VERSION}")
-endif()
+
+# RdKafka library root
+set_root(RdKafka RDKAFKA)
+set_root(CppKafka CPPKAFKA)
+set_root(Quantum QUANTUM)
+set_root(${PROJECT_NAME} COROKAFKA)
+
+message(STATUS "RdKafka_ROOT = [${RdKafka_ROOT}]")
 
 #Global options
 set(LINKER_LANGUAGE CXX)
@@ -34,26 +53,20 @@ set(CMAKE_INCLUDE_DIRECTORIES_BEFORE ON)
 set(CMAKE_BUILD_TYPE Debug)
 
 #Set the compiler if the CXX environment variable is not set
-if (NOT DEFINED ENV{CXX})
+if (NOT CMAKE_CXX_COMPILER)
     set(CMAKE_CXX_COMPILER g++)
 endif()
 
 #Set the compiler if the CXX_STANDARD environment variable is not set
-if (NOT DEFINED ENV{CXXSTANDARD})
+if (NOT CMAKE_CXX_STANDARD)
     set(CMAKE_CXX_STANDARD 14)
-else()
-    set(CMAKE_CXX_STANDARD $ENV{CXXSTANDARD})
-endif()
-
-#Enable errors
-if (COROKAFKA_WERROR)
-    set(WERROR "-Werror")
 endif()
 
 #Set compile flags if CXXFLAGS environment variable is not set
-if (NOT DEFINED ENV{CXXFLAGS} AND NOT DEFINED CMAKE_CXX_FLAGS)
+if (NOT CMAKE_CXX_FLAGS)
     set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wabi ${WERROR} -O0 -m64 -std=c++${CMAKE_CXX_STANDARD} -ftemplate-backtrace-limit=0")
 endif()
+
 if (COROKAFKA_VERBOSE_MAKEFILE)
     message(STATUS "CMAKE_CXX_FLAGS = ${CMAKE_CXX_FLAGS}")
 endif()
@@ -66,26 +79,15 @@ if (COROKAFKA_BUILD_SHARED)
     if (NOT DEFINED CMAKE_BUILD_WITH_INSTALL_RPATH)
         SET(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
     endif()
-    if (NOT DEFINED CMAKE_INSTALL_RPATH)
-        SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib ${CMAKE_INSTALL_PREFIX}/lib64")
-    endif()
-    if (NOT DEFINED)
-        SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-    endif()
 endif()
 
 if (NOT COROKAFKA_PKGCONFIG_DIR)
     set(COROKAFKA_PKGCONFIG_DIR share/pkgconfig)
 endif()
 
-# Determine if this is a 32 or 64 bit build
-math(EXPR BITS "8*${CMAKE_SIZEOF_VOID_P}")
-
-# Properly set the output directory
-if (${BITS} EQUAL 64)
-    set(MODE 64)
+if (NOT COROKAFKA_CMAKE_CONFIG_DIR)
+    set(COROKAFKA_CMAKE_CONFIG_DIR share/cmake/${PROJECT_NAME})
 endif()
-set(LIBDIR "lib${MODE}")
 
 add_definitions(
     -D_REENTRANT
@@ -111,7 +113,7 @@ if (COROKAFKA_BUILD_DOC)
         # Configure Doxygen parameters
         set(DOXYGEN_PROJECT_NAME "CoroKafka Library")
         set(DOXYGEN_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR})
-        set(DOXYGEN_INPUT ${PROJECT_SOURCE_DIR}/${PROJECT_NAME})
+        set(DOXYGEN_INPUT ${PROJECT_SOURCE_DIR}/${PROJECT_TARGET_NAME})
         set(DOXYGEN_HTML_OUTPUT ${PROJECT_SOURCE_DIR}/docs)
         set(DOXYGEN_CREATE_SUBDIRS YES)
         if (DOXYGEN_DOT_FOUND AND COROKAFKA_ENABLE_DOT)
@@ -153,43 +155,29 @@ else()
 endif()
 
 # Find the quantum library installation
-find_package(Quantum MODULE REQUIRED)
-if (NOT QUANTUM_FOUND)
-    message(FATAL_ERROR "Could not find Quantum library. Please set QUANTUM_ROOT_DIR to the Quantum install folder.")
-endif()
-
-# Find the rdkafka library installation
-find_package(RdKafka MODULE REQUIRED)
-if (NOT RDKAFKA_FOUND)
-    message(FATAL_ERROR "Could not find RdKafka library. Please set RDKAFKA_ROOT_DIR to the RdKafka install folder.")
+find_package(Quantum CONFIG REQUIRED)
+if (NOT Quantum_FOUND)
+    message(FATAL_ERROR "Could not find Quantum library. Please set QUANTUM_ROOT to the Quantum install folder.")
 endif()
 
 # Find the cppkafka library installation
-find_package(CppKafka MODULE REQUIRED)
-if (NOT CPPKAFKA_FOUND)
-    message(FATAL_ERROR "Could not find CppKafka library. Please set CPPKAFKA_ROOT_DIR to the CppKafka install folder.")
+find_package(CppKafka CONFIG REQUIRED)
+if (NOT CppKafka_FOUND)
+    message(FATAL_ERROR "Could not find CppKafka library. Please set CPPKAFKA_ROOT to the CppKafka install folder.")
 endif()
 
-link_directories(
-    ${CPPKAFKA_ROOT_DIR}
-    ${RDKAFKA_ROOT_DIR}
-    ${QUANTUM_ROOT_DIR}
-    ${Boost_LIBRARY_DIRS}
-)
-
-add_subdirectory(${PROJECT_NAME})
+add_subdirectory(${PROJECT_TARGET_NAME})
 
 if (COROKAFKA_ENABLE_TESTS)
     find_package(GTest REQUIRED)
-    if (GTEST_FOUND)
-        message(STATUS "Adding target 'corokafka_tests' to build output")
+    if (GTest_FOUND)
+        message(STATUS "Adding target '${PROJECT_NAME}Tests' to build output")
         enable_testing()
         add_subdirectory(tests)
     else()
         message(STATUS "Package GTEST not found. Skipping testing.")
     endif()
 else()
-    set(BUILD_TESTING OFF)
     message(STATUS "Skipping target 'tests'")
 endif()
 
@@ -197,10 +185,5 @@ endif()
 if (COROKAFKA_VERBOSE_MAKEFILE)
     message(STATUS "PROJECT_SOURCE_DIR = ${PROJECT_SOURCE_DIR}/")
     message(STATUS "CMAKE_INSTALL_PREFIX = ${CMAKE_INSTALL_PREFIX}")
-    message(STATUS "BOOST_ROOT = ${BOOST_ROOT}")
     message(STATUS "REQUIRED BOOST_VERSION = 1.61")
-    message(STATUS "GTEST_ROOT = ${GTEST_ROOT}")
-    message(STATUS "RDKAFKA_ROOT_DIR = ${RDKAFKA_ROOT_DIR}")
-    message(STATUS "CPPKAFKA_ROOT_DIR = ${CPPKAFKA_ROOT_DIR}")
-    message(STATUS "QUANTUM_ROOT_DIR = ${QUANTUM_ROOT_DIR}")
 endif()

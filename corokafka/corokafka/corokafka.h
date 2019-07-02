@@ -40,6 +40,7 @@
 #include <corokafka/corokafka_receiver.h>
 #include <corokafka/corokafka_sent_message.h>
 #include <corokafka/corokafka_serializer.h>
+#include <corokafka/corokafka_throttle_control.h>
 #include <corokafka/corokafka_utils.h>
 #include <corokafka/detail/corokafka_macros.h>
 #include <corokafka/detail/corokafka_namespace_forwarding.h>

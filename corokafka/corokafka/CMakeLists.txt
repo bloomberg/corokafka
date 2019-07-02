@@ -1,20 +1,5 @@
 # Local function to auto-generate main corokafka.h header file
 cmake_minimum_required(VERSION 3.10.3)
-function(make_header)
-    set(MAIN_HEADER ${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}.h)
-    file(GLOB INCLUDE_HEADERS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
-            "*.h"
-            "detail/*.h")
-    list(SORT INCLUDE_HEADERS)
-    foreach(header ${INCLUDE_HEADERS})
-        if (NOT ${header} MATCHES "${PROJECT_NAME}.h")
-            SET(ALL_HEADERS "${ALL_HEADERS}#include <${PROJECT_NAME}/${header}>\n")
-        endif()
-    endforeach()
-
-    #create file from template
-    configure_file(${PROJECT_SOURCE_DIR}/${PROJECT_NAME}.h.in ${MAIN_HEADER} @ONLY)
-endfunction()
 
 # Run file generation function
 make_header()
@@ -25,75 +10,89 @@ file(GLOB SOURCE_FILES
     impl/*.cpp
 )
 
-add_library(${PROJECT_NAME} ${COROKAFKA_LIBRARY_TYPE} ${SOURCE_FILES})
-target_include_directories(${PROJECT_NAME} BEFORE PRIVATE
-    ${PROJECT_SOURCE_DIR}
-)
-target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC
-    ${CPPKAFKA_INCLUDE_DIR}
-    ${RDKAFKA_INCLUDE_DIR}
-    ${Boost_INCLUDE_DIRS}
-    ${QUANTUM_INCLUDE_DIR}
-)
+set(PKG_DIR             "${CMAKE_BINARY_DIR}/package")
+set(PKG_CONFIG_FILE     "${PKG_DIR}/${PROJECT_TARGET_NAME}.pc")
+set(CONFIG_FILE         "${PKG_DIR}/${PROJECT_NAME}Config.cmake")
+set(VERSION_FILE        "${PKG_DIR}/${PROJECT_NAME}ConfigVersion.cmake")
+set(NAMESPACE           "${PROJECT_NAME}::")
+set(TARGET_EXPORT_NAME  ${PROJECT_NAME}Targets)
 
-set_target_properties(${PROJECT_NAME}
+add_library(${PROJECT_TARGET_NAME} ${COROKAFKA_LIBRARY_TYPE} ${SOURCE_FILES})
+target_include_directories(${PROJECT_TARGET_NAME}
+    BEFORE PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+)
+set_target_properties(${PROJECT_TARGET_NAME}
     PROPERTIES
-    ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${LIBDIR}"
-    ARCHIVE_OUTPUT_NAME "${PROJECT_NAME}"
-    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${LIBDIR}"
-    LIBRARY_OUTPUT_NAME "${PROJECT_NAME}"
+    ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_INSTALL_LIBDIR}"
+    ARCHIVE_OUTPUT_NAME "${PROJECT_TARGET_NAME}"
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_INSTALL_LIBDIR}"
+    LIBRARY_OUTPUT_NAME "${PROJECT_TARGET_NAME}"
     VERSION ${COROKAFKA_VERSION}
     SOVERSION ${COROKAFKA_VERSION}
+    INSTALL_RPATH "${CMAKE_INSTALL_LIBDIR}"
+    INSTALL_RPATH_USE_LINK_PATH TRUE
+    POSITION_INDEPENDENT_CODE ON
 )
 
-if (COROKAFKA_BUILD_SHARED)
-    if (COROKAFKA_ENABLE_PIC)
-        set_target_properties(${PROJECT_NAME}
-            PROPERTIES
-            POSITION_INDEPENDENT_CODE ON)
-    endif()
-endif()
-
-target_link_libraries(${PROJECT_NAME}
-    ${CPPKAFKA_LIBRARY}
-    ${Boost_LIBRARIES}
+target_link_libraries(${PROJECT_TARGET_NAME} PUBLIC
+    CppKafka::cppkafka
+    Quantum::quantum
 )
 
-# Install headers including the auto-generated corokafka.h
-file(GLOB INCLUDE_FILES "*.h")
-file(GLOB DETAIL_INCLUDE_FILES "detail/*.h")
-file(GLOB IMPL_INCLUDE_FILES "impl/*.h")
-
+# Install cppkafka target and specify all properties needed for the exported file
 install(
-    FILES ${INCLUDE_FILES}
-    DESTINATION include/${PROJECT_NAME}
-    COMPONENT headers
-)
-install(
-    FILES ${DETAIL_INCLUDE_FILES}
-    DESTINATION include/${PROJECT_NAME}/detail
-    COMPONENT headers
-)
-install(
-    FILES ${IMPL_INCLUDE_FILES}
-    DESTINATION include/${PROJECT_NAME}/impl
-    COMPONENT headers
+    TARGETS ${PROJECT_TARGET_NAME}
+    EXPORT ${TARGET_EXPORT_NAME}
+    COMPONENT binaries
+    LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+    INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
 )
 
-# Library binary install
+# Install the exported file
 install(
-    TARGETS ${PROJECT_NAME}
-    LIBRARY DESTINATION ${LIBDIR}
-    ARCHIVE DESTINATION ${LIBDIR}
-    COMPONENT library
+    EXPORT "${TARGET_EXPORT_NAME}"
+    NAMESPACE "${NAMESPACE}"
+    DESTINATION "${COROKAFKA_CMAKE_CONFIG_DIR}"
+    COMPONENT config
 )
 
-# Generate package configuration file
-set(PKG_CONFIG ${PROJECT_SOURCE_DIR}/package/corokafka.pc)
-configure_file(${PROJECT_SOURCE_DIR}/corokafka.pc.in ${PKG_CONFIG} @ONLY)
+# Generate and install pkgconfig file
+configure_file(${PROJECT_SOURCE_DIR}/cmake/${PROJECT_TARGET_NAME}.pc.in ${PKG_CONFIG_FILE} @ONLY)
 
 install(
     FILES ${PKG_CONFIG}
-    DESTINATION ${COROKAFKA_PKGCONFIG_DIR}
+    DESTINATION "${COROKAFKA_PKGCONFIG_DIR}"
     COMPONENT pkgconfig
 )
+
+# Generate CMAKE configuration file and exported targets
+configure_package_config_file(
+    "${PROJECT_SOURCE_DIR}/cmake/${PROJECT_NAME}Config.cmake.in"
+    "${CONFIG_FILE}"
+    INSTALL_DESTINATION "${COROKAFKA_CMAKE_CONFIG_DIR}"
+    PATH_VARS CMAKE_INSTALL_PREFIX CMAKE_INSTALL_INCLUDEDIR CMAKE_INSTALL_LIBDIR
+)
+
+# Generate version file
+write_basic_package_version_file(
+    "${VERSION_FILE}"
+    VERSION ${COROKAFKA_VERSION}
+    COMPATIBILITY AnyNewerVersion
+)
+
+# Install config and version files
+install(
+    FILES "${CONFIG_FILE}" "${VERSION_FILE}"
+    DESTINATION "${COROKAFKA_CMAKE_CONFIG_DIR}"
+    COMPONENT config
+)
+
+# Install headers including the auto-generated corokafka.h
+# Install headers
+install(DIRECTORY
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+        FILES_MATCHING PATTERN "*.h")
+

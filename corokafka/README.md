@@ -1,6 +1,6 @@
 # CoroKafka library
-Coroutine-based Kafka messaging library (using [boost::coroutine2](https://www.boost.org/doc/libs/1_65_0/libs/coroutine2/doc/html/index.html) framework). Scalable and easy to use C++ library built on top of [cppkafka](https://github.com/mfontanini/cppkafka) and [quantum](https://github.com/bloomberg/quantum), supporting any number of parallel producers and consumers.
-Producing and consuming of messages is simplified by allowing applications to use their own native message formats which are automatically serialized and deserialized by the connector. Message processing spreads to optimal number of parallel coroutines and threads. Integrated support for `rdkafka` headers. Currently the library only supports static topics and admin API is not yet available.
+Coroutine-based Kafka messaging library! **CoroKafka** is a scalable and simple to use C++ library built on top of [cppkafka](https://github.com/mfontanini/cppkafka) and [quantum](https://github.com/bloomberg/quantum), supporting any number of parallel producers and consumers.
+Producing and consuming of messages is simplified by allowing applications to use their own native message formats which are automatically serialized and de-serialized by the connector. Message processing spreads to optimal number of parallel coroutines and threads. Integrated support for `rdkafka` headers. Currently the library only supports static topics and admin API is not yet available.
 
 Compiles for -std=gnu++11, -std=gnu++14 and -std=gnu++17.
 
@@ -11,14 +11,14 @@ See [API documentation](https://bbgithub.dev.bloomberg.com/eor/corokafka/tree/ma
 > cmake -B build <options> .
 > cd build && make install
 ```
-Note that this project is dependent on the following libraries:
-* `cppkafka` (depends internally on `rdkafka` and `boost`)
-* `Bloomberg.quantum`
-
-Depending on the linking options below, you may need to add
-`-lcorokafka -lcppkafka -lrdkafka -lboost-context -lpthread -lrt -lssl -lcrypto -ldl -lz` on your link line, when building your final application.
-
 To use the library simply include `<corokafka/corokafka.h>` in your application. 
+
+In CMake you can load the libraries simply by:
+```cmake
+find_package(CoroKafka REQUIRED)
+target_link_libraries(<your_target> CoroKafka::corokafka <other_dependencies>)
+```
+Note that if `RdKafka`, `CppKafka`, `Quantum` or `Boost` are not installed in default locations, you may need to define the respective <package>_ROOT variables below.
 
 ### CMake options
 Various **CMake** options can be used to configure the output:
@@ -34,12 +34,13 @@ Various **CMake** options can be used to configure the output:
 * `COROKAFKA_BOOST_USE_MULTITHREADED` : Use Boost multi-threaded libraries. Default `ON`.
 * `COROKAFKA_BOOST_USE_VALGRIND` : Enable valgrind on Boost. Default `OFF`.
 * `COROKAFKA_INSTALL_ROOT`     : Specify custom install path. Default is `/usr/local/include` for Linux or `c:/Program Files` for Windows.
-* `RDKAFKA_ROOT_DIR`           : Specify a different RdKafka install directory.
-* `CPPKAFKA_ROOT_DIR`          : Specify a different CppKafka install directory.
-* `QUANTUM_ROOT_DIR`           : Specify a different Quantum install directory.
+* `RDKAFKA_ROOT`               : Specify a different RdKafka install directory.
+* `CPPKAFKA_ROOT`              : Specify a different CppKafka install directory.
+* `QUANTUM_ROOT`               : Specify a different Quantum install directory.
 * `BOOST_ROOT`                 : Specify a different Boost install directory.
 * `GTEST_ROOT`                 : Specify a different GTest install directory.
 * `COROKAFKA_PKGCONFIG_DIR`    : Install location of the .pc file. Default is `share/pkgconfig`.
+* `COROKAFKA_CMAKE_CONFIG_DIR` : Install location of the package config file and exports. Default is `share/cmake/CoroKafka`.
 
 Note: options must be preceded with `-D` when passed as arguments to CMake.
 
