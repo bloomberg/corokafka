@@ -1,3 +1,9 @@
+corokafka (0.0.0.16) unstable; urgency=low
+
+  * 20165dc Support for CppKafka config files. Exporting CoroKafka::corokafka target.
+
+ -- Alexander Damian <adamian@bloomberg.net>  Tue, 2 Jul 2019 16:14:01 -0400
+
 corokafka (0.0.0.15) unstable; urgency=low
 
   * 087c634 Added throttle manager
