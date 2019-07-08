@@ -1,3 +1,9 @@
+corokafka (0.0.0.17) unstable; urgency=low
+
+  * c0fff9f Added cmake variables to conditionally control installation of pkg-config and cmake config files
+
+ -- Alexander Damian <adamian@bloomberg.net>  Mon, 8 Jul 2019 10:07:42 -0400
+
 corokafka (0.0.0.16) unstable; urgency=low
 
   * 20165dc Support for CppKafka config files. Exporting CoroKafka::corokafka target.
