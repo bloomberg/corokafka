@@ -50,49 +50,53 @@ install(
     INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
 )
 
-# Install the exported file
-install(
-    EXPORT "${TARGET_EXPORT_NAME}"
-    NAMESPACE "${NAMESPACE}"
-    DESTINATION "${COROKAFKA_CMAKE_CONFIG_DIR}"
-    COMPONENT config
-)
-
-# Generate and install pkgconfig file
-configure_file(${PROJECT_SOURCE_DIR}/cmake/${PROJECT_TARGET_NAME}.pc.in ${PKG_CONFIG_FILE} @ONLY)
-
-install(
-    FILES ${PKG_CONFIG}
-    DESTINATION "${COROKAFKA_PKGCONFIG_DIR}"
-    COMPONENT pkgconfig
-)
-
-# Generate CMAKE configuration file and exported targets
-configure_package_config_file(
-    "${PROJECT_SOURCE_DIR}/cmake/${PROJECT_NAME}Config.cmake.in"
-    "${CONFIG_FILE}"
-    INSTALL_DESTINATION "${COROKAFKA_CMAKE_CONFIG_DIR}"
-    PATH_VARS CMAKE_INSTALL_PREFIX CMAKE_INSTALL_INCLUDEDIR CMAKE_INSTALL_LIBDIR
-)
-
-# Generate version file
-write_basic_package_version_file(
-    "${VERSION_FILE}"
-    VERSION ${COROKAFKA_VERSION}
-    COMPATIBILITY AnyNewerVersion
-)
-
-# Install config and version files
-install(
-    FILES "${CONFIG_FILE}" "${VERSION_FILE}"
-    DESTINATION "${COROKAFKA_CMAKE_CONFIG_DIR}"
-    COMPONENT config
-)
-
 # Install headers including the auto-generated corokafka.h
-# Install headers
 install(DIRECTORY
         ${CMAKE_CURRENT_SOURCE_DIR}
         DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
         FILES_MATCHING PATTERN "*.h")
+
+if (COROKAFKA_EXPORT_PKGCONFIG)
+    # Generate and install pkgconfig file
+    configure_file(${PROJECT_SOURCE_DIR}/cmake/${PROJECT_TARGET_NAME}.pc.in ${PKG_CONFIG_FILE} @ONLY)
+
+    install(
+        FILES ${PKG_CONFIG}
+        DESTINATION "${COROKAFKA_PKGCONFIG_DIR}"
+        COMPONENT pkgconfig
+    )
+endif()
+
+if (COROKAFKA_EXPORT_CMAKE_CONFIG)
+    # Install the exported file
+    install(
+        EXPORT "${TARGET_EXPORT_NAME}"
+        NAMESPACE "${NAMESPACE}"
+        DESTINATION "${COROKAFKA_CMAKE_CONFIG_DIR}"
+        COMPONENT config
+    )
+
+    # Generate CMAKE configuration file and exported targets
+    configure_package_config_file(
+        "${PROJECT_SOURCE_DIR}/cmake/${PROJECT_NAME}Config.cmake.in"
+        "${CONFIG_FILE}"
+        INSTALL_DESTINATION "${COROKAFKA_CMAKE_CONFIG_DIR}"
+        PATH_VARS CMAKE_INSTALL_PREFIX CMAKE_INSTALL_INCLUDEDIR CMAKE_INSTALL_LIBDIR
+    )
+
+    # Generate version file
+    write_basic_package_version_file(
+        "${VERSION_FILE}"
+        VERSION ${COROKAFKA_VERSION}
+        COMPATIBILITY AnyNewerVersion
+    )
+
+    # Install config and version files
+    install(
+        FILES "${CONFIG_FILE}" "${VERSION_FILE}"
+        DESTINATION "${COROKAFKA_CMAKE_CONFIG_DIR}"
+        COMPONENT config
+    )
+endif()
+
 

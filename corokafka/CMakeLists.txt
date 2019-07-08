@@ -34,6 +34,8 @@ option(COROKAFKA_ENABLE_TESTS "Generate tests target." OFF)
 option(COROKAFKA_BOOST_STATIC_LIBS "Link with Boost static libraries." ON)
 option(COROKAFKA_BOOST_USE_MULTITHREADED "Use Boost multithreaded libraries." ON)
 option(COROKAFKA_BOOST_USE_VALGRIND "Use valgrind headers for Boost." OFF)
+option(COROKAFKA_EXPORT_PKGCONFIG "Generate 'quantum.pc' file" ON)
+option(COROKAFKA_EXPORT_CMAKE_CONFIG "Generate CMake config, target and version files." ON)
 
 if (COROKAFKA_INSTALL_ROOT)
     set(CMAKE_INSTALL_PREFIX ${COROKAFKA_INSTALL_ROOT})

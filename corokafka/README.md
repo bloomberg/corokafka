@@ -40,7 +40,9 @@ Various **CMake** options can be used to configure the output:
 * `BOOST_ROOT`                 : Specify a different Boost install directory.
 * `GTEST_ROOT`                 : Specify a different GTest install directory.
 * `COROKAFKA_PKGCONFIG_DIR`    : Install location of the .pc file. Default is `share/pkgconfig`.
+* `COROKAFKA_EXPORT_PKGCONFIG` : Generate `corokafka.pc` file. Default `ON`.
 * `COROKAFKA_CMAKE_CONFIG_DIR` : Install location of the package config file and exports. Default is `share/cmake/CoroKafka`.
+* `COROKAFKA_EXPORT_CMAKE_CONFIG` : Generate CMake config, target and version files. Default `ON`.
 
 Note: options must be preceded with `-D` when passed as arguments to CMake.
 
