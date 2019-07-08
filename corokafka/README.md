@@ -299,10 +299,12 @@ config.setCallback<size_t, std::string>(receiverCallback);
 
 // Optionally set initial partition assignment (4 partitions per topic)
 config.assignInitialPartitions(corokafka::PartitionStrategy::Dynamic,
-						   {{topic, 0, corokafka::TopicPartition::OFFSET_BEGINNING},
+						    {
+						    {topic, 0, corokafka::TopicPartition::OFFSET_BEGINNING},
 						    {topic, 1, corokafka::TopicPartition::OFFSET_BEGINNING},
 						    {topic, 2, corokafka::TopicPartition::OFFSET_BEGINNING},
-						    {topic, 3, corokafka::TopicPartition::OFFSET_BEGINNING}});
+						    {topic, 3, corokafka::TopicPartition::OFFSET_BEGINNING}
+						    });
 
 // Create the connector (this will subscribe all consumers and start receiving messages)
 corokafka::Connector connector(corokafka::ConfigurationBuilder(config));
