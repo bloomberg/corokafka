@@ -72,7 +72,13 @@ struct Callbacks {
     using PreprocessorCallback = std::function<bool(TopicPartition hint)>;
     
     template <typename T>
-    using DeserializerCallback = typename ConcreteDeserializer<T>::Callback;
+    using KeyDeserializerCallback = typename ConcreteDeserializer<T>::Callback;
+    
+    template <typename T>
+    using HeaderDeserializerCallback = typename ConcreteDeserializer<T>::Callback;
+    
+    template <typename T>
+    using PayloadDeserializerCallback = typename ConcreteDeserializerWithHeaders<T>::Callback;
     
     template <typename K, typename P>
     using ReceiverCallback = typename ConcreteReceiver<K,P>::Callback;
@@ -89,7 +95,13 @@ struct Callbacks {
                                                  const SentMessage& message)>;
     
     template <typename T>
-    using SerializerCallback = typename ConcreteSerializer<T>::Callback;
+    using KeySerializerCallback = typename ConcreteSerializer<T>::Callback;
+    
+    template <typename T>
+    using HeaderSerializerCallback = typename ConcreteSerializer<T>::Callback;
+    
+    template <typename T>
+    using PayloadSerializerCallback = typename ConcreteSerializerWithHeaders<T>::Callback;
 };
 
 }}

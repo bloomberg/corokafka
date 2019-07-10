@@ -639,19 +639,9 @@ ProducerManagerImpl::serializeMessage(ProducerTopicEntry& entry,
     if (packedKey.empty()) {
         // Key is empty or encoding failed
         report(entry, LogLevel::LogErr, RD_KAFKA_RESP_ERR__KEY_SERIALIZATION, "Failed to serialize key", opaque);
-        return ConcreteMessageBuilder<ByteArray>("");
+        return {""};
     }
     builder.key(std::move(packedKey));
-    
-    //Serialize the payload
-    Serializer::ResultType packedPayload = CallbackInvoker<Serializer>
-        ("payload_serializer", entry._configuration.getPayloadSerializer(), &entry._producer->get_producer())(payload);
-    if (packedPayload.empty()) {
-        // Payload is empty or encoding failed
-        report(entry, LogLevel::LogErr, RD_KAFKA_RESP_ERR__VALUE_SERIALIZATION, "Failed to serialize payload", opaque);
-        return ConcreteMessageBuilder<ByteArray>("");
-    }
-    builder.payload(std::move(packedPayload));
     
     //Serialize the headers if any
     for (auto it = headers->cbegin(); it != headers->cend(); ++it) {
@@ -665,7 +655,7 @@ ProducerManagerImpl::serializeMessage(ProducerTopicEntry& entry,
                 std::ostringstream oss;
                 oss << "Failed to serialize header: " << it->first;
                 report(entry, LogLevel::LogErr, RD_KAFKA_RESP_ERR__VALUE_SERIALIZATION, oss.str(), opaque);
-                return ConcreteMessageBuilder<ByteArray>("");
+                return {""};
             }
             builder.header(Header<ByteArray>(it->first, std::move(packedHeader)));
         }
@@ -678,9 +668,19 @@ ProducerManagerImpl::serializeMessage(ProducerTopicEntry& entry,
                 continue;
             }
             report(entry, LogLevel::LogErr, RD_KAFKA_RESP_ERR__NOENT, what, opaque);
-            return ConcreteMessageBuilder<ByteArray>("");
+            return {""};
         }
     }
+    
+    //Serialize the payload
+    Serializer::ResultType packedPayload = CallbackInvoker<Serializer>
+        ("payload_serializer", entry._configuration.getPayloadSerializer(), &entry._producer->get_producer())(headers, payload);
+    if (packedPayload.empty()) {
+        // Payload is empty or encoding failed
+        report(entry, LogLevel::LogErr, RD_KAFKA_RESP_ERR__VALUE_SERIALIZATION, "Failed to serialize payload", opaque);
+        return {""};
+    }
+    builder.payload(std::move(packedPayload));
     
     // Add timestamp
     builder.timestamp(std::chrono::high_resolution_clock::now());

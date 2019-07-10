@@ -17,8 +17,8 @@
 #define BLOOMBERG_COROKAFKA_SERIALIZER_H
 
 #include <corokafka/corokafka_message.h>
-#include <corokafka/corokafka_deserializer.h>
 #include <corokafka/corokafka_utils.h>
+#include <corokafka/corokafka_header_pack.h>
 
 namespace Bloomberg {
 namespace corokafka {
@@ -28,7 +28,8 @@ struct Serializer
     using ResultType = ByteArray;
     using result_type = ResultType; //cppkafka compatibility for callback invoker
     virtual ~Serializer() = default;
-    virtual ResultType operator()(const void* unpacked) const = 0;
+    virtual ResultType operator()(const void*) const { return {}; };
+    virtual ResultType operator()(const HeaderPack*, const void*) const { return {}; };
     virtual explicit operator bool() const = 0;
 };
 
@@ -48,9 +49,35 @@ public:
     
     ResultType operator()(const void* unpacked) const final {
         if (unpacked == nullptr) {
-            return ResultType();
+            return {};
         }
         return _func(*static_cast<const T*>(unpacked));
+    }
+    
+    explicit operator bool() const final { return (bool)_func; }
+private:
+    Callback _func;
+};
+
+template <typename T>
+class ConcreteSerializerWithHeaders : public Serializer
+{
+public:
+    using ResultType = Serializer::ResultType;
+    using Callback = std::function<ResultType(const HeaderPack&, const T&)>;
+    
+    //Ctor
+    ConcreteSerializerWithHeaders(Callback callback) :
+        _func(std::move(callback))
+    {}
+    
+    const Callback& getCallback() const { return _func; }
+    
+    ResultType operator()(const HeaderPack* headers, const void* unpacked) const final {
+        if ((headers == nullptr) || (unpacked == nullptr)) {
+            return {};
+        }
+        return _func(*headers, *static_cast<const T*>(unpacked));
     }
     
     explicit operator bool() const final { return (bool)_func; }

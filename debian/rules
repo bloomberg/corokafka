@@ -5,11 +5,15 @@ include $(DISTRIBUTION_REFROOT)/opt/bb/share/bbtoolchain-cmake-debhelper/bbtoolc
 # Pass {ON,OFF} for shared builds
 # Pass {OFF,ON} for static builds
 LIBRARY_CMAKE_ARGS = -DCOROKAFKA_PKGCONFIG_DIR=lib64/pkgconfig \
+                     -DCOROKAFKA_CMAKE_CONFIG_DIR=lib64/cmake/CoroKafka \
                      -DCOROKAFKA_BUILD_SHARED=$(1) \
                      -DCOROKAFKA_CPPKAFKA_STATIC_LIB=$(2) \
                      -DCOROKAFKA_RDKAFKA_STATIC_LIB=$(2) \
                      -DCOROKAFKA_BOOST_STATIC_LIBS=ON \
-                     -DCOROKAFKA_EXPORT_CMAKE_CONFIG=OFF
+                     -DBOOST_ROOT=$(DISTRIBUTION_REFROOT)/opt/bb \
+                     -DQUANTUM_ROOT=$(DISTRIBUTION_REFROOT)/opt/bb \
+                     -DRDKAFKA_ROOT=$(DISTRIBUTION_REFROOT)/opt/bb \
+                     -DCPPKAFKA_ROOT=$(DISTRIBUTION_REFROOT)/opt/bb
 
 # Build static libs and headers
 DEBHELPER_64BIT_CMAKE_ARGS = $(call LIBRARY_CMAKE_ARGS,OFF,ON) # static build

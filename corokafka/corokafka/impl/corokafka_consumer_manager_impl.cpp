@@ -824,18 +824,6 @@ ConsumerManagerImpl::deserializeMessage(ConsumerTopicEntry& entry,
         report(entry, LogLevel::LogErr, RD_KAFKA_RESP_ERR__KEY_DESERIALIZATION, "Failed to deserialize key", kafkaMessage);
     }
     
-    //Deserialize the payload
-    boost::any payload = CallbackInvoker<Deserializer>("payload_deserializer",
-                                                       entry._configuration.getPayloadDeserializer(),
-                                                       entry._consumer.get())
-                     (kafkaMessage.get_payload());
-    if (payload.empty()) {
-        // Decoding failed
-        de._error = RD_KAFKA_RESP_ERR__VALUE_DESERIALIZATION;
-        de._source |= (uint8_t)DeserializerError::Source::Payload;
-        report(entry, LogLevel::LogErr, RD_KAFKA_RESP_ERR__VALUE_DESERIALIZATION, "Failed to deserialize payload", kafkaMessage);
-    }
-    
     //Deserialize the headers if any
     HeaderPack headers;
     int num = 0;
@@ -873,6 +861,18 @@ ConsumerManagerImpl::deserializeMessage(ConsumerTopicEntry& entry,
             break;
         }
         ++num;
+    }
+    
+    //Deserialize the payload
+    boost::any payload = CallbackInvoker<Deserializer>("payload_deserializer",
+                                                       entry._configuration.getPayloadDeserializer(),
+                                                       entry._consumer.get())
+                     (headers, kafkaMessage.get_payload());
+    if (payload.empty()) {
+        // Decoding failed
+        de._error = RD_KAFKA_RESP_ERR__VALUE_DESERIALIZATION;
+        de._source |= (uint8_t)DeserializerError::Source::Payload;
+        report(entry, LogLevel::LogErr, RD_KAFKA_RESP_ERR__VALUE_DESERIALIZATION, "Failed to deserialize payload", kafkaMessage);
     }
     
     return DeserializedMessage(std::move(key), std::move(payload), std::move(headers), de);

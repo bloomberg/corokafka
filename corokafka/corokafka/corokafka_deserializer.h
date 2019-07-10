@@ -18,6 +18,7 @@
 
 #include <corokafka/corokafka_message.h>
 #include <corokafka/corokafka_utils.h>
+#include <corokafka/corokafka_header_pack.h>
 #include <boost/any.hpp>
 
 namespace Bloomberg {
@@ -49,7 +50,8 @@ struct Deserializer
     using ResultType = boost::any;
     using result_type = ResultType; //cppkafka compatibility for callback invoker
     virtual ~Deserializer() = default;
-    virtual ResultType operator()(const Buffer& buffer) const = 0;
+    virtual ResultType operator()(const Buffer&) const { return {}; };
+    virtual ResultType operator()(const HeaderPack&, const Buffer&) const { return {}; }
     virtual explicit operator bool() const = 0;
 };
 
@@ -68,7 +70,31 @@ public:
     const Callback& getCallback() const { return _func; }
     
     ResultType operator()(const Buffer& buffer) const final {
-        return ResultType(_func(buffer));
+        return _func(buffer);
+    }
+    
+    explicit operator bool() const final { return (bool)_func; }
+    
+private:
+    Callback _func;
+};
+
+template <typename T>
+class ConcreteDeserializerWithHeaders : public Deserializer
+{
+public:
+    using ResultType = Deserializer::ResultType;
+    using Callback = std::function<T(const HeaderPack&, const Buffer&)>;
+    
+    //Ctor
+    ConcreteDeserializerWithHeaders(Callback callback) :
+        _func(std::move(callback))
+    {}
+    
+    const Callback& getCallback() const { return _func; }
+    
+    ResultType operator()(const HeaderPack& headers, const Buffer& buffer) const final {
+        return _func(headers, buffer);
     }
     
     explicit operator bool() const final { return (bool)_func; }

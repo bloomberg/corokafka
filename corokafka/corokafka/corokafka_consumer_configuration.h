@@ -154,7 +154,7 @@ public:
      * @remark Setting a key deserializer callback is mandatory.
      */
     template <typename T>
-    void setKeyCallback(Callbacks::DeserializerCallback<T> callback)
+    void setKeyCallback(Callbacks::KeyDeserializerCallback<T> callback)
     {
         _keyDeserializer.reset(new ConcreteDeserializer<T>(std::move(callback)));
     }
@@ -166,9 +166,9 @@ public:
      * @remark Setting a payload deserializer callback is mandatory.
      */
     template <typename T>
-    void setPayloadCallback(Callbacks::DeserializerCallback<T> callback)
+    void setPayloadCallback(Callbacks::PayloadDeserializerCallback<T> callback)
     {
-        _payloadDeserializer.reset(new ConcreteDeserializer<T>(std::move(callback)));
+        _payloadDeserializer.reset(new ConcreteDeserializerWithHeaders<T>(std::move(callback)));
     }
     
     /**
@@ -179,7 +179,7 @@ public:
      * @remark Setting a payload deserializer callback is mandatory.
      */
     template <typename T>
-    void setHeaderCallback(const std::string& name, Callbacks::DeserializerCallback<T> callback)
+    void setHeaderCallback(const std::string& name, Callbacks::HeaderDeserializerCallback<T> callback)
     {
         _headerDeserializers[name].reset(new ConcreteDeserializer<T>(std::move(callback)));
     }
@@ -190,7 +190,7 @@ public:
      * @return The callback.
      */
     template <typename T>
-    const Callbacks::DeserializerCallback<T>& getKeyCallback() const
+    const Callbacks::KeyDeserializerCallback<T>& getKeyCallback() const
     {
         return std::static_pointer_cast<ConcreteDeserializer<T>>(_keyDeserializer)->getCallback();
     }
@@ -201,7 +201,7 @@ public:
      * @return The callback.
      */
     template <typename T>
-    const Callbacks::DeserializerCallback<T>& getPayloadCallback() const
+    const Callbacks::PayloadDeserializerCallback<T>& getPayloadCallback() const
     {
         return std::static_pointer_cast<ConcreteDeserializer<T>>(_payloadDeserializer)->getCallback();
     }
@@ -212,7 +212,7 @@ public:
      * @return The callback.
      */
     template <typename T>
-    const Callbacks::DeserializerCallback<T>& getHeaderCallback(const std::string& name) const
+    const Callbacks::HeaderDeserializerCallback<T>& getHeaderCallback(const std::string& name) const
     {
         return std::static_pointer_cast<ConcreteDeserializer<T>>(_headerDeserializers.at(name))->getCallback();
     }

@@ -96,7 +96,7 @@ public:
      * @remark Setting a key serializer callback is mandatory.
      */
     template <typename T>
-    void setKeyCallback(Callbacks::SerializerCallback<T> callback)
+    void setKeyCallback(Callbacks::KeySerializerCallback<T> callback)
     {
         _keySerializer.reset(new ConcreteSerializer<T>(std::move(callback)));
     }
@@ -108,7 +108,7 @@ public:
      * @remark Setting a payload serializer callback is mandatory.
      */
     template <typename T>
-    void setPayloadCallback(Callbacks::SerializerCallback<T> callback)
+    void setPayloadCallback(Callbacks::PayloadSerializerCallback<T> callback)
     {
         _payloadSerializer.reset(new ConcreteSerializer<T>(std::move(callback)));
     }
@@ -120,7 +120,7 @@ public:
      * @param callback The callback.
      */
     template <typename T>
-    void setHeaderCallback(const std::string& name, Callbacks::SerializerCallback<T> callback)
+    void setHeaderCallback(const std::string& name, Callbacks::HeaderSerializerCallback<T> callback)
     {
         _headerSerializers[name].reset(new ConcreteSerializer<T>(std::move(callback)));
     }
@@ -131,7 +131,7 @@ public:
      * @return The callback
      */
     template <typename T>
-    const Callbacks::SerializerCallback<T>& getKeyCallback() const
+    const Callbacks::KeySerializerCallback<T>& getKeyCallback() const
     {
         return std::static_pointer_cast<ConcreteSerializer<T>>(_keySerializer)->getCallback();
     }
@@ -142,7 +142,7 @@ public:
      * @return The callback
      */
     template <typename T>
-    const Callbacks::SerializerCallback<T>& getPayloadCallback() const
+    const Callbacks::PayloadSerializerCallback<T>& getPayloadCallback() const
     {
         return std::static_pointer_cast<ConcreteSerializer<T>>(_payloadSerializer)->getCallback();
     }
@@ -153,7 +153,7 @@ public:
      * @return The callback
      */
     template <typename T>
-    const Callbacks::SerializerCallback<T>& getHeaderCallback(const std::string& name) const
+    const Callbacks::HeaderSerializerCallback<T>& getHeaderCallback(const std::string& name) const
     {
         return std::static_pointer_cast<ConcreteSerializer<T>>(_headerSerializers.at(name))->getCallback();
     }
