@@ -1,3 +1,9 @@
+corokafka (0.0.0.19) unstable; urgency=low
+
+  * 6344cbb Fixed pkgconfig filename in Cmake
+
+ -- Alexander Damian <adamian@bloomberg.net>  Wed, 17 Jul 2019 14:18:20 -0400
+
 corokafka (0.0.0.18) unstable; urgency=low
 
   * 3af5548 Merge branch 'master' of bbgithub.dev.bloomberg.com:eor/corokafka
