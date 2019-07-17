@@ -1,3 +1,10 @@
+corokafka (0.0.0.18) unstable; urgency=low
+
+  * bec85b9 Changed payload serializer/deserializer callbacks to take HeaderPack as a parameter.
+  * cfe7539 Fixed jekyll README.md error
+
+ -- Alexander Damian <adamian@bloomberg.net>  Wed, 10 Jul 2019 09:50:39 -0400
+
 corokafka (0.0.0.17) unstable; urgency=low
 
   * c0fff9f Added cmake variables to conditionally control installation of pkg-config and cmake config files
