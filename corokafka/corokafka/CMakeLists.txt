@@ -61,7 +61,7 @@ if (COROKAFKA_EXPORT_PKGCONFIG)
     configure_file(${PROJECT_SOURCE_DIR}/cmake/${PROJECT_TARGET_NAME}.pc.in ${PKG_CONFIG_FILE} @ONLY)
 
     install(
-        FILES ${PKG_CONFIG}
+        FILES ${PKG_CONFIG_FILE}
         DESTINATION "${COROKAFKA_PKGCONFIG_DIR}"
         COMPONENT pkgconfig
     )
