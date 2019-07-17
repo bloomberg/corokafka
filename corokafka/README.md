@@ -18,7 +18,7 @@ In CMake you can load the libraries simply by:
 find_package(CoroKafka REQUIRED)
 target_link_libraries(<your_target> CoroKafka::corokafka <other_dependencies>)
 ```
-Note that if `RdKafka`, `CppKafka`, `Quantum` or `Boost` are not installed in default locations, you may need to define the respective <package>_ROOT variables below.
+Note that if `RdKafka`, `CppKafka`, `Quantum` or `Boost` are not installed in default locations, you may need to define the respective \<package\>_ROOT variables below.
 
 ### CMake options
 Various **CMake** options can be used to configure the output:
