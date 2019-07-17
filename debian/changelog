@@ -1,9 +1,12 @@
 corokafka (0.0.0.18) unstable; urgency=low
 
+  * 3af5548 Merge branch 'master' of bbgithub.dev.bloomberg.com:eor/corokafka
+  * ea6f9d5 Changelog for version 0.0.0.18
+  * d233ded Update README.md
   * bec85b9 Changed payload serializer/deserializer callbacks to take HeaderPack as a parameter.
   * cfe7539 Fixed jekyll README.md error
 
- -- Alexander Damian <adamian@bloomberg.net>  Wed, 10 Jul 2019 09:50:39 -0400
+ -- Alexander Damian <adamian@bloomberg.net>  Wed, 17 Jul 2019 14:04:59 -0400
 
 corokafka (0.0.0.17) unstable; urgency=low
 
