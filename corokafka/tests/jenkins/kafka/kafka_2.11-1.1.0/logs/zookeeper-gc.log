@@ -1,0 +1,71 @@
+<?xml version="1.0" ?>
+
+<verbosegc xmlns="http://www.ibm.com/j9/verbosegc" version="dad8ba7_CMPRSS">
+
+<initialized id="1" timestamp="2019-05-10T16:10:20.912">
+  <attribute name="gcPolicy" value="-Xgcpolicy:gencon" />
+  <attribute name="maxHeapSize" value="0x20000000" />
+  <attribute name="initialHeapSize" value="0x20000000" />
+  <attribute name="compressedRefs" value="true" />
+  <attribute name="compressedRefsDisplacement" value="0x0" />
+  <attribute name="compressedRefsShift" value="0x0" />
+  <attribute name="pageSize" value="0x1000" />
+  <attribute name="pageType" value="not used" />
+  <attribute name="requestedPageSize" value="0x1000" />
+  <attribute name="requestedPageType" value="not used" />
+  <attribute name="gcthreads" value="4" />
+  <attribute name="gcthreads Concurrent Mark" value="1" />
+  <attribute name="packetListSplit" value="4" />
+  <attribute name="cacheListSplit" value="4" />
+  <attribute name="splitFreeListSplitAmount" value="1" />
+  <attribute name="numaNodes" value="0" />
+  <system>
+    <attribute name="physicalMemory" value="25112690688" />
+    <attribute name="numCPUs" value="4" />
+    <attribute name="architecture" value="amd64" />
+    <attribute name="os" value="Linux" />
+    <attribute name="osVersion" value="3.10.0-693.17.1.el7.x86_64" />
+  </system>
+  <vmargs>
+    <vmarg name="-Xoptionsfile=/usr/lib/jvm/java-1.8.0-ibm-1.8.0.5.30-1jpp.1.el7.x86_64/jre/lib/amd64/compressedrefs/options.default" />
+    <vmarg name="-Xlockword:mode=default,noLockword=java/lang/String,noLockword=java/util/MapEntry,noLockword=java/util/HashMap$Entry,noLockword..." />
+    <vmarg name="-Xjcl:jclse7b_29" />
+    <vmarg name="-Dcom.ibm.oti.vm.bootstrap.library.path=/usr/lib/jvm/java-1.8.0-ibm-1.8.0.5.30-1jpp.1.el7.x86_64/jre/lib/amd64/compressedrefs:/..." />
+    <vmarg name="-Dsun.boot.library.path=/usr/lib/jvm/java-1.8.0-ibm-1.8.0.5.30-1jpp.1.el7.x86_64/jre/lib/amd64/compressedrefs:/usr/lib/jvm/java..." />
+    <vmarg name="-Djava.library.path=/usr/lib/jvm/java-1.8.0-ibm-1.8.0.5.30-1jpp.1.el7.x86_64/jre/lib/amd64/compressedrefs:/usr/lib/jvm/java-1.8..." />
+    <vmarg name="-Djava.home=/usr/lib/jvm/java-1.8.0-ibm-1.8.0.5.30-1jpp.1.el7.x86_64/jre" />
+    <vmarg name="-Djava.ext.dirs=/usr/lib/jvm/java-1.8.0-ibm-1.8.0.5.30-1jpp.1.el7.x86_64/jre/lib/ext" />
+    <vmarg name="-Duser.dir=/home/dmindol1/docker/kafka/kafka_2.11-1.1.0" />
+    <vmarg name="-Djava.runtime.version=pxa6480sr5fp30-20190207_01 (SR5 FP30)" />
+    <vmarg name="-Djava.class.path=." />
+    <vmarg name="-Xmx512M" />
+    <vmarg name="-Xms512M" />
+    <vmarg name="-server" />
+    <vmarg name="-XX:+UseG1GC" />
+    <vmarg name="-XX:MaxGCPauseMillis=20" />
+    <vmarg name="-XX:InitiatingHeapOccupancyPercent=35" />
+    <vmarg name="-XX:+ExplicitGCInvokesConcurrent" />
+    <vmarg name="-Djava.awt.headless=true" />
+    <vmarg name="-Xloggc:/home/dmindol1/docker/kafka/kafka_2.11-1.1.0/bin/../logs/zookeeper-gc.log" />
+    <vmarg name="-verbose:gc" />
+    <vmarg name="-XX:+PrintGCDetails" />
+    <vmarg name="-XX:+PrintGCDateStamps" />
+    <vmarg name="-XX:+PrintGCTimeStamps" />
+    <vmarg name="-XX:+UseGCLogFileRotation" />
+    <vmarg name="-XX:NumberOfGCLogFiles=10" />
+    <vmarg name="-XX:GCLogFileSize=100M" />
+    <vmarg name="-Dcom.sun.management.jmxremote" />
+    <vmarg name="-Dcom.sun.management.jmxremote.authenticate=false" />
+    <vmarg name="-Dcom.sun.management.jmxremote.ssl=false" />
+    <vmarg name="-Dkafka.logs.dir=/home/dmindol1/docker/kafka/kafka_2.11-1.1.0/bin/../logs" />
+    <vmarg name="-Dlog4j.configuration=file:./bin/../config/log4j.properties" />
+    <vmarg name="-Djava.class.path=/home/dmindol1/docker/kafka/kafka_2.11-1.1.0/bin/../libs/aopalliance-repackaged-2.5.0-b32.jar:/home/dmindol1/..." />
+    <vmarg name="-Dsun.java.command=org.apache.zookeeper.server.quorum.QuorumPeerMain ./config/zookeeper.properties" />
+    <vmarg name="-Dsun.java.launcher=SUN_STANDARD" />
+    <vmarg name="-Dsun.java.launcher.pid=11145" />
+    <vmarg name="_org.apache.harmony.vmi.portlib" value="00007FDDC8010320" />
+  </vmargs>
+</initialized>
+
+</verbosegc>
+

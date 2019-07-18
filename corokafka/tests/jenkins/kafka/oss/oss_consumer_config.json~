@@ -1,0 +1,230 @@
+{
+  "quantum": {
+    "numCoroutineThreads":5,
+    "numIoThreads":5,
+    "pinToCores":false,
+    "loadBalanceSharedIoQueues":false,
+    "loadBalancePollIntervalMs":100,
+    "loadBalancePollIntervalBackoffPolicy":"exponential",
+    "loadBalancePollIntervalNumBackoffs":5
+  },
+  "kafka": {
+    "connector":{
+      "pollIntervalMs":100,
+      "maxMessagePayloadOutputLength":100
+    },
+    "topics": [
+      {
+        "name":"kf-oss-test",
+        "type":"consumer",
+        "config": {
+          "metadata.broker.list":"kf-oss-test.kafka.dev.query.bms.bloomberg.com:9092",
+          "api.version.request":true,
+          "enable.partition.eof":true,
+          "enable.auto.offset.store":true,
+          "enable.auto.commit":false,
+          "auto.offset.reset":"latest",
+          "partition.assignment.strategy":"roundrobin",
+          "group.id":"staging-test-group",
+          "internal.consumer.pause.on.start":false,
+          "internal.consumer.timeout.ms":1000,
+          "internal.consumer.commit.num.retries":5,
+          "internal.consumer.commit.backoff.strategy":"linear",
+          "internal.consumer.commit.backoff.interval.ms":100,
+          "internal.consumer.commit.max.backoff.ms":200,
+          "internal.consumer.read.size":5,
+          "internal.consumer.receive.callback.exec":"async",
+          "internal.consumer.receive.callback.thread.range.low":0,
+          "internal.consumer.receive.callback.thread.range.high":3,
+          "internal.consumer.auto.offset.persist":false,
+          "internal.consumer.offset.persist.strategy":"commit",
+          "internal.consumer.commit.exec":"sync",
+          "internal.consumer.poll.strategy":"batch",
+          "internal.consumer.auto.throttle":true,
+          "internal.consumer.preprocess.messages":true,
+          "internal.consumer.preprocess.invoke.thread":"io",
+          "internal.consumer.receive.invoke.thread":"io"
+        },
+        "topicConfig": {},
+        "partitionStrategy": "dynamic",
+        "partitionAssignment":[
+          { "id":0, "offset":-2 },
+          { "id":1, "offset":-2 },
+          { "id":2, "offset":-2 },
+          { "id":3, "offset":-2 }
+        ]
+      }
+    ]
+  },
+  "nano": {
+    "cacheManager": {
+      "cassSessionConfigs": [
+        {
+          "name": "CassSessionConfig",
+          "user":"oss_test",
+          "pwd":"oss123",
+          "env":"dev",
+          "clusterOptions":{
+            "threadCount": 5,
+            "queueSize": 10000,
+            "retryPolicy":"fallThrough",
+            "logRetryPolicy":false,
+            "consistency":"quorum",
+            "readConsistencyOverride":"localQuorum",
+            "writeConsistencyOverride":"three",
+            "connectTimeoutMs":5000,
+            "requestTimeoutMs":10000,
+            "coreConnectionsPerHost":1,
+            "loadBalanceRoundRobin":false,
+            "tokenAwareRouting":true,
+            "latencyAwareRouting": {
+              "exclusionThreshold": 2.0,
+              "scaleMs": 100,
+              "retryPeriodMs": 10000,
+              "updateRateMs": 100,
+              "minMeasured": 50
+            }
+          },
+          "reconnectSettings": {
+                "connectionReattempts": 5,
+                "waitTimeMs": 1000,
+                "maxWaitTimeMs": 30000,
+                "backoffStrategy": "linear",
+                "downgradedReadConsistency": "three",
+                "downgradedWriteConsistency": "two"
+          }
+        }
+      ],
+      "inProcCacheConfigs": [
+        {
+          "name": "SimpleTypesConfig",
+          "growthLimit": "byMaxElements",
+          "limitFactor":10000,
+          "timeToLiveSec":10000,
+          "errorOnReadFailure":true,
+          "errorOnWriteFailure":true
+        }
+      ],
+      "redisCacheConfigs": [
+        {
+          "name": "SimpleTypes2Config",
+          "type": "clustered",
+          "cacheName": "oss_cache",
+          "env": "dev",
+          "settings": {
+            "timeToLiveSec" : 3600 //1hr
+          },
+          "clusteredSettings": {
+              "address": "127.0.0.1",
+              "port": 28588,
+              "commandTimeoutMs": 2000,
+              "initialConnectionPoolSize": 3,
+              "maxConnectionPoolSize": 10,
+              "enableConnectionPool": true
+          },
+          "reconnectSettings": {
+                "connectionReattempts" : 5,
+                "commandReattempts" : 5,
+                "waitTimeMs" : 1000,
+                "maxWaitTimeMs" : 30000,
+                "backoffStrategy" : "exponential",
+                "indefinitelyReattemptCommands" : false,
+                "indefinitelyReattemptConnections" : false
+          },
+          "errorOnReadFailure": false,
+          "errorOnWriteFailure": true,
+          "numFlushRetriesOnWriteFailure": -1,
+          "flushRetryPeriodMs": 10000
+        }
+      ]
+    },
+    "caches": [
+      {
+        "name": "simpleTypeCache",
+        "cacheConfig": "SimpleTypesConfig",
+        "cassConfig": "CassSessionConfig",
+        "table": {
+          "keySpace": "osstest",
+          "name": "SimpleTypes",
+          "usePreparedStatements": true,
+          "columns": [
+            {
+              "position":0,
+              "name":"id",
+              "value":"uuid",
+              "type":"primary"
+            },
+            {
+              "position":1,
+              "name":"intType",
+              "value":"int"
+            },
+            {
+              "position":2,
+              "name":"doubleType",
+              "value":"double"
+            },
+            {
+              "position":3,
+              "name":"stringType",
+              "value":"text"
+            },
+            {
+              "position":4,
+              "name":"dateType",
+              "value":"date"
+            },
+            {
+              "position":5,
+              "name":"dateTimeType",
+              "value":"timestamp"
+            },
+            {
+              "position":6,
+              "name":"byteType",
+              "value":"tinyint"
+            },
+            {
+              "position":7,
+              "name":"object",
+              "value":"blob"
+            },
+          ],
+          "defaultEncoder": "ber",
+          "timeToLiveSec": 20000
+        }
+      },
+      {
+        "name": "simpleType2Cache",
+        "cacheConfig": "SimpleTypes2Config",
+        "cassConfig": "CassSessionConfig",
+        "table": {
+          "keySpace": "osstest",
+          "name": "SimpleTypes2",
+          "usePreparedStatements": true,
+          "columns": [
+            {
+              "position":0,
+              "name":"id",
+              "value":"int",
+              "type":"primary"
+            },
+            {
+              "position":1,
+              "name":"userId",
+              "value":"text",
+              "type":"primary"
+            },
+            {
+              "position":2,
+              "name":"object",
+              "value":"text"
+            }
+          ],
+          "defaultEncoder": "json",
+          "timeToLiveSec": 20000
+        }
+      }
+    ]
+  }
+}

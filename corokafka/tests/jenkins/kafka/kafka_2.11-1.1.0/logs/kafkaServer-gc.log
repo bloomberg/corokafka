@@ -1,0 +1,119 @@
+<?xml version="1.0" ?>
+
+<verbosegc xmlns="http://www.ibm.com/j9/verbosegc" version="dad8ba7_CMPRSS">
+
+<initialized id="1" timestamp="2019-05-10T16:11:01.017">
+  <attribute name="gcPolicy" value="-Xgcpolicy:gencon" />
+  <attribute name="maxHeapSize" value="0x40000000" />
+  <attribute name="initialHeapSize" value="0x40000000" />
+  <attribute name="compressedRefs" value="true" />
+  <attribute name="compressedRefsDisplacement" value="0x0" />
+  <attribute name="compressedRefsShift" value="0x0" />
+  <attribute name="pageSize" value="0x1000" />
+  <attribute name="pageType" value="not used" />
+  <attribute name="requestedPageSize" value="0x1000" />
+  <attribute name="requestedPageType" value="not used" />
+  <attribute name="gcthreads" value="4" />
+  <attribute name="gcthreads Concurrent Mark" value="1" />
+  <attribute name="packetListSplit" value="4" />
+  <attribute name="cacheListSplit" value="4" />
+  <attribute name="splitFreeListSplitAmount" value="1" />
+  <attribute name="numaNodes" value="0" />
+  <system>
+    <attribute name="physicalMemory" value="25112690688" />
+    <attribute name="numCPUs" value="4" />
+    <attribute name="architecture" value="amd64" />
+    <attribute name="os" value="Linux" />
+    <attribute name="osVersion" value="3.10.0-693.17.1.el7.x86_64" />
+  </system>
+  <vmargs>
+    <vmarg name="-Xoptionsfile=/usr/lib/jvm/java-1.8.0-ibm-1.8.0.5.30-1jpp.1.el7.x86_64/jre/lib/amd64/compressedrefs/options.default" />
+    <vmarg name="-Xlockword:mode=default,noLockword=java/lang/String,noLockword=java/util/MapEntry,noLockword=java/util/HashMap$Entry,noLockword..." />
+    <vmarg name="-Xjcl:jclse7b_29" />
+    <vmarg name="-Dcom.ibm.oti.vm.bootstrap.library.path=/usr/lib/jvm/java-1.8.0-ibm-1.8.0.5.30-1jpp.1.el7.x86_64/jre/lib/amd64/compressedrefs:/..." />
+    <vmarg name="-Dsun.boot.library.path=/usr/lib/jvm/java-1.8.0-ibm-1.8.0.5.30-1jpp.1.el7.x86_64/jre/lib/amd64/compressedrefs:/usr/lib/jvm/java..." />
+    <vmarg name="-Djava.library.path=/usr/lib/jvm/java-1.8.0-ibm-1.8.0.5.30-1jpp.1.el7.x86_64/jre/lib/amd64/compressedrefs:/usr/lib/jvm/java-1.8..." />
+    <vmarg name="-Djava.home=/usr/lib/jvm/java-1.8.0-ibm-1.8.0.5.30-1jpp.1.el7.x86_64/jre" />
+    <vmarg name="-Djava.ext.dirs=/usr/lib/jvm/java-1.8.0-ibm-1.8.0.5.30-1jpp.1.el7.x86_64/jre/lib/ext" />
+    <vmarg name="-Duser.dir=/home/dmindol1/docker/kafka/kafka_2.11-1.1.0" />
+    <vmarg name="-Djava.runtime.version=pxa6480sr5fp30-20190207_01 (SR5 FP30)" />
+    <vmarg name="-Djava.class.path=." />
+    <vmarg name="-Xmx1G" />
+    <vmarg name="-Xms1G" />
+    <vmarg name="-server" />
+    <vmarg name="-XX:+UseG1GC" />
+    <vmarg name="-XX:MaxGCPauseMillis=20" />
+    <vmarg name="-XX:InitiatingHeapOccupancyPercent=35" />
+    <vmarg name="-XX:+ExplicitGCInvokesConcurrent" />
+    <vmarg name="-Djava.awt.headless=true" />
+    <vmarg name="-Xloggc:/home/dmindol1/docker/kafka/kafka_2.11-1.1.0/bin/../logs/kafkaServer-gc.log" />
+    <vmarg name="-verbose:gc" />
+    <vmarg name="-XX:+PrintGCDetails" />
+    <vmarg name="-XX:+PrintGCDateStamps" />
+    <vmarg name="-XX:+PrintGCTimeStamps" />
+    <vmarg name="-XX:+UseGCLogFileRotation" />
+    <vmarg name="-XX:NumberOfGCLogFiles=10" />
+    <vmarg name="-XX:GCLogFileSize=100M" />
+    <vmarg name="-Dcom.sun.management.jmxremote" />
+    <vmarg name="-Dcom.sun.management.jmxremote.authenticate=false" />
+    <vmarg name="-Dcom.sun.management.jmxremote.ssl=false" />
+    <vmarg name="-Dkafka.logs.dir=/home/dmindol1/docker/kafka/kafka_2.11-1.1.0/bin/../logs" />
+    <vmarg name="-Dlog4j.configuration=file:./bin/../config/log4j.properties" />
+    <vmarg name="-Djava.class.path=/home/dmindol1/docker/kafka/kafka_2.11-1.1.0/bin/../libs/aopalliance-repackaged-2.5.0-b32.jar:/home/dmindol1/..." />
+    <vmarg name="-Dsun.java.command=kafka.Kafka ./config/server.properties" />
+    <vmarg name="-Dsun.java.launcher=SUN_STANDARD" />
+    <vmarg name="-Dsun.java.launcher.pid=12682" />
+    <vmarg name="_org.apache.harmony.vmi.portlib" value="00007FEBAC0102F0" />
+  </vmargs>
+</initialized>
+
+<exclusive-start id="2" timestamp="2019-05-10T16:11:03.029" intervalms="2011.943">
+  <response-info timems="0.064" idlems="0.064" threads="0" lastid="000000000137D700" lastname="main" />
+</exclusive-start>
+<af-start id="3" threadId="000000000137E088" totalBytesRequested="134217736" timestamp="2019-05-10T16:11:03.029" intervalms="2012.123" type="nursery" />
+<cycle-start id="4" type="scavenge" contextid="0" timestamp="2019-05-10T16:11:03.029" intervalms="2012.188" />
+<gc-start id="5" type="scavenge" contextid="4" timestamp="2019-05-10T16:11:03.030">
+  <mem-info id="6" free="896563280" total="1073741824" percent="83">
+    <mem type="nursery" free="92086128" total="268435456" percent="34">
+      <mem type="allocate" free="92086128" total="134217728" percent="68" />
+      <mem type="survivor" free="0" total="134217728" percent="0" />
+    </mem>
+    <mem type="tenure" free="804477152" total="805306368" percent="99">
+      <mem type="soa" free="764212448" total="765041664" percent="99" />
+      <mem type="loa" free="40264704" total="40264704" percent="100" />
+    </mem>
+    <remembered-set count="10250" />
+  </mem-info>
+</gc-start>
+<allocation-stats totalBytes="42539032" >
+  <allocated-bytes non-tlh="1460144" tlh="41078888" />
+  <largest-consumer threadName="main" threadId="000000000137D700" bytes="41807824" />
+</allocation-stats>
+<gc-op id="7" type="scavenge" timems="12.899" contextid="4" timestamp="2019-05-10T16:11:03.043">
+  <scavenger-info tenureage="2" tenuremask="fffc" tiltratio="50" />
+  <memory-copied type="nursery" objects="67859" bytes="11799888" bytesdiscarded="68312" />
+  <finalization candidates="3860" enqueued="3613" />
+  <ownableSynchronizers candidates="130" cleared="36" />
+  <references type="soft" candidates="446" cleared="0" enqueued="0" dynamicThreshold="32" maxThreshold="32" />
+  <references type="weak" candidates="4819" cleared="3988" enqueued="3967" />
+  <references type="phantom" candidates="10" cleared="1" enqueued="1" />
+</gc-op>
+<gc-end id="8" type="scavenge" contextid="4" durationms="13.162" usertimems="20.307" systemtimems="7.931" timestamp="2019-05-10T16:11:03.043" activeThreads="4">
+  <mem-info id="9" free="926805976" total="1073741824" percent="86">
+    <mem type="nursery" free="122328824" total="268435456" percent="45">
+      <mem type="allocate" free="122328824" total="134217728" percent="91" />
+      <mem type="survivor" free="0" total="134217728" percent="0" />
+    </mem>
+    <mem type="tenure" free="804477152" total="805306368" percent="99">
+      <mem type="soa" free="764212448" total="765041664" percent="99" />
+      <mem type="loa" free="40264704" total="40264704" percent="100" />
+    </mem>
+    <pending-finalizers system="3613" default="0" reference="3968" classloader="0" />
+    <remembered-set count="10250" />
+  </mem-info>
+</gc-end>
+<cycle-end id="10" type="scavenge" contextid="4" timestamp="2019-05-10T16:11:03.043" />
+<allocation-satisfied id="11" threadId="000000000137D700" bytesRequested="134217736" />
+<af-end id="12" timestamp="2019-05-10T16:11:03.088" threadId="000000000137E088" success="true" from="tenure-soa"/>
+<exclusive-end id="13" timestamp="2019-05-10T16:11:03.088" durationms="58.997" />
+
