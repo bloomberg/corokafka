@@ -1,3 +1,9 @@
+corokafka (0.2.0.20) unstable; urgency=low
+
+  * ff76890 Fixed .pc file template
+
+ -- Alexander Damian <adamian@bloomberg.net>  Fri, 19 Jul 2019 13:08:51 -0400
+
 corokafka (0.0.0.19) unstable; urgency=low
 
   * 6344cbb Fixed pkgconfig filename in Cmake
