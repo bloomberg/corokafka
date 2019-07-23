@@ -1,3 +1,10 @@
+corokafka (0.2.0.21) unstable; urgency=low
+
+  * ddf70c4 Merge pull request #4 from arosenz1/master
+  * b72db4d Fix ProducerConfiguration::setPayloadCallback() for ConcreteSerializerWithHeaders
+
+ -- hubricator role account <hubricator@bloomberg.net>  Tue, 23 Jul 2019 21:42:59 +0100
+
 corokafka (0.2.0.20) unstable; urgency=low
 
   * ff76890 Fixed .pc file template
