@@ -364,7 +364,20 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
     
     //subscribe or statically assign partitions to this consumer
     if (topicEntry._configuration.getPartitionStrategy() == PartitionStrategy::Static) {
-        topicEntry._consumer->assign(topicEntry._configuration.getInitialPartitionAssignment());
+        if ((topicEntry._configuration.getInitialPartitionAssignment().size() == 1) &&
+            (topicEntry._configuration.getInitialPartitionAssignment().front().get_partition() == RD_KAFKA_PARTITION_UA)) {
+            //assign all partitions belonging to this topic
+            TopicMetadata metadata = topicEntry._consumer->get_metadata(topicEntry._consumer->get_topic(topic));
+            TopicPartitionList partitions = cppkafka::convert(topic, metadata.get_partitions());
+            //set the specified offset on all partitions
+            for (auto& p : partitions) {
+                p.set_offset(topicEntry._configuration.getInitialPartitionAssignment().front().get_offset());
+            }
+            topicEntry._consumer->assign(partitions);
+        }
+        else {
+            topicEntry._consumer->assign(topicEntry._configuration.getInitialPartitionAssignment());
+        }
     }
     else {
         topicEntry._consumer->subscribe({topic});

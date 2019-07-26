@@ -50,7 +50,7 @@ public:
      * @param partitionList The optional partition list assignment.
      * @note This method will only work if the consumer was been previously 'unsubscribed'. All the original
      *       configuration settings will remain the same, including PartitionStrategy (Static or Dynamic).
-     *       If a partionList is not provided, the values specified via ConsumerConfiguration::assignInitialPartitions()
+     *       If a partitionList is not provided, the values specified via ConsumerConfiguration::assignInitialPartitions()
      *       shall be used.
      */
     void subscribe(const std::string& topic,
