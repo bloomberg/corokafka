@@ -1,3 +1,9 @@
+corokafka (0.2.0.22) unstable; urgency=low
+
+  * 2304e0f Added support for static partition assignment with ranges
+
+ -- Alexander Damian <adamian@bloomberg.net>  Fri, 26 Jul 2019 11:45:47 -0400
+
 corokafka (0.2.0.21) unstable; urgency=low
 
   * ddf70c4 Merge pull request #4 from arosenz1/master
