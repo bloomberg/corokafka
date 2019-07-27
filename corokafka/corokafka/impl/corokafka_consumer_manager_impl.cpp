@@ -561,6 +561,7 @@ std::vector<std::string> ConsumerManagerImpl::getTopics() const
 void ConsumerManagerImpl::shutdown()
 {
     if (!_shutdownInitiated.test_and_set()) {
+        //nothing to be done for now...
     }
 }
 
