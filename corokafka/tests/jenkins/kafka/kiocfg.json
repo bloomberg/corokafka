@@ -1,0 +1,78 @@
+{
+  "Topics" : {
+    "advrawtype" : [ "advraw"],
+    "advcookedtype" :[ "advcooked1", "advcooked2" ]
+  },
+  "Common" : {
+    "api.version.request" : "true",
+    "debug" : "broker",
+    "log_level" : "7"
+   },
+  "Consumer" : {
+    "enable.partition.eof" : "true",
+    "enable.auto.offset.store" : "true",
+    "enable.auto.commit" : "false",
+    "auto.offset.reset" : "earliest",
+    "message.max.bytes" : "104857600",
+    "fetch.max.bytes" : "524288000",
+    "fetch.message.max.bytes" : "104857600",
+    "max.partition.fetch.bytes" : "104857600"
+  },
+  "ConsumerRewind" : {
+    "enable.partition.eof" : "true",
+    "enable.auto.offset.store" : "true",
+    "enable.auto.commit" : "false",
+    "auto.offset.reset" : "earliest",
+    "message.max.bytes" : "104857600",
+    "fetch.max.bytes" : "524288000",
+    "fetch.message.max.bytes" : "104857600",
+    "max.partition.fetch.bytes" : "104857600"
+  },
+  "Producer" : {
+    "max.in.flight.requests.per.connection" : "1",
+    "message.send.max.retries" : "4",
+    "queuing.strategy" : "fifo",
+    "message.max.bytes" : "10485760",
+    "batch.num.messages" : "10000",
+    "linger.ms" : "1"
+  },
+  "PartitionMappings" : {
+    "ioiserv" : [
+       {
+         "type" : "advrawtype",
+         "topic" : "advraw",
+         "partitions" : [0, 1, 2, 3]
+       },
+       {
+         "type" : "advcookedtype",
+         "topic" : "advcooked",
+         "partitions" : [2, 0, 3, 1]
+       }
+    ],
+    "fixioi" : [
+       {
+        "type" : "statustype",
+        "topic" : "fixioistatus",
+        "partitions" : [0, 1, 2, 3]
+      }
+    ]
+  },
+ "TargetMappings" : {
+   "fixioi" : [
+     {
+       "type" : "advrawtype",
+       "targets" : ["ioiserv"]
+     }
+   ],
+   "fixioi2" : [
+     {
+       "type" : "advrawtype",
+       "targets" : ["ioiserv2"]
+     },
+     {
+       "type" : "statustype",
+       "targets" : ["auditor4"]
+     }
+   ]
+  }
+}

@@ -16,6 +16,7 @@ if (COROKAFKA_BUILD_TESTS_FROM_INSTALL_TREE)
         CoroKafka::corokafka
         GTest::GTest
         GTest::Main)
+
 else()
     add_dependencies(${TEST_TARGET} ${PROJECT_TARGET_NAME})
     target_include_directories(${TEST_TARGET} BEFORE PRIVATE
@@ -35,7 +36,12 @@ else()
         ${Boost_LIBRARIES}
         GTest::GTest
         GTest::Main
-        pthread rt ssl crypto dl z
+        pthread
+	rt
+	ssl
+	crypto
+	dl
+	z
     )
     if (COROKAFKA_VERBOSE_MAKEFILE)
         message(STATUS "SOURCE_FILES = ${SOURCE_FILES}")

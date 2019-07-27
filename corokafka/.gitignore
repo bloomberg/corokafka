@@ -28,7 +28,6 @@
 *.exe
 *.out
 *.app
-*.tsk
 
 .idea/*
 cmake-build-debug/*

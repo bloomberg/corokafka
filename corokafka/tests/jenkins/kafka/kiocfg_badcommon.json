@@ -1,0 +1,7 @@
+{
+  "Common" : {
+    "api.version.request" : "true";
+    "debug" : "broker",
+    "log_level" : "7"
+   },
+}
