@@ -1,3 +1,14 @@
+corokafka (0.2.0.23) unstable; urgency=low
+
+  * 7dc6a4c Merge pull request #7 from adamian/join_fix
+  * 94c9a5f Merge pull request #6 from adamian/jenkins
+  * 3fcc498 Added promote step in the jenkins pipeline
+  * 1a9c292 Fixed join block issue on exit
+  * 03527c2 Merge pull request #5 from apopov49/master
+  * d8f1662 Adds local building and docker testing in jenkins
+
+ -- Alexander Damian <adamian@bloomberg.net>  Sat, 27 Jul 2019 11:38:27 -0400
+
 corokafka (0.2.0.22) unstable; urgency=low
 
   * 2304e0f Added support for static partition assignment with ranges
