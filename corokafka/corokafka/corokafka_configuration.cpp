@@ -68,7 +68,7 @@ const std::string& Configuration::getJsonSchema()
                 "type": "object",
                 "properties": {
                     "ids": {
-                        "description" : "Range of partition ids. No value = all partitions, one value = single partition, two values = range [first, second]",
+                        "description" : "Partition id(s). Empty = all partitions, one value = single partition, two values = range [first, second]",
                         "type":"array",
                         "items": { "type": "number" },
                         "minItems": 0,
@@ -76,9 +76,9 @@ const std::string& Configuration::getJsonSchema()
                         "uniqueItems": true
                     },
                     "offset": {
-                        "description": "A partition offset. If not specified, offset defaults to the END of the queue",
+                        "description": "A partition offset. Values are: -1000(STORED),-1(BEGIN),-2(END),<=-3(RELATIVE),>=0(EXACT)",
                         "type":"number",
-                        "default":-1
+                        "default":-1000
                     }
                 },
                 "additionalProperties": false,
