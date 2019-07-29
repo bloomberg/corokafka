@@ -1,3 +1,9 @@
+corokafka (0.2.0.24) unstable; urgency=low
+
+  * 3471262 Changed default offset to -1000(STORED)
+
+ -- Alexander Damian <adamian@bloomberg.net>  Mon, 29 Jul 2019 19:21:22 -0400
+
 corokafka (0.2.0.23) unstable; urgency=low
 
   * ad6ebda Changelog for version 0.2.0.23
