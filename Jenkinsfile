@@ -18,19 +18,35 @@ pipeline {
 							    // needed for docker-compose, to prevent network conflict
     }
     stages{
-        stage('build') { 
-            agent { label 'BLDLNX' }
-            steps{
-		sh './corokafka/tests/jenkins/local_build.sh'
-		stash includes: 'build/', name: 'app'
-            }
-	    post {
-                always {
-                    deleteDir()
+        stage('build'){
+        parallel {
+            stage('local build') { 
+                agent { label 'BLDLNX' }
+                steps{
+		    sh './corokafka/tests/jenkins/local_build.sh'
+		    stash includes: 'build/', name: 'app'
                 }
-	    }
-        }
+	        post {
+                    always {
+                        deleteDir()
+                    }
+	        }
+            }
         
+            stage('dpkg build') { 
+                agent { label 'BLDLNX' }
+                steps{
+		    blpDpkgBuildSinglePackage(scm: scm, nodes: [ "BLDLNX" ])
+                }
+	        post {
+                    always {
+                        deleteDir()
+                    }
+	        }
+            }
+        }
+        }
+
         stage('test') { 
             agent { label 'docker' }
             steps{
@@ -48,9 +64,10 @@ pipeline {
 	    when { branch 'master' } 
             agent { label 'BLDLNX' }
             steps{
-		unstash 'app'
-		blpDpkgBuildSinglePackage(scm: scm, nodes: [ "BLDLNX" ])
-		sh 'echo done'
+                 blpDpkgPromoteSinglePackage(scm: scm,
+                                            branch: "master",
+                                            distribution: "unstable",
+                                            credentials: "bbgh_bbgithub_token")
             }
 	    post {
                 always {
