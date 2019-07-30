@@ -19,6 +19,7 @@ pipeline {
     }
     stages{
         stage('build'){
+	when { not { branch 'master' } } 
         parallel {
             stage('local build') { 
                 agent { label 'BLDLNX' }
@@ -48,6 +49,7 @@ pipeline {
         }
 
         stage('test') { 
+	    when { not { branch 'master' } } 
             agent { label 'docker' }
             steps{
 		unstash 'app'
