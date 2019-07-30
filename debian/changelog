@@ -1,3 +1,46 @@
+corokafka (0.2.0.25) unstable; urgency=low
+
+  * 97be56c Do not commit for EOF events
+
+ -- Alexander Damian <adamian@bloomberg.net>  Tue, 30 Jul 2019 10:00:37 -0400
+
+corokafka (0.2.0.24) unstable; urgency=low
+
+  * 3471262 Changed default offset to -1000(STORED)
+
+ -- Alexander Damian <adamian@bloomberg.net>  Mon, 29 Jul 2019 19:21:22 -0400
+
+corokafka (0.2.0.23) unstable; urgency=low
+
+  * ad6ebda Changelog for version 0.2.0.23
+  * 7dc6a4c Merge pull request #7 from adamian/join_fix
+  * 94c9a5f Merge pull request #6 from adamian/jenkins
+  * 3fcc498 Added promote step in the jenkins pipeline
+  * 1a9c292 Fixed join block issue on exit
+  * 03527c2 Merge pull request #5 from apopov49/master
+  * d8f1662 Adds local building and docker testing in jenkins
+
+ -- Alexander Damian <adamian@bloomberg.net>  Sat, 27 Jul 2019 11:49:49 -0400
+
+corokafka (0.2.0.22) unstable; urgency=low
+
+  * 2304e0f Added support for static partition assignment with ranges
+
+ -- Alexander Damian <adamian@bloomberg.net>  Fri, 26 Jul 2019 11:45:47 -0400
+
+corokafka (0.2.0.21) unstable; urgency=low
+
+  * ddf70c4 Merge pull request #4 from arosenz1/master
+  * b72db4d Fix ProducerConfiguration::setPayloadCallback() for ConcreteSerializerWithHeaders
+
+ -- hubricator role account <hubricator@bloomberg.net>  Tue, 23 Jul 2019 21:42:59 +0100
+
+corokafka (0.2.0.20) unstable; urgency=low
+
+  * ff76890 Fixed .pc file template
+
+ -- Alexander Damian <adamian@bloomberg.net>  Fri, 19 Jul 2019 13:08:51 -0400
+
 corokafka (0.0.0.19) unstable; urgency=low
 
   * 6344cbb Fixed pkgconfig filename in Cmake

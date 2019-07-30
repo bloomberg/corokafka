@@ -264,6 +264,10 @@ Error ReceivedMessage<K,P>::doCommit()
         if (!_message) {
             return RD_KAFKA_RESP_ERR__BAD_MSG;
         }
+        if (_message.is_eof()) {
+            //nothing to commit
+            return {};
+        }
         if (_offsetSettings._autoOffsetPersistStrategy == OffsetPersistStrategy::Commit) {
             if (_offsetSettings._autoCommitExec== ExecMode::Sync) {
                 _committer.commit(_message);

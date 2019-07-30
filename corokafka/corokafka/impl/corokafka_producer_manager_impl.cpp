@@ -333,7 +333,11 @@ void ProducerManagerImpl::shutdown()
 {
     if (!_shutdownInitiated.test_and_set())
     {
-        _shuttingDown = true;
+        {
+            std::unique_lock<std::mutex> lock(_messageQueueMutex);
+            _shuttingDown = true;
+        }
+        _emptyCondition.notify_one(); //awake the posting thread
         // wait for all pending flushes to complete
         for (auto&& entry : _producers) {
             entry.second._producer->flush();

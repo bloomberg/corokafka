@@ -67,15 +67,22 @@ const std::string& Configuration::getJsonSchema()
                 "title": "A kafka partition",
                 "type": "object",
                 "properties": {
-                    "id": {
-                        "type":"number"
+                    "ids": {
+                        "description" : "Partition id(s). Empty = all partitions, one value = single partition, two values = range [first, second]",
+                        "type":"array",
+                        "items": { "type": "number" },
+                        "minItems": 0,
+                        "maxItems": 2,
+                        "uniqueItems": true
                     },
                     "offset": {
-                        "type":"number"
+                        "description": "A partition offset. Values are: -1000(STORED),-1(BEGIN),-2(END),<=-3(RELATIVE),>=0(EXACT)",
+                        "type":"number",
+                        "default":-1000
                     }
                 },
                 "additionalProperties": false,
-                "required": [ "id","offset" ]
+                "required": []
             },
             "topic": {
                 "title": "Consumer or producer topic",

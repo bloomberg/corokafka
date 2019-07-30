@@ -110,7 +110,7 @@ public:
     template <typename T>
     void setPayloadCallback(Callbacks::PayloadSerializerCallback<T> callback)
     {
-        _payloadSerializer.reset(new ConcreteSerializer<T>(std::move(callback)));
+        _payloadSerializer.reset(new ConcreteSerializerWithHeaders<T>(std::move(callback)));
     }
     
     /**
