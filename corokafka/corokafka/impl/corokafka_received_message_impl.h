@@ -140,7 +140,9 @@ template <typename K, typename P>
 Error ReceivedMessage<K,P>::commit(const void* opaque)
 {
     _opaque = opaque;
-    if (_committer.get_consumer().get_configuration().get_offset_commit_callback() && (_opaque != nullptr)) {
+    if ((_opaque != nullptr) &&
+        (_offsetSettings._autoOffsetPersistStrategy == OffsetPersistStrategy::Commit) &&
+        _committer.get_consumer().get_configuration().get_offset_commit_callback()) {
         _offsets.insert(TopicPartition(getTopic(), getPartition(), getOffset()), opaque);
     }
     return doCommit();

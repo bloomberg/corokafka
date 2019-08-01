@@ -688,11 +688,21 @@ void ConsumerManagerImpl::offsetCommitCallback(
 {
     // Check if we have opaque data
     TopicPartitionList& partitions = const_cast<TopicPartitionList&>(topicPartitions);
-    //subtract one since rdkafka always gives us the next offset
-    partitions.front().set_offset(partitions.front().get_offset()-1);
+    std::vector<const void*> opaques;
+    if (!topicEntry._offsets.empty()) {
+        opaques.reserve(partitions.size());
+    }
+    for (auto& partition : partitions) {
+        //subtract one since rdkafka always gives us the next offset
+        partition.set_offset(partition.get_offset()-1);
+        //remove the opaque values and pass them back to the application
+        if (!topicEntry._offsets.empty()) {
+            opaques.push_back(topicEntry._offsets.remove(partition));
+        }
+    }
     CallbackInvoker<Callbacks::OffsetCommitCallback>
         ("offset commit", topicEntry._configuration.getOffsetCommitCallback(), &consumer)
-            (makeMetadata(topicEntry), error, partitions, topicEntry._offsets.remove(partitions.front()));
+            (makeMetadata(topicEntry), error, partitions, opaques);
 }
 
 bool ConsumerManagerImpl::offsetCommitErrorCallback(

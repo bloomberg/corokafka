@@ -30,9 +30,6 @@ public:
         _mutex(new std::mutex())
     {}
     
-    // Indexed by partition and offset number
-    using MapType = std::map<TopicPartition, const void*>;
-    
     void insert(const TopicPartition& position, const void* opaque) {
         if (opaque == nullptr) return;
         std::lock_guard<std::mutex> lock(*_mutex);
@@ -49,7 +46,9 @@ public:
         if (_map.empty()) return nullptr;
         std::lock_guard<std::mutex> lock(*_mutex);
         auto it = _map.find(position);
-        if (it == _map.end()) return nullptr;
+        if (it == _map.end()) {
+            return nullptr;
+        }
         return it->second;
     }
 
@@ -57,7 +56,9 @@ public:
         if (_map.empty()) return nullptr;
         std::lock_guard<std::mutex> lock(*_mutex);
         auto it = _map.find(position);
-        if (it == _map.end()) return nullptr;
+        if (it == _map.end()) {
+            return nullptr;
+        }
         const void* ptr = it->second;
         _map.erase(it);
         return ptr;
@@ -85,6 +86,18 @@ public:
     bool empty() const { return _map.empty(); }
     
 private:
+    struct TopicPartitionComparator
+    {
+        bool operator()(const TopicPartition& lhs, const TopicPartition& rhs) const {
+            int lhsPartition = lhs.get_partition(), rhsPartition = rhs.get_partition();
+            int64_t lhsOffset = lhs.get_offset(), rhsOffset = rhs.get_offset();
+            return std::tie(lhs.get_topic(), lhsPartition, lhsOffset) <
+                   std::tie(rhs.get_topic(), rhsPartition, rhsOffset);
+        }
+    };
+    // Indexed by partition and offset number
+    using MapType = std::map<TopicPartition, const void*, TopicPartitionComparator>;
+    
     MapType                             _map;
     mutable std::unique_ptr<std::mutex> _mutex;
 };

@@ -126,6 +126,7 @@ public:
     /**
      * @brief Commits message with the retry strategy specified in the config for this topic.
      * @param opaque Application-specific pointer which will be returned inside the offset commit callback.
+     *               Passing an opaque pointer only works when 'internal.consumer.offset.persist.strategy=commit'
      * @return Error object. If the number of retries reaches 0, the error contains RD_KAFKA_RESP_ERR__FAIL.
      * @remark This call is blocking until it succeeds or the last retry failed.
      * @remark If commit() is not called explicitly, it will be called by ~ReceivedMessage() if

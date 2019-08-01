@@ -63,7 +63,7 @@ struct Callbacks {
     using OffsetCommitCallback = std::function<void(const ConsumerMetadata& metadata,
                                                     Error error,
                                                     const TopicPartitionList& topicPartitions,
-                                                    const void* opaque)>;
+                                                    const std::vector<const void*>& opaques)>;
     
     using RebalanceCallback = std::function<void(const ConsumerMetadata& metadata,
                                                  Error error,
