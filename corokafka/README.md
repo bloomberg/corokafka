@@ -112,7 +112,7 @@ headerSerializerCallback(const std::string& header)
 }
 
 corokafka::ByteArray
-payloadSerializerCallback(const std::string& payload)
+payloadSerializerCallback(const corokafka::HeaderPack&, const std::string& payload)
 {
     return {payload.begin(), payload.end()};
 }
@@ -247,7 +247,7 @@ headerDeserializerCallback(const corokafka::Buffer& header)
 }
 
 std::string
-payloadDeserializerCallback(const corokafka::Buffer& payload)
+payloadDeserializerCallback(const corokafka::HeaderPack&, const corokafka::Buffer& payload)
 {
     return {payload.begin(), payload.end()};
 }
@@ -278,15 +278,15 @@ void receiverCallback(corokafka::ReceivedMessage<size_t, std::string> message)
 
 // Create the producer and topic config
 std::initializer_list<corokafka::ConfigurationOption > configOptions = {
-	{ "metadata.broker.list", "broker_url:port" },
-	{ "group.id", "my-group" },
-	{ "api.version.request", true },
-	{ "enable.partition.eof", true },
-	{ "enable.auto.offset.store", true },
-	{ "enable.auto.commit", false },
-	{ "auto.offset.reset", "earliest" },
-	{ "partition.assignment.strategy", "roundrobin" },
-	{ "internal.consumer.pause.on.start", false }
+    { "metadata.broker.list", "broker_url:port" },
+    { "group.id", "my-group" },
+    { "api.version.request", true },
+    { "enable.partition.eof", true },
+    { "enable.auto.offset.store", true },
+    { "enable.auto.commit", false },
+    { "auto.offset.reset", "earliest" },
+    { "partition.assignment.strategy", "roundrobin" },
+    { "internal.consumer.pause.on.start", false }
 };
 corokafka::ConsumerConfiguration config("my-topic", configOptions, {});
 
@@ -299,12 +299,12 @@ config.setCallback<size_t, std::string>(receiverCallback);
 
 // Optionally set initial partition assignment (4 partitions per topic)
 config.assignInitialPartitions(corokafka::PartitionStrategy::Dynamic,
-						    {
-						    {topic, 0, corokafka::TopicPartition::OFFSET_BEGINNING},
-						    {topic, 1, corokafka::TopicPartition::OFFSET_BEGINNING},
-						    {topic, 2, corokafka::TopicPartition::OFFSET_BEGINNING},
-						    {topic, 3, corokafka::TopicPartition::OFFSET_BEGINNING}
-						    });
+    {
+    {topic, 0, corokafka::TopicPartition::OFFSET_BEGINNING},
+    {topic, 1, corokafka::TopicPartition::OFFSET_BEGINNING},
+    {topic, 2, corokafka::TopicPartition::OFFSET_BEGINNING},
+    {topic, 3, corokafka::TopicPartition::OFFSET_BEGINNING}
+    });
 
 // Create the connector (this will subscribe all consumers and start receiving messages)
 corokafka::Connector connector(corokafka::ConfigurationBuilder(config));

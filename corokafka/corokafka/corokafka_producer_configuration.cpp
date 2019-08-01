@@ -43,17 +43,17 @@ const Configuration::OptionSet ProducerConfiguration::s_internalOptions = {
 const Configuration::OptionSet ProducerConfiguration::s_internalTopicOptions;
 
 ProducerConfiguration::ProducerConfiguration(const std::string& topic,
-                                             Options config,
-                                             Options topicConfig) :
-    Configuration(KafkaType::Producer, topic, std::move(config), std::move(topicConfig))
+                                             Options options,
+                                             Options topicOptions) :
+    Configuration(KafkaType::Producer, topic, std::move(options), std::move(topicOptions))
 {
 
 }
 
 ProducerConfiguration::ProducerConfiguration(const std::string& topic,
-                                             std::initializer_list<ConfigurationOption> config,
-                                             std::initializer_list<ConfigurationOption> topicConfig) :
-    Configuration(KafkaType::Producer, topic, std::move(config), std::move(topicConfig))
+                                             std::initializer_list<ConfigurationOption> options,
+                                             std::initializer_list<ConfigurationOption> topicOptions) :
+    Configuration(KafkaType::Producer, topic, std::move(options), std::move(topicOptions))
 {
 
 }

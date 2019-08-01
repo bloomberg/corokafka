@@ -102,9 +102,12 @@ void ProducerManagerImpl::flush(const ProducerTopicEntry& entry)
 
 void ProducerManagerImpl::setup(const std::string& topic, ProducerTopicEntry& topicEntry)
 {
+    const Configuration::Options& rdKafkaOptions = topicEntry._configuration.getOptions(Configuration::OptionType::RdKafka);
+    const Configuration::Options& rdKafkaTopicOptions = topicEntry._configuration.getTopicOptions(Configuration::OptionType::RdKafka);
+    const Configuration::Options& internalOptions = topicEntry._configuration.getOptions(Configuration::OptionType::Internal);
+    
     //Validate config
-    const ConfigurationOption* brokerList =
-        Configuration::findConfigOption("metadata.broker.list", topicEntry._configuration.getConfiguration());
+    const ConfigurationOption* brokerList = Configuration::findOption("metadata.broker.list", rdKafkaOptions);
     if (!brokerList) {
         throw std::runtime_error("Broker not specified");
     }
@@ -114,17 +117,17 @@ void ProducerManagerImpl::setup(const std::string& topic, ProducerTopicEntry& to
     }
     
     //Set the rdkafka configuration options
-    KafkaConfiguration kafkaConfig(topicEntry._configuration.getConfiguration());
-    TopicConfiguration topicConfig(topicEntry._configuration.getTopicConfiguration());
+    KafkaConfiguration kafkaConfig(rdKafkaOptions);
+    TopicConfiguration topicConfig(rdKafkaTopicOptions);
     
     const ConfigurationOption* autoThrottle =
-        Configuration::findConfigOption("internal.producer.auto.throttle", topicEntry._configuration.getInternalConfiguration());
+        Configuration::findOption("internal.producer.auto.throttle", internalOptions);
     if (autoThrottle) {
         topicEntry._throttleControl.autoThrottle() = StringEqualCompare()(autoThrottle->get_value(), "true");
     }
     
     const ConfigurationOption* throttleMultiplier =
-        Configuration::findConfigOption("internal.producer.auto.throttle.multiplier", topicEntry._configuration.getInternalConfiguration());
+        Configuration::findOption("internal.producer.auto.throttle.multiplier", internalOptions);
     if (throttleMultiplier) {
         topicEntry._throttleControl.throttleMultiplier() = std::stol(throttleMultiplier->get_value());
     }
@@ -156,13 +159,13 @@ void ProducerManagerImpl::setup(const std::string& topic, ProducerTopicEntry& to
     }
     
     const ConfigurationOption* maxQueueLength =
-        Configuration::findConfigOption("internal.producer.max.queue.length", topicEntry._configuration.getInternalConfiguration());
+        Configuration::findOption("internal.producer.max.queue.length", internalOptions);
     if (maxQueueLength) {
         topicEntry._maxQueueLength = std::stoll(maxQueueLength->get_value());
     }
     
     const ConfigurationOption* preserveMessageOrder =
-        Configuration::findConfigOption("internal.producer.preserve.message.order", topicEntry._configuration.getInternalConfiguration());
+        Configuration::findOption("internal.producer.preserve.message.order", internalOptions);
     if (preserveMessageOrder) {
         topicEntry._preserveMessageOrder = StringEqualCompare()(preserveMessageOrder->get_value(), "true");
         if (topicEntry._preserveMessageOrder) {
@@ -173,13 +176,13 @@ void ProducerManagerImpl::setup(const std::string& topic, ProducerTopicEntry& to
     
     size_t internalProducerRetries = 0;
     const ConfigurationOption* numRetriesOption =
-        Configuration::findConfigOption("internal.producer.retries", topicEntry._configuration.getInternalConfiguration());
+        Configuration::findOption("internal.producer.retries", internalOptions);
     if (numRetriesOption) {
         internalProducerRetries = std::stoll(numRetriesOption->get_value());
     }
     
     const ConfigurationOption* skipUnknownHeaders =
-        Configuration::findConfigOption("internal.producer.skip.unknown.headers", topicEntry._configuration.getInternalConfiguration());
+        Configuration::findOption("internal.producer.skip.unknown.headers", internalOptions);
     if (skipUnknownHeaders) {
         topicEntry._skipUnknownHeaders = StringEqualCompare()(skipUnknownHeaders->get_value(), "true");
     }
@@ -195,7 +198,7 @@ void ProducerManagerImpl::setup(const std::string& topic, ProducerTopicEntry& to
     }
     
     const ConfigurationOption* payloadPolicy =
-        Configuration::findConfigOption("internal.producer.payload.policy", topicEntry._configuration.getInternalConfiguration());
+        Configuration::findOption("internal.producer.payload.policy", internalOptions);
     if (payloadPolicy) {
         if (StringEqualCompare()(payloadPolicy->get_value(), "passthrough")) {
             topicEntry._payloadPolicy = Producer::PayloadPolicy::PASSTHROUGH_PAYLOAD;
@@ -210,7 +213,7 @@ void ProducerManagerImpl::setup(const std::string& topic, ProducerTopicEntry& to
     }
     
     const ConfigurationOption* logLevel =
-        Configuration::findConfigOption("internal.producer.log.level", topicEntry._configuration.getInternalConfiguration());
+        Configuration::findOption("internal.producer.log.level", internalOptions);
     if (logLevel) {
         LogLevel level = logLevelFromString(logLevel->get_value());
         topicEntry._producer->get_producer().set_log_level(level);
@@ -218,25 +221,25 @@ void ProducerManagerImpl::setup(const std::string& topic, ProducerTopicEntry& to
     }
     
     const ConfigurationOption* pollTimeout =
-        Configuration::findConfigOption("internal.producer.timeout.ms", topicEntry._configuration.getInternalConfiguration());
+        Configuration::findOption("internal.producer.timeout.ms", internalOptions);
     if (pollTimeout) {
         topicEntry._producer->get_producer().set_timeout(std::chrono::milliseconds(std::stoll(pollTimeout->get_value())));
     }
     
     const ConfigurationOption* waitForAcks =
-        Configuration::findConfigOption("internal.producer.wait.for.acks", topicEntry._configuration.getInternalConfiguration());
+        Configuration::findOption("internal.producer.wait.for.acks", internalOptions);
     if (waitForAcks) {
         topicEntry._waitForAcks = StringEqualCompare()(waitForAcks->get_value(), "true");
     }
     
     const ConfigurationOption* flushWaitForAcks =
-        Configuration::findConfigOption("internal.producer.flush.wait.for.acks", topicEntry._configuration.getInternalConfiguration());
+        Configuration::findOption("internal.producer.flush.wait.for.acks", internalOptions);
     if (flushWaitForAcks) {
         topicEntry._flushWaitForAcks = StringEqualCompare()(flushWaitForAcks->get_value(), "true");
     }
     
     const ConfigurationOption* waitForAcksTimeout =
-        Configuration::findConfigOption("internal.producer.wait.for.acks.timeout.ms", topicEntry._configuration.getInternalConfiguration());
+        Configuration::findOption("internal.producer.wait.for.acks.timeout.ms", internalOptions);
     if (waitForAcksTimeout) {
         topicEntry._waitForAcksTimeout = std::chrono::milliseconds(std::stoll(waitForAcksTimeout->get_value()));
         if (topicEntry._waitForAcksTimeout.count() < -1) {
@@ -245,7 +248,7 @@ void ProducerManagerImpl::setup(const std::string& topic, ProducerTopicEntry& to
     }
     
     const ConfigurationOption* flushWaitForAcksTimeout =
-        Configuration::findConfigOption("internal.producer.flush.wait.for.acks.timeout.ms", topicEntry._configuration.getInternalConfiguration());
+        Configuration::findOption("internal.producer.flush.wait.for.acks.timeout.ms", internalOptions);
     if (flushWaitForAcksTimeout) {
         topicEntry._flushWaitForAcksTimeout = std::chrono::milliseconds(std::stoll(flushWaitForAcksTimeout->get_value()));
         if (topicEntry._flushWaitForAcksTimeout.count() < -1) {
@@ -272,7 +275,7 @@ void ProducerManagerImpl::setup(const std::string& topic, ProducerTopicEntry& to
     
     if (topicEntry._configuration.getQueueFullCallback()) {
         const ConfigurationOption* queueFullNotification =
-        Configuration::findConfigOption("internal.producer.queue.full.notification", topicEntry._configuration.getInternalConfiguration());
+        Configuration::findOption("internal.producer.queue.full.notification", internalOptions);
         if (queueFullNotification) {
             if (StringEqualCompare()(queueFullNotification->get_value(), "edgeTriggered")) {
                 topicEntry._queueFullNotification = QueueFullNotification::EdgeTriggered;
@@ -597,7 +600,7 @@ int ProducerManagerImpl::produceTask(quantum::ThreadPromise<int>::Ptr promise,
             entry._producer->add_message(builder);
         }
         else {
-            // Post directly to internal librdkafka outbound queue
+            // Post directly to internal RdKafka outbound queue
             produceMessage(entry, builder);
         }
         return promise->set(0);
@@ -617,7 +620,7 @@ int ProducerManagerImpl::produceTaskSync(ProducerTopicEntry& entry,
             entry._producer->add_message(builder);
         }
         else {
-            // Post directly to internal librdkafka outbound queue
+            // Post directly to internal RdKafka outbound queue
             produceMessage(entry, builder);
         }
         return 0;

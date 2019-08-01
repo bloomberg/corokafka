@@ -33,22 +33,22 @@ public:
     /**
      * @brief Create a consumer configuration.
      * @param topic The topic to which this configuration applies.
-     * @param config The producer configuration options.
-     * @param topicConfig The topic configuration options.
+     * @param options The producer configuration options (both RdKafka and CoroKafka).
+     * @param topicOptions The topic configuration options (both RdKafka and CoroKafka).
      */
     ConsumerConfiguration(const std::string& topic,
-                          Options config,
-                          Options topicConfig);
+                          Options options,
+                          Options topicOptions);
     
     /**
      * @brief Create a consumer configuration.
      * @param topic The topic to which this configuration applies.
-     * @param config The producer configuration options.
-     * @param topicConfig The topic configuration options.
+     * @param options The producer configuration options (both RdKafka and CoroKafka).
+     * @param topicOptions The topic configuration options (both RdKafka and CoroKafka).
      */
     ConsumerConfiguration(const std::string& topic,
-                          std::initializer_list<ConfigurationOption> config,
-                          std::initializer_list<ConfigurationOption> topicConfig);
+                          std::initializer_list<ConfigurationOption> options,
+                          std::initializer_list<ConfigurationOption> topicOptions);
     
     using Configuration::setCallback;
     
@@ -56,10 +56,10 @@ public:
      * @brief Assign partitions and offsets on startup for this consumer.
      * @param strategy The strategy to use for this consumer.
      * @param partitions The partition list.
-     * @remark When 'strategy == static', the partitions provided will be used in a call to librdkafka::rd_kafka_assign().
+     * @remark When 'strategy == static', the partitions provided will be used in a call to rdkafka::rd_kafka_assign().
      *         When 'strategy == dynamic', the partition list *must* contain all partitions for this topic in order
      *         to cover any possible partition combinations assigned by Kafka. This setting will result in a call
-     *         to librdkafka::rd_kafka_subscribe().
+     *         to rdkafka::rd_kafka_subscribe().
      */
     void assignInitialPartitions(PartitionStrategy strategy,
                                  TopicPartitionList partitions);

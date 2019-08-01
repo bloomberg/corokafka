@@ -47,7 +47,7 @@ public:
      * @return The number of bytes sent.
      * @remark If the application uses *only* synchronous sends, better performance can be achieved by setting
      *         'internal.producer.payload.policy = passthrough', which will prevent the payload from being copied
-     *         inside librdkafka.
+     *         inside RdKafka.
      * @remark To guarantee strict message ordering, set 'internal.producer.preserve.message.order = true' which will
      *         also set the rdkafka option 'max.in.flight = 1' as it may cause re-ordering or packets.
      */

@@ -76,60 +76,91 @@ const std::string& Configuration::getJsonSchema()
                         "uniqueItems": true
                     },
                     "offset": {
-                        "description": "A partition offset. Values are: -1000(STORED),-1(BEGIN),-2(END),<=-3(RELATIVE),>=0(EXACT)",
+                        "description": "A partition offset. Values are: -1000(stored),-1(begin),-2(end),>=0(exact or relative)",
                         "type":"number",
                         "default":-1000
+                    },
+                    "relative": {
+                        "description": "If true, the offset represents the Nth message before the stored offset (i.e. stored-N).",
+                        "type":"boolean",
+                        "default": false
                     }
                 },
                 "additionalProperties": false,
                 "required": []
             },
-            "topic": {
-                "title": "Consumer or producer topic",
+            "topicConfig": {
+                "title": "Consumer or producer topic configuration",
                 "type": "object",
                 "properties": {
                     "name": {
+                        "description": "The name of this configuration object",
                         "type":"string"
                     },
                     "type": {
                         "type":"string",
                         "enum": ["producer", "consumer"]
                     },
-                    "config": {
+                    "options": {
+                        "description": "The rdkafka and corokafka options for this consumer/producer. Must at least contain 'metadata.broker.list'",
                         "$ref" : "#/definitions/option"
                     },
-                    "topicConfig": {
+                    "topicOptions": {
+                        "description": "The rdkafka and corokafka topic options for this consumer/producer",
                         "$ref" : "#/definitions/option"
                     },
                     "partitionStrategy": {
-                        "description":"Only applies to consumer topics",
+                        "description":"Only applies to consumer topic configurations",
                         "type":"string",
                         "enum":["static","dynamic"],
                         "default":"dynamic"
                     },
                     "partitionAssignment": {
-                        "description":"Only applies to consumer topics",
+                        "description":"Only applies to consumer topic configurations",
                         "type":"array",
-                        "items": { "$ref" : "#/definitions/partition"}
+                        "items": { "$ref" : "#/definitions/partition" }
                     }
                 },
                 "additionalProperties": false,
                 "required": ["name","type"]
+            },
+            "topic": {
+                "title": "Consumer or producer topic",
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "description": "The name of this topic",
+                        "type":"string"
+                    },
+                    "config": {
+                        "description": "The config for this topic",
+                        "type":"string"
+                    }
+                },
+                "additionalProperties": false,
+                "required": ["name","config"]
             }
         },
+
         "title": "Kafka connector settings",
         "type": "object",
         "properties": {
             "connector": { "$ref":"#/definitions/connector" },
+            "topicConfigs": {
+                "type":"array",
+                "items": { "$ref": "#/definitions/topicConfig" },
+                "minItems": 1,
+                "uniqueItems": true
+            },
             "topics": {
                 "type":"array",
                 "items": { "$ref": "#/definitions/topic" },
                 "minItems": 1,
-                "uniqueItems": true
+                "uniqueItems": false
             }
         },
         "additionalProperties": false,
-        "required": [ "topics" ]
+        "required": [ "topics","topicConfigs" ]
     }
     )JSON";
     return jsonSchema;
@@ -143,22 +174,26 @@ const std::string& Configuration::getJsonSchemaUri()
 
 Configuration::Configuration(KafkaType type,
                              const std::string& topic,
-                             Options config,
-                             Options topicConfig) :
+                             Options options,
+                             Options topicOptions) :
     _type(type),
     _topic(topic)
 {
-    filterOptions(std::move(config), std::move(topicConfig));
+    _options[(int)OptionType::All] = std::move(options);
+    _topicOptions[(int)OptionType::All] = std::move(topicOptions);
+    filterOptions();
 }
 
 Configuration::Configuration(KafkaType type,
                              const std::string& topic,
-                             std::initializer_list<ConfigurationOption> config,
-                             std::initializer_list<ConfigurationOption> topicConfig) :
+                             std::initializer_list<ConfigurationOption> options,
+                             std::initializer_list<ConfigurationOption> topicOptions) :
     _type(type),
     _topic(topic)
 {
-    filterOptions(std::move(config), std::move(topicConfig));
+    _options[(int)OptionType::All] = std::move(options);
+    _topicOptions[(int)OptionType::All] = std::move(topicOptions);
+    filterOptions();
 }
 
 KafkaType Configuration::configType() const
@@ -171,24 +206,14 @@ const std::string& Configuration::getTopic() const
     return _topic;
 }
 
-const Configuration::Options& Configuration::getConfiguration() const
+const Configuration::Options& Configuration::getOptions(OptionType type) const
 {
-    return _config;
+    return _options[(int)type];
 }
 
-const Configuration::Options& Configuration::getTopicConfiguration() const
+const Configuration::Options& Configuration::getTopicOptions(OptionType type) const
 {
-    return _topicConfig;
-}
-
-const Configuration::Options& Configuration::getInternalConfiguration() const
-{
-    return _internalConfig;
-}
-
-const Configuration::Options& Configuration::getInternalTopicConfiguration() const
-{
-    return _internalTopicConfig;
+    return _topicOptions[(int)type];
 }
 
 void Configuration::setCallback(Callbacks::ErrorCallback callback)
@@ -236,26 +261,18 @@ const Callbacks::StatsCallback& Configuration::getStatsCallback() const
     return _statsCallback;
 }
 
-const ConfigurationOption* Configuration::getConfigurationOption(const std::string& name) const
+const ConfigurationOption* Configuration::getOption(const std::string& name) const
 {
-    const ConfigurationOption* option = findConfigOption(name, _config);
-    if (!option) {
-        option = findConfigOption(name, _internalConfig);
-    }
-    return option;
+    return findOption(name, _options[(int)OptionType::All]);
 }
 
-const ConfigurationOption* Configuration::getTopicConfigurationOption(const std::string& name) const
+const ConfigurationOption* Configuration::getTopicOption(const std::string& name) const
 {
-    const ConfigurationOption* option = findConfigOption(name, _topicConfig);
-    if (!option) {
-        option = findConfigOption(name, _internalTopicConfig);
-    }
-    return option;
+    return findOption(name, _topicOptions[(int)OptionType::All]);
 }
 
-const ConfigurationOption* Configuration::findConfigOption(const std::string& name,
-                                                           const Options& config)
+const ConfigurationOption* Configuration::findOption(const std::string& name,
+                                                     const Options& config)
 {
     const auto it = std::find_if(config.cbegin(), config.cend(),
                                  [&name](const ConfigurationOption& config)->bool {
@@ -267,16 +284,15 @@ const ConfigurationOption* Configuration::findConfigOption(const std::string& na
     return nullptr;
 }
 
-void Configuration::filterOptions(Options&& config,
-                                  Options&& topicConfig)
+void Configuration::filterOptions()
 {
     const std::string& internalOptionsPrefix = (_type == KafkaType::Producer) ?
         ProducerConfiguration::s_internalOptionsPrefix : ConsumerConfiguration::s_internalOptionsPrefix;
     
-    auto parse = [&internalOptionsPrefix](const OptionSet& allowed, Options& internal, Options& external, Options& config)
+    auto parse = [&internalOptionsPrefix](const OptionSet& allowed, Options& internal, Options& external, const Options& config)
     {
         if (!allowed.empty()) {
-            for (auto&& option : config) {
+            for (const auto& option : config) {
                 if (StringEqualCompare()(option.get_key(), internalOptionsPrefix, internalOptionsPrefix.length())) {
                     auto it = allowed.find(option.get_key());
                     if (it == allowed.end()) {
@@ -285,11 +301,11 @@ void Configuration::filterOptions(Options&& config,
                         throw std::runtime_error(oss.str().c_str());
                     }
                     //this is an internal option
-                    internal.emplace_back(std::move(option));
+                    internal.emplace_back(option);
                 }
                 else {
                     //rdkafka option
-                    external.emplace_back(std::move(option));
+                    external.emplace_back(option);
                 }
             }
         }
@@ -302,12 +318,18 @@ void Configuration::filterOptions(Options&& config,
     // Consumer/Producer options parsing
     const OptionSet& internalOptions = (_type == KafkaType::Producer) ?
         ProducerConfiguration::s_internalOptions : ConsumerConfiguration::s_internalOptions;
-    parse(internalOptions, _internalConfig, _config, config);
+    parse(internalOptions,
+          _options[(int)OptionType::Internal],
+          _options[(int)OptionType::RdKafka],
+          _options[(int)OptionType::All]);
     
     // Topic options parsing
     const OptionSet& internalTopicOptions = (_type == KafkaType::Producer) ?
         ProducerConfiguration::s_internalTopicOptions : ConsumerConfiguration::s_internalTopicOptions;
-    parse(internalTopicOptions, _internalTopicConfig, _topicConfig, topicConfig);
+    parse(internalTopicOptions,
+          _topicOptions[(int)OptionType::Internal],
+          _topicOptions[(int)OptionType::RdKafka],
+          _topicOptions[(int)OptionType::All]);
 }
 
 }

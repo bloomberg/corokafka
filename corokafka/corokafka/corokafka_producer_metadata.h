@@ -48,7 +48,7 @@ public:
      */
     TopicPartitionList queryOffsetsAtTime(Timestamp timestamp) const final;
     /**
-     * @brief Get the length of the outbound librdkafka queue for this producer.
+     * @brief Get the length of the outbound RdKafka queue for this producer.
      * @return The queue length.
      */
     size_t getOutboundQueueLength() const;

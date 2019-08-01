@@ -32,6 +32,7 @@ class Configuration {
 public:
     using Options = std::vector<ConfigurationOption>;
     using OptionSet = std::set<std::string, StringLessCompare>;
+    enum class OptionType : int { All = 0, RdKafka = 1, Internal = 2 };
     
     /**
      * @brief Get the JSON schema corresponding to this configuration object.
@@ -58,16 +59,32 @@ public:
     const std::string& getTopic() const;
     
     /**
-     * @brief Get the librdkafka configuration options list.
+     * @brief Get the producer/consumer options list.
+     * @type The option type.
      * @return The configuration options.
      */
-    const Options& getConfiguration() const;
+    const Options& getOptions(OptionType type = OptionType::All) const;
     
     /**
-     * @brief Get the topic configuration options list.
+     * @brief Gets the value for a specific configuration.
+     * @param name The name of the configuration option.
+     * @return A pointer to the configuration object or null if it's not found.
+     */
+    const ConfigurationOption* getOption(const std::string& name) const;
+    
+    /**
+     * @brief Get the topic options list.
+     * @type The option type.
      * @return The topic configuration options.
      */
-    const Options& getTopicConfiguration() const;
+    const Options& getTopicOptions(OptionType type = OptionType::All) const;
+    
+    /**
+     * @brief Gets the value for a specific topic configuration.
+     * @param name The name of the topic configuration option.
+     * @return A pointer to the configuration object or null if it's not found.
+     */
+    const ConfigurationOption* getTopicOption(const std::string& name) const;
     
     /**
      * @brief Set the error callback.
@@ -120,20 +137,6 @@ public:
     const Callbacks::StatsCallback& getStatsCallback() const;
     
     /**
-     * @brief Gets the value for a specific configuration.
-     * @param name The name of the configuration option.
-     * @return A pointer to the configuration object or null if it's not found.
-     */
-    const ConfigurationOption* getConfigurationOption(const std::string& name) const;
-    
-    /**
-     * @brief Gets the value for a specific topic configuration.
-     * @param name The name of the topic configuration option.
-     * @return A pointer to the configuration object or null if it's not found.
-     */
-    const ConfigurationOption* getTopicConfigurationOption(const std::string& name) const;
-    
-    /**
      * @brief Comparison operator for ordered containers.
      * @param other The other configuration object to compare to.
      * @return True if less, False otherwise.
@@ -145,13 +148,13 @@ protected:
     
     Configuration(KafkaType type,
                   const std::string& topic,
-                  Options config,
-                  Options topicConfig);
+                  Options options,
+                  Options topicOptions);
     
     Configuration(KafkaType type,
                   const std::string& topic,
-                  std::initializer_list<ConfigurationOption> config,
-                  std::initializer_list<ConfigurationOption> topicConfig);
+                  std::initializer_list<ConfigurationOption> options,
+                  std::initializer_list<ConfigurationOption> topicOptions);
     
     Configuration(const Configuration&) = default;
     Configuration(Configuration&&) = default;
@@ -160,22 +163,14 @@ protected:
     virtual ~Configuration() = default;
     
 private:
-    static const ConfigurationOption* findConfigOption(const std::string& name,
-                                                       const Options& config);
-        
-    void filterOptions(Options&& config,
-                       Options&& topicConfig);
-    
-    const Options& getInternalConfiguration() const;
-    
-    const Options& getInternalTopicConfiguration() const;
+    static const ConfigurationOption* findOption(const std::string& name,
+                                                const Options& config);
+    void filterOptions();
     
     KafkaType                           _type;
     std::string                         _topic;
-    Options                             _config;
-    Options                             _topicConfig;
-    Options                             _internalConfig;
-    Options                             _internalTopicConfig;
+    Options                             _options[3];
+    Options                             _topicOptions[3];
     Callbacks::ErrorCallback            _errorCallback;
     Callbacks::ThrottleCallback         _throttleCallback;
     Callbacks::LogCallback              _logCallback;

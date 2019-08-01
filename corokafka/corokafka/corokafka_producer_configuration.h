@@ -33,22 +33,22 @@ public:
     /**
      * @brief Create a producer configuration.
      * @param topic The topic to which this configuration applies.
-     * @param config The producer configuration options.
-     * @param topicConfig The topic configuration options.
+     * @param options The producer configuration options.
+     * @param topicOptions The topic configuration options.
      */
     ProducerConfiguration(const std::string& topic,
-                          Options config,
-                          Options topicConfig);
+                          Options options,
+                          Options topicOptions);
     
     /**
      * @brief Create a producer configuration.
      * @param topic The topic to which this configuration applies.
-     * @param config The producer configuration options.
-     * @param topicConfig The topic configuration options.
+     * @param options The producer configuration options.
+     * @param topicOptions The topic configuration options.
      */
     ProducerConfiguration(const std::string& topic,
-                          std::initializer_list<ConfigurationOption> config,
-                          std::initializer_list<ConfigurationOption> topicConfig);
+                          std::initializer_list<ConfigurationOption> options,
+                          std::initializer_list<ConfigurationOption> topicOptions);
     
     using Configuration::setCallback;
     

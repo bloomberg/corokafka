@@ -100,7 +100,7 @@ public:
     TopicMetadata getTopicMetadata() const;
     
     /**
-     * @brief Get the librdkafka internal name for this consumer or producer.
+     * @brief Get the RdKafka internal name for this consumer or producer.
      * @return The name
      */
     std::string getInternalName() const;
