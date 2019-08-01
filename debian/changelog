@@ -1,5 +1,8 @@
 corokafka (0.2.0.26) unstable; urgency=low
 
+  * 488aea7 Merge branch 'master' of bbgithub.dev.bloomberg.com:eor/corokafka
+  * 424ee49 Changelog for version 0.2.0.26
+  * 83920a6 Changelog for version 0.2.0.26
   * 5f29ceb Refactored config so that it can be made common to multiple topics. Also some fixes regarding offset commits and subscribe/unsubscribe
   * c920063 Merge pull request #10 from apopov49/master
   * cfa992d Adds build status to readme
@@ -10,7 +13,7 @@ corokafka (0.2.0.26) unstable; urgency=low
   * d488588 Merge pull request #8 from apopov49/master
   * 1d9f950 Cleans up kafka files
 
- -- Alexander Damian <adamian@bloomberg.net>  Wed, 31 Jul 2019 22:59:54 -0400
+ -- Alexander Damian <adamian@bloomberg.net>  Wed, 31 Jul 2019 23:04:39 -0400
 
 corokafka (0.2.0.25) unstable; urgency=low
 
