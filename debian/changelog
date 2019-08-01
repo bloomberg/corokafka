@@ -1,9 +1,11 @@
 corokafka (0.2.0.27) unstable; urgency=low
 
+  * 91b1276 Fixed opaque pointers when committing and also adjusted the offset on all partitions in the commit callback
+  * 0b4781a Changelog for version 0.2.0.27
   * 3b0e4ee Merge pull request #11 from adamian/master
   * bfe97cd Set topic options before creating the consumer
 
- -- Alexander Damian <adamian@bloomberg.net>  Thu, 1 Aug 2019 17:22:03 -0400
+ -- Alexander Damian <adamian@bloomberg.net>  Thu, 1 Aug 2019 19:42:52 -0400
 
 corokafka (0.2.0.26) unstable; urgency=low
 
