@@ -189,6 +189,10 @@ void ProducerManagerImpl::setup(const std::string& topic, ProducerTopicEntry& to
     
     kafkaConfig.set_default_topic_configuration(topicConfig);
     
+    //=======================================================================================
+    //DO NOT UPDATE ANY KAFKA CONFIG OPTIONS BELOW THIS POINT SINCE THE PRODUCER MAKES A COPY
+    //=======================================================================================
+    
     //Create a buffered producer
     topicEntry._producer.reset(new BufferedProducer<ByteArray>(kafkaConfig));
     

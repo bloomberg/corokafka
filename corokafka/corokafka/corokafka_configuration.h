@@ -164,7 +164,7 @@ protected:
     
 private:
     static const ConfigurationOption* findOption(const std::string& name,
-                                                const Options& config);
+                                                 const Options& config);
     void filterOptions();
     
     KafkaType                           _type;

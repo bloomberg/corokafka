@@ -125,6 +125,58 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
         topicEntry._preprocessorCallback = std::bind(preprocessorCallback, std::ref(topicEntry), _1);
     }
     
+    const ConfigurationOption* autoPersist =
+        Configuration::findOption("internal.consumer.auto.offset.persist", internalOptions);
+    if (autoPersist) {
+        topicEntry._autoOffsetPersist = StringEqualCompare()(autoPersist->get_value(), "true");
+    }
+    
+    const ConfigurationOption* persistStrategy =
+        Configuration::findOption("internal.consumer.offset.persist.strategy", internalOptions);
+    if (persistStrategy) {
+        if (StringEqualCompare()(persistStrategy->get_value(), "commit")) {
+            topicEntry._autoOffsetPersistStrategy = OffsetPersistStrategy::Commit;
+        }
+        else if (StringEqualCompare()(persistStrategy->get_value(), "store")) {
+            topicEntry._autoOffsetPersistStrategy = OffsetPersistStrategy::Store;
+        }
+        else {
+            throw std::runtime_error("Unknown internal.consumer.offset.persist.strategy value");
+        }
+    }
+    
+    const ConfigurationOption* autoPersistOnException =
+        Configuration::findOption("internal.consumer.auto.offset.persist.on.exception", internalOptions);
+    if (autoPersistOnException) {
+        topicEntry._autoOffsetPersistOnException = StringEqualCompare()(autoPersist->get_value(), "true");
+    }
+    
+    const ConfigurationOption* commitExec =
+        Configuration::findOption("internal.consumer.commit.exec", internalOptions);
+    if (commitExec) {
+        if (StringEqualCompare()(commitExec->get_value(), "sync")) {
+            topicEntry._autoCommitExec = ExecMode::Sync;
+        }
+        else if (StringEqualCompare()(commitExec->get_value(), "async")) {
+            topicEntry._autoCommitExec = ExecMode::Async;
+        }
+        else {
+            throw std::runtime_error("Unknown internal.consumer.commit.exec value");
+        }
+    }
+    
+    // Set underlying rdkafka options
+    if (topicEntry._autoOffsetPersist) {
+        kafkaConfig.set("enable.auto.offset.store", false);
+        if (topicEntry._autoOffsetPersistStrategy == OffsetPersistStrategy::Commit) {
+            kafkaConfig.set("enable.auto.commit", false);
+            kafkaConfig.set("auto.commit.interval.ms", 0);
+        }
+        else {
+            kafkaConfig.set("enable.auto.commit", true);
+        }
+    }
+    
     bool roundRobinPolling = false; //default is batch
     const ConfigurationOption* pollStrategy =
         Configuration::findOption("internal.consumer.poll.strategy", internalOptions);
@@ -136,6 +188,10 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
             throw std::runtime_error("Unknown internal.consumer.poll.strategy");
         }
     }
+    
+    //=======================================================================================
+    //DO NOT UPDATE ANY KAFKA CONFIG OPTIONS BELOW THIS POINT SINCE THE CONSUMER MAKES A COPY
+    //=======================================================================================
     
     //Create a consumer
     topicEntry._consumer.reset(new Consumer(kafkaConfig));
@@ -178,58 +234,6 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
         LogLevel level = logLevelFromString(logLevel->get_value());
         topicEntry._consumer->set_log_level(level);
         topicEntry._logLevel = level;
-    }
-    
-    const ConfigurationOption* autoPersist =
-        Configuration::findOption("internal.consumer.auto.offset.persist", internalOptions);
-    if (autoPersist) {
-        topicEntry._autoOffsetPersist = StringEqualCompare()(autoPersist->get_value(), "true");
-    }
-    
-    const ConfigurationOption* autoPersistOnException =
-        Configuration::findOption("internal.consumer.auto.offset.persist.on.exception", internalOptions);
-    if (autoPersistOnException) {
-        topicEntry._autoOffsetPersistOnException = StringEqualCompare()(autoPersist->get_value(), "true");
-    }
-    
-    const ConfigurationOption* persistStrategy =
-        Configuration::findOption("internal.consumer.offset.persist.strategy", internalOptions);
-    if (persistStrategy) {
-        if (StringEqualCompare()(persistStrategy->get_value(), "commit")) {
-            topicEntry._autoOffsetPersistStrategy = OffsetPersistStrategy::Commit;
-        }
-        else if (StringEqualCompare()(persistStrategy->get_value(), "store")) {
-            topicEntry._autoOffsetPersistStrategy = OffsetPersistStrategy::Store;
-        }
-        else {
-            throw std::runtime_error("Unknown internal.consumer.offset.persist.strategy value");
-        }
-    }
-    
-    // Set underlying rdkafka options
-    if (topicEntry._autoOffsetPersist) {
-        kafkaConfig.set("enable.auto.offset.store", "false");
-        if (topicEntry._autoOffsetPersistStrategy == OffsetPersistStrategy::Commit) {
-            kafkaConfig.set("enable.auto.commit", "false");
-            kafkaConfig.set("auto.commit.interval.ms", 0);
-        }
-        else {
-            kafkaConfig.set("enable.auto.commit", "true");
-        }
-    }
-    
-    const ConfigurationOption* commitExec =
-        Configuration::findOption("internal.consumer.commit.exec", internalOptions);
-    if (commitExec) {
-        if (StringEqualCompare()(commitExec->get_value(), "sync")) {
-            topicEntry._autoCommitExec = ExecMode::Sync;
-        }
-        else if (StringEqualCompare()(commitExec->get_value(), "async")) {
-            topicEntry._autoCommitExec = ExecMode::Async;
-        }
-        else {
-            throw std::runtime_error("Unknown internal.consumer.commit.exec value");
-        }
     }
     
     const ConfigurationOption* numRetriesOption =
