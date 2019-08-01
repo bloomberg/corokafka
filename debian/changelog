@@ -1,3 +1,10 @@
+corokafka (0.2.0.27) unstable; urgency=low
+
+  * 3b0e4ee Merge pull request #11 from adamian/master
+  * bfe97cd Set topic options before creating the consumer
+
+ -- Alexander Damian <adamian@bloomberg.net>  Thu, 1 Aug 2019 17:22:03 -0400
+
 corokafka (0.2.0.26) unstable; urgency=low
 
   * 488aea7 Merge branch 'master' of bbgithub.dev.bloomberg.com:eor/corokafka
