@@ -70,7 +70,7 @@ pipeline {
                                             branch: "master",
                                             distribution: "unstable",
                                             credentials: "bbgh_bbgithub_token",
-                                            cancel_build: true)
+                                            cancel_running: true)
             }
 	    post {
                 always {
