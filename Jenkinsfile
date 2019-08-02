@@ -6,7 +6,7 @@ library identifier: 'blp-dpkg-jaas-library@master',
   retriever: modernSCM([
     $class: 'GitSCMSource',
     credentialsId: 'bbgithub_token',
-    remote: 'https://bbgithub.dev.bloomberg.com/dpkg/blp-dpkg-jaas-library'
+    remote: 'https://bbgithub.dev.bloomberg.com/apopov49/blp-dpkg-jaas-library'
   ])
 
 pipeline {
@@ -69,7 +69,8 @@ pipeline {
                  blpDpkgPromoteSinglePackage(scm: scm,
                                             branch: "master",
                                             distribution: "unstable",
-                                            credentials: "bbgh_bbgithub_token")
+                                            credentials: "bbgh_bbgithub_token",
+                                            cancel_build: true)
             }
 	    post {
                 always {
