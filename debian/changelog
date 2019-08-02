@@ -1,3 +1,10 @@
+corokafka (0.2.0.28) unstable; urgency=low
+
+  * b69d699 Merge pull request #12 from apopov49/master
+  * 16336be Adds paramter to cancel running dpkg promote
+
+ -- Alexander Damian <adamian@bloomberg.net>  Fri, 2 Aug 2019 13:15:59 -0400
+
 corokafka (0.2.0.27) unstable; urgency=low
 
   * 91b1276 Fixed opaque pointers when committing and also adjusted the offset on all partitions in the commit callback
