@@ -38,6 +38,10 @@ ReceivedMessage<K,P>::ReceivedMessage(
     _error(std::move(error)),
     _offsetSettings(offsetSettings)
 {
+    if (_message.get_error() && !_error._error) {
+        _error._error = _message.get_error();
+        _error._source |= (uint8_t)DeserializerError::Source::Kafka;
+    }
 }
 
 template <typename K, typename P>
@@ -81,7 +85,7 @@ const Buffer& ReceivedMessage<K,P>::getPayloadBuffer() const
 template <typename K, typename P>
 Error ReceivedMessage<K,P>::getError() const
 {
-    return _error._error.get_error();
+    return _error._error;
 }
 
 template <typename K, typename P>
