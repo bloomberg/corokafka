@@ -1,3 +1,10 @@
+corokafka (0.2.0.29) unstable; urgency=low
+
+  * db6d864 Merge pull request #14 from apopov49/master
+  * 08f2a84 Changes from local kafka image to artifactory image
+
+ -- Michael Scotti <mscotti1@bloomberg.net>  Mon, 5 Aug 2019 09:47:56 -0400
+
 corokafka (0.2.0.28) unstable; urgency=low
 
   * b69d699 Merge pull request #12 from apopov49/master
