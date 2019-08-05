@@ -9,7 +9,7 @@ ROOTDIR=$(pwd)
 chcon -Rt svirt_sandbox_file_t $ROOTDIR || echo "chcon error"
 
 # build and run builder docker container
-docker build -t corokafka-console ./corokafka/tests/jenkins/kafka
-docker run --rm -v $ROOTDIR/:/corokafka:rw corokafka-console
+# docker build -t corokafka-console ./corokafka/tests/jenkins/kafka
+docker run --rm -v $ROOTDIR/:/corokafka:rw artprod.dev.bloomberg.com/bb-etn/kafka/cluster:latest
 
 exit 0
