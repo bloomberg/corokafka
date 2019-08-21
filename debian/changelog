@@ -1,3 +1,10 @@
+corokafka (0.2.0.30) unstable; urgency=low
+
+  * b0ae462 Merge pull request #17 from adamian/master
+  * b556646 Various changes based on code review
+
+ -- Alexander Damian <adamian@bloomberg.net>  Wed, 21 Aug 2019 17:11:51 -0400
+
 corokafka (0.2.0.29) unstable; urgency=low
 
   * db6d864 Merge pull request #14 from apopov49/master
