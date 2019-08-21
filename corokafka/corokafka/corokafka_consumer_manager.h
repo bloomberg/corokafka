@@ -29,6 +29,13 @@ namespace corokafka {
 
 class ConsumerManagerImpl;
 
+/**
+ * @brief The ConsumerManager is the object through which consumers commit messages as well
+ *        as control the behavior of the message processing by pausing, resuming, etc.
+ *        Unlike the ProducerManager, the consumers receive messages asynchronously via the
+ *        receiver callback, which means they don't need to interface with this class.
+ * @note Committing messages can also be done via the message object itself.
+ */
 class ConsumerManager
 {
 public:
@@ -105,13 +112,12 @@ public:
     
     /**
      * @brief Enables or disables the preprocessor callback (if registered)
-     * @param topic The topic name
      * @param enable True to enable, false to disable
+     * @param topic The topic name. If not set, this operation will apply to all topics.
      * @remark Note that the preprocessor is enabled by default
      * @remark The overload with no topic will act on all topics.
      */
-    void preprocess(const std::string& topic, bool enable);
-    void preprocess(bool enable);
+    void preprocess(bool enable, const std::string& topic = {});
     
     /**
      * @brief Get the configuration associated with this topic.

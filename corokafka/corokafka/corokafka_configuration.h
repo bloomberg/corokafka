@@ -90,7 +90,7 @@ public:
      * @brief Set the error callback.
      * @param callback The callback.
      */
-    void setCallback(Callbacks::ErrorCallback callback);
+    void setErrorCallback(Callbacks::ErrorCallback callback);
     
     /**
      * @brief Set the throttle callback.
@@ -98,19 +98,19 @@ public:
      * @remark All consumers and producers are automatically throttled by this library.
      *         As such using this callback is optional and discretionary.
      */
-    void setCallback(Callbacks::ThrottleCallback callback);
+    void setThrottleCallback(Callbacks::ThrottleCallback callback);
     
     /**
      * @brief Set the log callback.
      * @param callback The callback.
      */
-    void setCallback(Callbacks::LogCallback callback);
+    void setLogCallback(Callbacks::LogCallback callback);
     
     /**
      * @brief Set the statistics callback.
      * @param callback The callback.
      */
-    void setCallback(Callbacks::StatsCallback callback);
+    void setStatsCallback(Callbacks::StatsCallback callback);
     
     /**
      * @brief Get the error callback.

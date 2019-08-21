@@ -45,14 +45,9 @@ ConsumerMetadata ConsumerManager::getMetadata(const std::string& topic)
     return _impl->getMetadata(topic);
 }
 
-void ConsumerManager::preprocess(const std::string& topic, bool enable)
+void ConsumerManager::preprocess(bool enable, const std::string& topic)
 {
-    _impl->preprocess(topic, enable);
-}
-
-void ConsumerManager::preprocess(bool enable)
-{
-    _impl->preprocess(enable);
+    _impl->preprocess(enable, topic);
 }
 
 void ConsumerManager::pause(const std::string& topic)

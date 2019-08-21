@@ -30,6 +30,11 @@ namespace corokafka {
 
 class ConnectorImpl;
 
+/**
+ * @brief The Connector is the main entry point to the corokafka library. It allows the application to
+ *        setup the required topics for publishing/consumption and to get the ProducerManger and/or
+ *        ConsumerManager objects for interacting with these topics.
+ */
 class Connector
 {
 public:
@@ -70,11 +75,14 @@ public:
     
     /**
      * @brief Gracefully shut down the connector.
+     * @param drainTimeout Specify a timeout to apply if draining (see below). Set to 0 to wait for all tasks.
      * @details This will purge all internal producer queues and unsubscribe all consumers. Any pending
      *          poll tasks will run to completion including raising appropriate callbacks.
      * @remark Note that shutdown is automatically called in the Connector destructor.
+     * @remark If this connector owns the internal dispatcher (i.e. was not constructed using an externally-supplied
+     *         dispatcher) it will also drain all running tasks.
      */
-    void shutdown();
+    void shutdown(std::chrono::milliseconds drainTimeout = std::chrono::milliseconds::zero());
     
 private:
     //members

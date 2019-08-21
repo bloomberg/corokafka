@@ -22,8 +22,8 @@
 #include <future>
 #include <corokafka/corokafka_utils.h>
 #include <corokafka/corokafka_configuration_builder.h>
-#include <corokafka/corokafka_message.h>
 #include <corokafka/impl/corokafka_producer_manager_impl.h>
+#include <corokafka/corokafka_message.h>
 #include <corokafka/corokafka_delivery_report.h>
 #include <corokafka/corokafka_header_pack.h>
 #include <quantum/quantum.h>
@@ -31,6 +31,9 @@
 namespace Bloomberg {
 namespace corokafka {
 
+/**
+ * @brief The ProducerManager is the object through which producers send messages.
+ */
 class ProducerManager
 {
 public:
@@ -56,9 +59,7 @@ public:
              const K& key,
              const P& payload,
              const HeaderPack& headers,
-             void* opaque = nullptr) {
-        return _impl->template send<K,P>(topic, key, payload, headers, opaque);
-    }
+             void* opaque = nullptr);
     
     /**
      * @brief Asynchronous send. No message delivery guarantee is made and messages are sent in batches unless
@@ -82,32 +83,22 @@ public:
                                      K&& key,
                                      P&& payload,
                                      const HeaderPack& headers,
-                                     void* opaque = nullptr) {
-        return _impl->template post<K,P>(topic, std::forward<K>(key), std::forward<P>(payload), headers, opaque);
-    }
+                                     void* opaque = nullptr);
     
     template <typename K, typename P>
     std::future<DeliveryReport> post(const std::string& topic,
                                      K&& key,
                                      P&& payload,
                                      HeaderPack&& headers,
-                                     void* opaque = nullptr) {
-        return _impl->template post<K,P>(topic, std::forward<K>(key), std::forward<P>(payload), std::move(headers), opaque);
-    }
+                                     void* opaque = nullptr);
     
     /**
      * @brief Wait for all pending 'posted' messages to be ack-ed by the broker.
      * @param topic The topic to wait for.
-     */
-    void waitForAcks(const std::string& topic);
-    
-    /**
-     * @brief Wait for all pending 'posted' messages to be ack-ed by the broker.
-     * @param topic The topic to wait for.
-     * @param timeout The maximum time to wait for.
+     * @param timeout The maximum time to wait for. (==0 waits forever)
      */
     void waitForAcks(const std::string& topic,
-                     std::chrono::milliseconds timeout);
+                     std::chrono::milliseconds timeout = std::chrono::milliseconds::zero());
     
     /**
      * @brief Gracefully shut down all producers and wait until all buffered messages are sent.
@@ -173,6 +164,36 @@ private:
     std::unique_ptr<ProducerManagerImpl>  _impl;
 };
 
+// Implementations
+template <typename K, typename P>
+int
+ProducerManager::send(const std::string& topic,
+                      const K& key,
+                      const P& payload,
+                      const HeaderPack& headers,
+                      void* opaque) {
+    return _impl->template send<K,P>(topic, key, payload, headers, opaque);
+}
+
+template <typename K, typename P>
+std::future<DeliveryReport>
+ProducerManager::post(const std::string& topic,
+                      K&& key,
+                      P&& payload,
+                       const HeaderPack& headers,
+                     void* opaque) {
+    return _impl->template post<K,P>(topic, std::forward<K>(key), std::forward<P>(payload), headers, opaque);
+}
+
+template <typename K, typename P>
+std::future<DeliveryReport>
+    ProducerManager::post(const std::string& topic,
+                          K&& key,
+                          P&& payload,
+                          HeaderPack&& headers,
+                          void* opaque) {
+    return _impl->template post<K,P>(topic, std::forward<K>(key), std::forward<P>(payload), std::move(headers), opaque);
+}
 
 }}
 

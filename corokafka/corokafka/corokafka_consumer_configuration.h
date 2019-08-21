@@ -26,6 +26,14 @@ namespace corokafka {
 //========================================================================
 //                       CONSUMER CONFIGURATION
 //========================================================================
+/**
+ * @brief The ConsumerConfiguration is a builder class which contains
+ *        configuration information for a specific topic. This configuration consists
+ *        of both RdKafka and CoroKafka configuration options as per documentation
+ *        (see CONFIGURATION.md in the respective projects).
+ *        At a minimum, the user should supply a 'metadata.broker.list' in the constructor 'options'
+ *        as well as a key, a payload and a receiver de-serializer callback.
+ */
 class ConsumerConfiguration : public Configuration
 {
     friend class Configuration;
@@ -33,24 +41,24 @@ public:
     /**
      * @brief Create a consumer configuration.
      * @param topic The topic to which this configuration applies.
-     * @param options The producer configuration options (both RdKafka and CoroKafka).
-     * @param topicOptions The topic configuration options (both RdKafka and CoroKafka).
+     * @param options The producer configuration options (for both RdKafka and CoroKafka).
+     * @param topicOptions The topic configuration options (for both RdKafka and CoroKafka).
+     * @note 'metadata.broker.list' must be supplied in 'options'.
      */
     ConsumerConfiguration(const std::string& topic,
                           Options options,
-                          Options topicOptions);
+                          Options topicOptions = {});
     
     /**
      * @brief Create a consumer configuration.
      * @param topic The topic to which this configuration applies.
-     * @param options The producer configuration options (both RdKafka and CoroKafka).
-     * @param topicOptions The topic configuration options (both RdKafka and CoroKafka).
+     * @param options The producer configuration options (for both RdKafka and CoroKafka).
+     * @param topicOptions The topic configuration options (for both RdKafka and CoroKafka).
+     * @note 'metadata.broker.list' must be supplied in 'options'.
      */
     ConsumerConfiguration(const std::string& topic,
                           std::initializer_list<ConfigurationOption> options,
-                          std::initializer_list<ConfigurationOption> topicOptions);
-    
-    using Configuration::setCallback;
+                          std::initializer_list<ConfigurationOption> topicOptions = {});
     
     /**
      * @brief Assign partitions and offsets on startup for this consumer.
@@ -81,7 +89,7 @@ public:
      * @brief Set the offset commit callback.
      * @param callback The callback.
      */
-    void setCallback(Callbacks::OffsetCommitCallback callback);
+    void setOffsetCommitCallback(Callbacks::OffsetCommitCallback callback);
     
     /**
      * @brief Get the offset commit callback.
@@ -95,7 +103,7 @@ public:
      * @remark This library handles all partition assignments and revocations internally.
      *         As such, setting this callback is entirely optional and discretionary.
      */
-    void setCallback(Callbacks::RebalanceCallback callback);
+    void setRebalanceCallback(Callbacks::RebalanceCallback callback);
     
     /**
      * @brief Get the rebalance callback.
@@ -104,11 +112,11 @@ public:
     const Callbacks::RebalanceCallback& getRebalanceCallback() const;
     
     /**
-     * @brief Set the preprocessor callback. This will be called before a message is deserialized.
+     * @brief Set the preprocessor callback. This will be called before a message is de-serialized.
      * @param callback The callback.
      * @note The callback should return 'true' if the message should be skipped.
      */
-    void setCallback(Callbacks::PreprocessorCallback callback);
+    void setPreprocessorCallback(Callbacks::PreprocessorCallback callback);
     
     /**
      * @brief Get the preprocessor callback.
@@ -118,16 +126,41 @@ public:
     
     /**
      * @brief Set the receiver callback.
-     * @tparam K The Key type.
+     * @tparam FUNC The callback of type Callbacks::ReceiverCallback<KEY,PAYLOAD>
      * @tparam P The Payload type.
      * @param callback The callback.
      * @remark Setting a receiver callback is mandatory.
      */
-    template <typename K, typename P>
-    void setCallback(Callbacks::ReceiverCallback<K,P> callback)
-    {
-        _receiver.reset(new ConcreteReceiver<K,P>(std::move(callback)));
-    }
+    template <typename FUNC>
+    void setReceiverCallback(FUNC&& callback);
+    
+    /**
+     * @brief Set the key deserializer callback.
+     * @tparam FUNC The callback of type Callbacks::KeyDeserializerCallback<T>.
+     * @param callback The callback.
+     * @remark Setting a key deserializer callback is mandatory.
+     */
+    template <typename FUNC>
+    void setKeyCallback(FUNC&& callback);
+    
+    /**
+     * @brief Set the payload deserializer callback.
+     * @tparam FUNC The callback of type Callbacks::PayloadDeserializerCallback<T>.
+     * @param callback The callback.
+     * @remark Setting a payload deserializer callback is mandatory.
+     */
+    template <typename FUNC>
+    void setPayloadCallback(FUNC&& callback);
+    
+    /**
+     * @brief Set the payload deserializer callback.
+     * @tparam FUNC The callback of type Callbacks::HeaderDeserializerCallback<T>.
+     * @param name The header name.
+     * @param callback The callback.
+     * @remark Setting a payload deserializer callback is mandatory.
+     */
+    template <typename FUNC>
+    void setHeaderCallback(const std::string& name, FUNC&& callback);
     
     /**
      * @brief Get the receiver callback.
@@ -136,53 +169,7 @@ public:
      * @return The callback.
      */
     template <typename K, typename P>
-    const Callbacks::ReceiverCallback<K,P>& getReceiverCallback() const
-    {
-        return std::static_pointer_cast<ConcreteReceiver<K,P>>(_receiver)->getCallback();
-    }
-    
-    /**
-     * @brief Get the Receiver functor.
-     * @return The Receiver.
-     */
-    const Receiver& getReceiver() const;
-    
-    /**
-     * @brief Set the key deserializer callback.
-     * @tparam T The Key type.
-     * @param callback The callback.
-     * @remark Setting a key deserializer callback is mandatory.
-     */
-    template <typename T>
-    void setKeyCallback(Callbacks::KeyDeserializerCallback<T> callback)
-    {
-        _keyDeserializer.reset(new ConcreteDeserializer<T>(std::move(callback)));
-    }
-    
-    /**
-     * @brief Set the payload deserializer callback.
-     * @tparam T The Payload type.
-     * @param callback The callback.
-     * @remark Setting a payload deserializer callback is mandatory.
-     */
-    template <typename T>
-    void setPayloadCallback(Callbacks::PayloadDeserializerCallback<T> callback)
-    {
-        _payloadDeserializer.reset(new ConcreteDeserializerWithHeaders<T>(std::move(callback)));
-    }
-    
-    /**
-     * @brief Set the payload deserializer callback.
-     * @tparam T The Payload type.
-     * @param name The header name.
-     * @param callback The callback.
-     * @remark Setting a payload deserializer callback is mandatory.
-     */
-    template <typename T>
-    void setHeaderCallback(const std::string& name, Callbacks::HeaderDeserializerCallback<T> callback)
-    {
-        _headerDeserializers[name].reset(new ConcreteDeserializer<T>(std::move(callback)));
-    }
+    const Callbacks::ReceiverCallback<K,P>& getReceiverCallback() const;
     
     /**
      * @brief Get the key deserializer callback.
@@ -190,10 +177,7 @@ public:
      * @return The callback.
      */
     template <typename T>
-    const Callbacks::KeyDeserializerCallback<T>& getKeyCallback() const
-    {
-        return std::static_pointer_cast<ConcreteDeserializer<T>>(_keyDeserializer)->getCallback();
-    }
+    const Callbacks::KeyDeserializerCallback<T>& getKeyCallback() const;
     
     /**
      * @brief Get the payload deserializer callback.
@@ -201,10 +185,7 @@ public:
      * @return The callback.
      */
     template <typename T>
-    const Callbacks::PayloadDeserializerCallback<T>& getPayloadCallback() const
-    {
-        return std::static_pointer_cast<ConcreteDeserializer<T>>(_payloadDeserializer)->getCallback();
-    }
+    const Callbacks::PayloadDeserializerCallback<T>& getPayloadCallback() const;
     
     /**
      * @brief Get the specific header deserializer callback.
@@ -212,10 +193,13 @@ public:
      * @return The callback.
      */
     template <typename T>
-    const Callbacks::HeaderDeserializerCallback<T>& getHeaderCallback(const std::string& name) const
-    {
-        return std::static_pointer_cast<ConcreteDeserializer<T>>(_headerDeserializers.at(name))->getCallback();
-    }
+    const Callbacks::HeaderDeserializerCallback<T>& getHeaderCallback(const std::string& name) const;
+    
+    /**
+     * @brief Get the Receiver functor.
+     * @return The Receiver.
+     */
+    const Receiver& getReceiver() const;
     
     /**
      * @brief Get the Deserializer functors.
@@ -245,5 +229,6 @@ private:
 }
 }
 
+#include <corokafka/impl/corokafka_consumer_configuration_impl.h>
 
 #endif //BLOOMBERG_COROKAFKA_CONSUMER_CONFIGURATION_H

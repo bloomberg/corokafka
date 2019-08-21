@@ -27,6 +27,10 @@ namespace corokafka {
 //========================================================================
 //                       CONNECTOR CONFIGURATION
 //========================================================================
+/**
+ * @brief The ConnectorConfiguration is a builder class which contains generic
+ *        configuration options for the library as a whole.
+ */
 class ConnectorConfiguration
 {
 public:
@@ -73,7 +77,7 @@ public:
      * @param callback The callback.
      * @remark This callback is different than those used for producers and consumers.
      */
-    void setCallback(Callbacks::ConnectorLogCallback callback);
+    void setLogCallback(Callbacks::ConnectorLogCallback callback);
     
     /**
      * @brief Get the log callback.

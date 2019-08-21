@@ -58,7 +58,7 @@ ProducerConfiguration::ProducerConfiguration(const std::string& topic,
 
 }
 
-void ProducerConfiguration::setCallback(Callbacks::DeliveryReportCallback callback)
+void ProducerConfiguration::setDeliveryReportCallback(Callbacks::DeliveryReportCallback callback)
 {
     _deliveryReportCallback = std::move(callback);
 }
@@ -68,7 +68,7 @@ const Callbacks::DeliveryReportCallback& ProducerConfiguration::getDeliveryRepor
     return _deliveryReportCallback;
 }
 
-void ProducerConfiguration::setCallback(Callbacks::PartitionerCallback callback)
+void ProducerConfiguration::setPartitionerCallback(Callbacks::PartitionerCallback callback)
 {
     _partitionerCallback = callback;
 }
@@ -91,7 +91,7 @@ const Callbacks::QueueFullCallback& ProducerConfiguration::getQueueFullCallback(
 const Serializer& ProducerConfiguration::getKeySerializer() const
 {
     if (!_keySerializer) {
-        throw std::runtime_error("Serializer not set");
+        throw std::runtime_error("Key serializer not set");
     }
     return *_keySerializer;
 }
@@ -99,14 +99,18 @@ const Serializer& ProducerConfiguration::getKeySerializer() const
 const Serializer& ProducerConfiguration::getPayloadSerializer() const
 {
     if (!_payloadSerializer) {
-        throw std::runtime_error("Serializer not set");
+        throw std::runtime_error("Payload serializer not set");
     }
     return *_payloadSerializer;
 }
 
 const Serializer& ProducerConfiguration::getHeaderSerializer(const std::string& name) const
 {
-    return *_headerSerializers.at(name);
+    auto it = _headerSerializers.find(name);
+    if (it == _headerSerializers.end()) {
+        throw std::runtime_error("Header serializer not set for" + name);
+    }
+    return *it->second;
 }
 
 }

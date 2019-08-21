@@ -13,12 +13,12 @@ See [API documentation](https://bbgithub.dev.bloomberg.com/eor/corokafka/tree/ma
 ```
 To use the library simply include `<corokafka/corokafka.h>` in your application. 
 
-In CMake you can load the libraries simply by:
+In CMake you can load the libraries simply by calling:
 ```cmake
 find_package(CoroKafka REQUIRED)
 target_link_libraries(<your_target> CoroKafka::corokafka <other_dependencies>)
 ```
-Note that if `RdKafka`, `CppKafka`, `Quantum` or `Boost` are not installed in default locations, you may need to define the respective \<package\>_ROOT variables below.
+Note that if `RdKafka`, `CppKafka`, `Quantum` or `Boost` are not installed in default locations, you may need to define the respective \<package\>_ROOT variables below. See [tests/CMakeLists.txt](https://bbgithub.dev.bloomberg.com/eor/corokafka/blob/master/corokafka/tests/CMakeLists.txt#L11) for a working example.
 
 ### CMake options
 Various **CMake** options can be used to configure the output:
@@ -119,15 +119,15 @@ payloadSerializerCallback(const corokafka::HeaderPack&, const std::string& paylo
 
 // Create a topic configuration (optional)
 std::initializer_list<corokafka::ConfigurationOption > topicOptions = {
-	{ "produce.offset.report",  true },
-	{ "request.required.acks", -1 }
+    { "produce.offset.report",  true },
+    { "request.required.acks", -1 }
 };
 
 // Create a producer configuration (only 'metadata.broker.list' setting is mandatory)
 std::initializer_list<corokafka::ConfigurationOption > configOptions = {
-	{ "metadata.broker.list", "broker_url:port" },
-	{ "api.version.request", true },
-	{ "internal.producer.retries", 5 }
+    { "metadata.broker.list", "broker_url:port" },
+    { "api.version.request", true },
+    { "internal.producer.retries", 5 }
 };
 
 // Associate the topic and producer configuration with a topic name.
@@ -135,9 +135,9 @@ std::initializer_list<corokafka::ConfigurationOption > configOptions = {
 corokafka::ProducerConfiguration config("my-topic", configOptions, topicOptions);
 
 // Add the callbacks
-config.setKeyCallback<size_t>(keySerializerCallback);
-config.setHeaderCallback<std::string>("Header1", headerSerializerCallback);
-config.setPayloadCallback<std::string>(payloadSerializerCallback);
+config.setKeyCallback(keySerializerCallback);
+config.setHeaderCallback("Header1", headerSerializerCallback);
+config.setPayloadCallback(payloadSerializerCallback);
 
 // Create the connector config (optional)
 corokafka::ConnectorConfiguration connectorConfiguration;
@@ -154,13 +154,12 @@ corokafka::Connector connector(std::move(builder));
 corokafka::ProducerManager& producer = connector.producer(); //get handle on producer
 
 // Create a header pack (optional - only if using headers)
-corokafka::HeaderPack headers;
-headers.push_back("Header1", "This is my header"); //add a header
+corokafka::HeaderPack headers{{"Header1", "This is my header"}}; //add a header
 
 // Produce 10 messages. 'i' represents the 'key'
 for (size_t i = 0; i < 10; ++i) { 
-	//produce a message synchronously (async production also available)
-	producer.send("my-topic", i, "Hello world", headers);
+    //produce a message synchronously (async production also available)
+    producer.send("my-topic", i, "Hello world", headers);
 }
 
 ```
@@ -175,7 +174,7 @@ In the following example we will be consuming messages with a key of type `size_
 #include <corokafka/corokafka.h>
 
 std::mutex messageMutex;
-std::deque<corokafka::ReceivedMessageWithoutHeader<size_t, std::string>> messages;
+std::deque<corokafka::ReceivedMessage<size_t, std::string>> messages;
 
 void messageProcessor()
 {
@@ -291,11 +290,11 @@ std::initializer_list<corokafka::ConfigurationOption > configOptions = {
 corokafka::ConsumerConfiguration config("my-topic", configOptions, {});
 
 //add the callbacks
-config.setCallback(logCallback);
-config.setKeyCallback<size_t>(keyDeserializerCallback);
-config.setHeaderCallback<std::string>("Header1", headerDeserializerCallback);
-config.setPayloadCallback<std::string>(payloadDeserializerCallback);
-config.setCallback<size_t, std::string>(receiverCallback);
+config.setLogCallback(logCallback);
+config.setKeyCallback(keyDeserializerCallback);
+config.setHeaderCallback("Header1", headerDeserializerCallback);
+config.setPayloadCallback(payloadDeserializerCallback);
+config.setReceiverCallback(receiverCallback);
 
 // Optionally set initial partition assignment (4 partitions per topic)
 config.assignInitialPartitions(corokafka::PartitionStrategy::Dynamic,

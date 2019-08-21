@@ -18,6 +18,7 @@
 
 #include <corokafka/detail/corokafka_namespace_forwarding.h>
 #include <corokafka/corokafka_utils.h>
+#include <quantum/quantum.h>
 #include <functional>
 #include <algorithm>
 #include <ctype.h>
@@ -190,7 +191,30 @@ std::ostream& operator<<(std::ostream& stream, const BasicMessageBuilder<std::ve
 // Specialized for Buffer container
 std::ostream& operator<<(std::ostream& stream, const MessageBuilder& builder);
 
+//======================================================================================================================
+//                                               Traits
+//======================================================================================================================
+template <typename FUNC>
+auto returnType(FUNC&& func)->typename quantum::FunctionArguments<decltype(quantum::Callable::ref(func))>::RetType;
+
+template <size_t N, typename FUNC>
+auto argType(FUNC&& func)->typename quantum::FunctionArguments<decltype(quantum::Callable::ref(func))>::template ArgType<N>;
+
+template <typename K, typename P>
+class ReceivedMessage;
+
 }
+
+namespace quantum {
+template <typename K, typename P>
+struct Traits::InnerType<corokafka::ReceivedMessage<K, P>>
+{
+    using Key = K;
+    using Payload = P;
+};
+
+}
+
 }
 
 #endif //BLOOMBERG_COROKAFKA_UTILS_H

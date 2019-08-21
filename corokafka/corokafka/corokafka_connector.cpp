@@ -64,9 +64,10 @@ ProducerManager& Connector::producer()
     return *_impl;
 }
 
-void Connector::shutdown()
+void Connector::shutdown(std::chrono::milliseconds drainTimeout)
 {
-    _impl->shutdown();
+    //drain only if we own the dispatcher
+    _impl->shutdown(_dispatcherPtr != nullptr, drainTimeout);
 }
 
 }

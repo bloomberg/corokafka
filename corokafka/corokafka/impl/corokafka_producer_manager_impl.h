@@ -82,8 +82,6 @@ private:
                                      HeaderPack&& headers,
                                      void* opaque);
     
-    void waitForAcks(const std::string& topic);
-    
     void waitForAcks(const std::string& topic,
                      std::chrono::milliseconds timeout);
     
@@ -242,7 +240,11 @@ size_t ProducerManagerImpl::send(const std::string& topic,
                                  const HeaderPack& headers,
                                  void* opaque)
 {
-    ProducerTopicEntry& topicEntry = _producers.at(topic);
+    auto it = _producers.find(topic);
+    if (it == _producers.end()) {
+        throw std::runtime_error("Invalid topic");
+    }
+    ProducerTopicEntry& topicEntry = it->second;
     ConcreteMessageBuilder<ByteArray> builder = serializeMessage(topicEntry, &key, &payload, &headers, opaque);
     if (builder.topic().empty()) {
         //Serializing failed
@@ -262,7 +264,11 @@ std::future<DeliveryReport> ProducerManagerImpl::postImpl(const std::string& top
                                                           HEADERS&& headers,
                                                           void* opaque)
 {
-    ProducerTopicEntry& topicEntry = _producers.at(topic);
+    auto it = _producers.find(topic);
+    if (it == _producers.end()) {
+        throw std::runtime_error("Invalid topic");
+    }
+    ProducerTopicEntry& topicEntry = it->second;
     if (topicEntry._payloadPolicy == Producer::PayloadPolicy::PASSTHROUGH_PAYLOAD) {
         throw std::runtime_error("Invalid async operation for pass-through payload policy - use send() instead.");
     }
@@ -275,7 +281,7 @@ std::future<DeliveryReport> ProducerManagerImpl::postImpl(const std::string& top
     // Post the serialization future and return
     {
         std::unique_lock<std::mutex> lock(_messageQueueMutex);
-        _messageQueue.emplace_back(_dispatcher.post<BuilderTuple>(
+        _messageQueue.emplace_back(_dispatcher.post(
                 serializeCoro<K,P,HEADERS>,
                 topicEntry,
                 std::forward<K>(key),

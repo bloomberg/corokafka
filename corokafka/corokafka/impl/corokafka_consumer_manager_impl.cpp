@@ -71,8 +71,12 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
     const Configuration::Options& rdKafkaTopicOptions = topicEntry._configuration.getTopicOptions(Configuration::OptionType::RdKafka);
     const Configuration::Options& internalOptions = topicEntry._configuration.getOptions(Configuration::OptionType::Internal);
     
-    if (!topicEntry._configuration.getKeyDeserializer() || !topicEntry._configuration.getPayloadDeserializer()) {
-        throw std::runtime_error(std::string("Deserializer callback not specified for topic consumer: ") + topic);
+    if (!topicEntry._configuration.getKeyDeserializer()) {
+        throw std::runtime_error(std::string("Key deserializer callback not specified for topic consumer: ") + topic);
+    }
+    
+    if (!topicEntry._configuration.getPayloadDeserializer()) {
+        throw std::runtime_error(std::string("Payload deserializer callback not specified for topic consumer: ") + topic);
     }
     
     if (!topicEntry._configuration.getReceiver()) {
@@ -394,18 +398,26 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
 
 ConsumerMetadata ConsumerManagerImpl::getMetadata(const std::string& topic)
 {
-    return makeMetadata(_consumers.at(topic));
+    auto it = _consumers.find(topic);
+    if (it == _consumers.end()) {
+        throw std::runtime_error("Invalid topic");
+    }
+    return makeMetadata(it->second);
 }
 
-void ConsumerManagerImpl::preprocess(const std::string& topic, bool enable)
+void ConsumerManagerImpl::preprocess(bool enable, const std::string& topic)
 {
-    _consumers.at(topic)._preprocess = enable;
-}
-
-void ConsumerManagerImpl::preprocess(bool enable)
-{
-    for (auto&& consumer : _consumers) {
-        consumer.second._preprocess = enable;
+    if (topic.empty()) {
+        for (auto&& consumer : _consumers) {
+            consumer.second._preprocess = enable;
+        }
+    }
+    else {
+        auto it = _consumers.find(topic);
+        if (it == _consumers.end()) {
+            throw std::runtime_error("Invalid topic");
+        }
+        it->second._preprocess = enable;
     }
 }
 
@@ -418,7 +430,11 @@ void ConsumerManagerImpl::pause(const std::string& topic)
         }
     }
     else {
-        ConsumerTopicEntry& consumerTopicEntry = _consumers.at(topic);
+        auto it = _consumers.find(topic);
+        if (it == _consumers.end()) {
+            throw std::runtime_error("Invalid topic");
+        }
+        ConsumerTopicEntry& consumerTopicEntry = it->second;
         consumerTopicEntry._consumer->pause();
         consumerTopicEntry._isPaused = true;
     }
@@ -433,7 +449,11 @@ void ConsumerManagerImpl::resume(const std::string& topic)
         }
     }
     else {
-        ConsumerTopicEntry& consumerTopicEntry = _consumers.at(topic);
+        auto it = _consumers.find(topic);
+        if (it == _consumers.end()) {
+            throw std::runtime_error("Invalid topic");
+        }
+        ConsumerTopicEntry& consumerTopicEntry = it->second;
         consumerTopicEntry._consumer->resume();
         consumerTopicEntry._isPaused = false;
     }
@@ -442,7 +462,11 @@ void ConsumerManagerImpl::resume(const std::string& topic)
 void ConsumerManagerImpl::subscribe(const std::string& topic,
                                     TopicPartitionList partitionList)
 {
-    ConsumerTopicEntry& topicEntry = _consumers.at(topic);
+    auto it = _consumers.find(topic);
+    if (it == _consumers.end()) {
+        throw std::runtime_error("Invalid topic");
+    }
+    ConsumerTopicEntry& topicEntry = it->second;
     if (topicEntry._isSubscribed) {
         throw std::runtime_error("Already subscribed");
     }
@@ -482,7 +506,11 @@ void ConsumerManagerImpl::unsubscribe(const std::string& topic)
         }
     }
     else {
-        ConsumerTopicEntry& consumerTopicEntry = _consumers.at(topic);
+        auto it = _consumers.find(topic);
+        if (it == _consumers.end()) {
+            throw std::runtime_error("Invalid topic");
+        }
+        ConsumerTopicEntry& consumerTopicEntry = it->second;
         if (consumerTopicEntry._isSubscribed) {
             if (consumerTopicEntry._configuration.getPartitionStrategy() == PartitionStrategy::Static) {
                 consumerTopicEntry._consumer->unassign();
@@ -498,7 +526,11 @@ Error ConsumerManagerImpl::commit(const TopicPartition& topicPartition,
                                   const void* opaque,
                                   bool forceSync)
 {
-    return commitImpl(_consumers.at(topicPartition.get_topic()), TopicPartitionList{topicPartition}, opaque, forceSync);
+    auto it = _consumers.find(topicPartition.get_topic());
+    if (it == _consumers.end()) {
+        return RD_KAFKA_RESP_ERR_UNKNOWN_TOPIC_OR_PART;
+    }
+    return commitImpl(it->second, TopicPartitionList{topicPartition}, opaque, forceSync);
 }
 
 Error ConsumerManagerImpl::commit(const TopicPartitionList& topicPartitions,
@@ -508,7 +540,11 @@ Error ConsumerManagerImpl::commit(const TopicPartitionList& topicPartitions,
     if (topicPartitions.empty()) {
         return RD_KAFKA_RESP_ERR_INVALID_PARTITIONS;
     }
-    return commitImpl(_consumers.at(topicPartitions.at(0).get_topic()), topicPartitions, opaque, forceSync);
+    auto it = _consumers.find(topicPartitions.at(0).get_topic());
+    if (it == _consumers.end()) {
+        return RD_KAFKA_RESP_ERR_UNKNOWN_TOPIC_OR_PART;
+    }
+    return commitImpl(it->second, topicPartitions, opaque, forceSync);
 }
 
 Error ConsumerManagerImpl::commitImpl(ConsumerTopicEntry& entry,
@@ -567,7 +603,11 @@ Error ConsumerManagerImpl::commitImpl(ConsumerTopicEntry& entry,
 
 const ConsumerConfiguration& ConsumerManagerImpl::getConfiguration(const std::string& topic) const
 {
-    return _consumers.at(topic)._configuration;
+    auto it = _consumers.find(topic);
+    if (it == _consumers.end()) {
+        throw std::runtime_error("Invalid topic");
+    }
+    return it->second._configuration;
 }
 
 std::vector<std::string> ConsumerManagerImpl::getTopics() const
@@ -583,7 +623,7 @@ std::vector<std::string> ConsumerManagerImpl::getTopics() const
 void ConsumerManagerImpl::shutdown()
 {
     if (!_shutdownInitiated.test_and_set()) {
-        //nothing to be done for now...
+        unsubscribe({});
     }
 }
 
@@ -601,14 +641,14 @@ void ConsumerManagerImpl::poll()
             // Round-robin
             if (entry.second._roundRobin) {
                 entry.second._pollFuture =
-                    _dispatcher.postFirst<std::deque<MessageTuple>>((int)quantum::IQueue::QueueId::Any, true, pollCoro, entry.second)->
+                    _dispatcher.postFirst((int)quantum::IQueue::QueueId::Any, true, pollCoro, entry.second)->
                                 then(processorCoro, entry.second)->
                                 end();
             }
             else {
                 // Batch
                 entry.second._pollFuture =
-                  _dispatcher.post<int>((int)quantum::IQueue::QueueId::Any, true, pollBatchCoro, entry.second);
+                  _dispatcher.post((int)quantum::IQueue::QueueId::Any, true, pollBatchCoro, entry.second);
             }
         }
     }
@@ -859,7 +899,7 @@ ConsumerManagerImpl::deserializeMessage(ConsumerTopicEntry& entry,
     if (kafkaMessage.get_error()) {
         de._error = kafkaMessage.get_error();
         de._source |= (uint8_t)DeserializerError::Source::Kafka;
-        return DeserializedMessage(boost::any(), boost::any(), HeaderPack(), de);
+        return DeserializedMessage(boost::any(), boost::any(), HeaderPack{}, de);
     }
     //Deserialize the key
     boost::any key = CallbackInvoker<Deserializer>("key_deserializer",
@@ -935,7 +975,7 @@ int ConsumerManagerImpl::deserializeCoro(quantum::CoroContext<DeserializedMessag
     if (entry._preprocessorCallback && entry._preprocess) {
         if (entry._preprocessOnIoThread) {
             // Call the preprocessor callback
-            skip = ctx->template postAsyncIo<bool>(preprocessorTask, entry, kafkaMessage)->get(ctx);
+            skip = ctx->template postAsyncIo(preprocessorTask, entry, kafkaMessage)->get(ctx);
         }
         else {
             //run in this coroutine
@@ -1101,7 +1141,7 @@ int ConsumerManagerImpl::pollCoro(quantum::CoroContext<std::deque<MessageTuple>>
         std::deque<MessageTuple> messageQueue;
 
         // Start the IO task to get messages in a round-robin way
-        quantum::CoroFuture<MessageContainer>::Ptr future = ctx->postAsyncIo<MessageContainer>(
+        quantum::CoroFuture<MessageContainer>::Ptr future = ctx->postAsyncIo(
             (int)quantum::IQueue::QueueId::Any, true, messageRoundRobinReceiveTask, entry);
             
         // Receive all messages from kafka and deserialize in parallel
@@ -1112,7 +1152,7 @@ int ConsumerManagerImpl::pollCoro(quantum::CoroContext<std::deque<MessageTuple>>
                 messageQueue.emplace_back(MessageTuple(std::move(message), nullptr));
                 MessageTuple& tuple = messageQueue.back();
                 if (!std::get<0>(tuple).get_error()) { // check if message has any errors
-                    std::get<1>(tuple) = ctx->post<DeserializedMessage>(deserializeCoro, entry, std::get<0>(tuple));
+                    std::get<1>(tuple) = ctx->post(deserializeCoro, entry, std::get<0>(tuple));
                 }
             }
         }
@@ -1155,11 +1195,11 @@ void ConsumerManagerImpl::processMessageBatchOnIoThreads(quantum::CoroContext<in
         for (size_t queueIx = 0; queueIx < partitions.size(); ++queueIx) {
             const int ioQueue = queueIx + threadRange.first;
             quantum::ICoroFuture<int>::Ptr future =
-                ctx->postAsyncIo<int>(ioQueue,
-                                      false,
-                                      receiverMultipleBatchesTask,
-                                      entry,
-                                      std::move(partitions[queueIx]));
+                ctx->postAsyncIo(ioQueue,
+                                  false,
+                                  receiverMultipleBatchesTask,
+                                  entry,
+                                  std::move(partitions[queueIx]));
             if (entry._receiveCallbackExec == ExecMode::Sync) {
                 ioFutures.push_back(future);
             }
@@ -1172,12 +1212,12 @@ void ConsumerManagerImpl::processMessageBatchOnIoThreads(quantum::CoroContext<in
     else {
         // optimization: no need to spend time on message distribution for a single io queue
         quantum::ICoroFuture<int>::Ptr future =
-            ctx->postAsyncIo<int>(threadRange.first,
-                                  false,
-                                  receiverSingleBatchTask,
-                                  entry,
-                                  std::move(raw),
-                                  std::move(deserializedMessages));
+            ctx->postAsyncIo(threadRange.first,
+                              false,
+                              receiverSingleBatchTask,
+                              entry,
+                              std::move(raw),
+                              std::move(deserializedMessages));
         if (entry._receiveCallbackExec == ExecMode::Sync) {
             future->get(ctx);
         }
@@ -1197,19 +1237,17 @@ int ConsumerManagerImpl::pollBatchCoro(quantum::CoroContext<int>::Ptr ctx,
                 raw = entry._messagePrefetchFuture->get(ctx);
             }
             // start pre-fetching for the next batch
-            entry._messagePrefetchFuture = ctx->postAsyncIo<std::vector<Message>>
+            entry._messagePrefetchFuture = ctx->postAsyncIo
                 ((int)quantum::IQueue::QueueId::Any, true, messageBatchReceiveTask, entry);
         }
         else {
-            raw = ctx->postAsyncIo<std::vector<Message>>(
-                                 (int)quantum::IQueue::QueueId::Any,
-                                 true,
-                                 messageBatchReceiveTask,
-                                 entry)->get(ctx);
+            raw = ctx->postAsyncIo((int)quantum::IQueue::QueueId::Any,
+                                   true,
+                                   messageBatchReceiveTask,
+                                   entry)->get(ctx);
         }
 
-        std::vector<DeserializedMessage> deserializedMessages = ctx->post<std::vector<DeserializedMessage>>
-            (deserializeBatchCoro, entry, raw)->get(ctx);
+        std::vector<DeserializedMessage> deserializedMessages = ctx->post(deserializeBatchCoro, entry, raw)->get(ctx);
         
         if (entry._receiveOnIoThread) {
             processMessageBatchOnIoThreads(ctx, entry, std::move(raw), std::move(deserializedMessages));

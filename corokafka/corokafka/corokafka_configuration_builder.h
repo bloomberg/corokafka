@@ -25,6 +25,13 @@
 namespace Bloomberg {
 namespace corokafka {
 
+/**
+ * @brief The ConfigurationBuilder is a configuration aggregator for all producer and consumer topic
+ *        configurations. Various ProducerConfiguration and ConsumerConfiguration objects, as well
+ *        as one ConnectorConfiguration, can be added to the builder, which in turn will be used to
+ *        initialize the Connector object and create the appropriate setup in RdKafka as well as
+ *        registering the supplied callbacks.
+ */
 class ConfigurationBuilder
 {
     friend class ConnectorImpl;

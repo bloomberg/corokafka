@@ -54,7 +54,7 @@ const quantum::Configuration& ConnectorConfiguration::getDispatcherConfiguration
     return _dispatcherConfig;
 }
 
-void ConnectorConfiguration::setCallback(Callbacks::ConnectorLogCallback callback)
+void ConnectorConfiguration::setLogCallback(Callbacks::ConnectorLogCallback callback)
 {
     _logCallback = callback;
 }

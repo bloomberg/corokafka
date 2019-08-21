@@ -46,7 +46,8 @@ ConnectorImpl::ConnectorImpl(ConfigurationBuilder&& builder,
     setMaxMessageBuilderOutputLength(_config.getMaxMessagePayloadOutputLength());
 }
 
-void ConnectorImpl::shutdown()
+void ConnectorImpl::shutdown(bool drain,
+                             std::chrono::milliseconds drainTimeout)
 {
     if (!_shutdownInitiated.test_and_set())
     {
@@ -77,7 +78,13 @@ void ConnectorImpl::shutdown()
                 _config.getLogCallback()(LogLevel::LogErr, "corokafka", oss.str());
             }
         }
-        _dispatcher.drain();
+        
+        if (drain) {
+            if (drainTimeout.count() < 0) {
+                drainTimeout = std::chrono::milliseconds::zero();
+            }
+            _dispatcher.drain(drainTimeout, true);
+        }
     }
 }
 
