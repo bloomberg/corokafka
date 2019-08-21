@@ -107,13 +107,12 @@ void ProducerManagerImpl::setup(const std::string& topic, ProducerTopicEntry& to
     const Configuration::Options& internalOptions = topicEntry._configuration.getOptions(Configuration::OptionType::Internal);
     
     //Validate config
-    const ConfigurationOption* brokerList = Configuration::findOption("metadata.broker.list", rdKafkaOptions);
-    if (!brokerList) {
-        throw std::runtime_error("Broker not specified");
+    if (!topicEntry._configuration.getKeySerializer()) {
+        throw std::runtime_error(std::string("Key serializer callback not specified for topic producer: ") + topic);
     }
     
-    if (!topicEntry._configuration.getKeySerializer() || !topicEntry._configuration.getPayloadSerializer()) {
-        throw std::runtime_error(std::string("Serializer callback not specified for topic producer: ") + topic);
+    if (!topicEntry._configuration.getPayloadSerializer()) {
+        throw std::runtime_error(std::string("Payload serializer callback not specified for topic producer: ") + topic);
     }
     
     //Set the rdkafka configuration options
@@ -307,12 +306,20 @@ void ProducerManagerImpl::setup(const std::string& topic, ProducerTopicEntry& to
 
 ProducerMetadata ProducerManagerImpl::getMetadata(const std::string& topic)
 {
-    return makeMetadata(_producers.at(topic));
+    auto it = _producers.find(topic);
+    if (it == _producers.end()) {
+        throw std::runtime_error("Invalid topic");
+    }
+    return makeMetadata(it->second);
 }
 
 const ProducerConfiguration& ProducerManagerImpl::getConfiguration(const std::string& topic) const
 {
-    return _producers.at(topic)._configuration;
+    auto it = _producers.find(topic);
+    if (it == _producers.end()) {
+        throw std::runtime_error("Invalid topic");
+    }
+    return it->second._configuration;
 }
 
 std::vector<std::string> ProducerManagerImpl::getTopics() const
@@ -325,15 +332,19 @@ std::vector<std::string> ProducerManagerImpl::getTopics() const
     return topics;
 }
 
-void ProducerManagerImpl::waitForAcks(const std::string& topic)
-{
-    _producers.at(topic)._producer->wait_for_acks();
-}
-
 void ProducerManagerImpl::waitForAcks(const std::string& topic,
                                       std::chrono::milliseconds timeout)
 {
-    _producers.at(topic)._producer->wait_for_acks(timeout);
+    auto it = _producers.find(topic);
+    if (it == _producers.end()) {
+        throw std::runtime_error("Invalid topic");
+    }
+    if (timeout.count() <= 0) {
+        it->second._producer->wait_for_acks();
+    }
+    else {
+        it->second._producer->wait_for_acks(timeout);
+    }
 }
 
 void ProducerManagerImpl::shutdown()
@@ -406,7 +417,11 @@ void ProducerManagerImpl::post()
 
 void ProducerManagerImpl::resetQueueFullTrigger(const std::string& topic)
 {
-    _producers.at(topic)._queueFullTrigger = true;
+    auto it = _producers.find(topic);
+    if (it == _producers.end()) {
+        throw std::runtime_error("Invalid topic");
+    }
+    it->second._queueFullTrigger = true;
 }
 
 void ProducerManagerImpl::enableMessageFanout(bool value)

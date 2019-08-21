@@ -37,7 +37,8 @@ class ConnectorImpl : public ProducerManager,
                   quantum::Dispatcher& dispatcher);
     ConnectorImpl(ConfigurationBuilder&& builder,
                   quantum::Dispatcher& dispatcher);
-    void shutdown();
+    void shutdown(bool drain,
+                  std::chrono::milliseconds drainTimeout);
     void poll();
     void post();
     

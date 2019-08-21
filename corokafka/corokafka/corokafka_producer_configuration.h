@@ -26,6 +26,14 @@ namespace corokafka {
 //========================================================================
 //                       PRODUCER CONFIGURATION
 //========================================================================
+/**
+ * @brief The ProducerConfiguration is a builder class which contains
+ *        configuration information for a specific topic. This configuration consists
+ *        of both RdKafka and CoroKafka configuration options as per documentation
+ *        (see CONFIGURATION.md in the respective projects).
+ *        At a minimum, the user should supply a 'metadata.broker.list' in the constructor 'options'
+ *        as well as a key and a payload serializer callback.
+ */
 class ProducerConfiguration : public Configuration
 {
     friend class Configuration;
@@ -33,30 +41,30 @@ public:
     /**
      * @brief Create a producer configuration.
      * @param topic The topic to which this configuration applies.
-     * @param options The producer configuration options.
-     * @param topicOptions The topic configuration options.
+     * @param options The producer configuration options (for both RdKafka and CoroKafka).
+     * @param topicOptions The topic configuration options (for both RdKafka and CoroKafka).
+     * @note 'metadata.broker.list' must be supplied in 'options'.
      */
     ProducerConfiguration(const std::string& topic,
                           Options options,
-                          Options topicOptions);
+                          Options topicOptions = {});
     
     /**
      * @brief Create a producer configuration.
      * @param topic The topic to which this configuration applies.
-     * @param options The producer configuration options.
-     * @param topicOptions The topic configuration options.
+     * @param options The producer configuration options (for both RdKafka and CoroKafka).
+     * @param topicOptions The topic configuration options (for both RdKafka and CoroKafka).
+     * @note 'metadata.broker.list' must be supplied in 'options'.
      */
     ProducerConfiguration(const std::string& topic,
                           std::initializer_list<ConfigurationOption> options,
-                          std::initializer_list<ConfigurationOption> topicOptions);
-    
-    using Configuration::setCallback;
+                          std::initializer_list<ConfigurationOption> topicOptions = {});
     
     /**
      * @brief Set the delivery report callback.
      * @param callback The callback.
      */
-    void setCallback(Callbacks::DeliveryReportCallback callback);
+    void setDeliveryReportCallback(Callbacks::DeliveryReportCallback callback);
     
     /**
      * @brief Get the delivery report callback
@@ -69,7 +77,7 @@ public:
      * @param callback The callback.
      * @remark A default hash partitioner is already supplied internally and as such using this callback is optional.
      */
-    void setCallback(Callbacks::PartitionerCallback callback);
+    void setPartitionerCallback(Callbacks::PartitionerCallback callback);
     
     /**
      * @brief Get the partitioner callback.
@@ -91,39 +99,30 @@ public:
     
     /**
      * @brief Set the message key serializer callback.
-     * @tparam T The key type.
-     * @param callback The callback.
+     * @tparam FUNC The callback of type Callbacks::KeySerializerCallback<T>
+     * @param callback The callback
      * @remark Setting a key serializer callback is mandatory.
      */
-    template <typename T>
-    void setKeyCallback(Callbacks::KeySerializerCallback<T> callback)
-    {
-        _keySerializer.reset(new ConcreteSerializer<T>(std::move(callback)));
-    }
+    template <typename FUNC>
+    void setKeyCallback(FUNC&& callback);
     
     /**
      * @brief Set the payload serializer callback.
-     * @tparam T The payload type.
-     * @param callback The callback.
+     * @tparam FUNC The callback of type Callbacks::PayloadSerializerCallback<T>.
+     * @param callback The callback
      * @remark Setting a payload serializer callback is mandatory.
      */
-    template <typename T>
-    void setPayloadCallback(Callbacks::PayloadSerializerCallback<T> callback)
-    {
-        _payloadSerializer.reset(new ConcreteSerializerWithHeaders<T>(std::move(callback)));
-    }
+    template <typename FUNC>
+    void setPayloadCallback(FUNC&& callback);
     
     /**
      * @brief Set the header serializer callback.
-     * @tparam T The header type.
+     * @tparam FUNC The callback of type Callbacks::HeaderSerializerCallback<T>
      * @param name The name of the header.
-     * @param callback The callback.
+     * @param callback The callback
      */
-    template <typename T>
-    void setHeaderCallback(const std::string& name, Callbacks::HeaderSerializerCallback<T> callback)
-    {
-        _headerSerializers[name].reset(new ConcreteSerializer<T>(std::move(callback)));
-    }
+    template <typename FUNC>
+    void setHeaderCallback(const std::string& name, FUNC&& callback);
     
     /**
      * @brief Get the key serializer callback
@@ -131,10 +130,7 @@ public:
      * @return The callback
      */
     template <typename T>
-    const Callbacks::KeySerializerCallback<T>& getKeyCallback() const
-    {
-        return std::static_pointer_cast<ConcreteSerializer<T>>(_keySerializer)->getCallback();
-    }
+    const Callbacks::KeySerializerCallback<T>& getKeyCallback() const;
     
     /**
      * @brief Get the payload serializer callback
@@ -142,10 +138,7 @@ public:
      * @return The callback
      */
     template <typename T>
-    const Callbacks::PayloadSerializerCallback<T>& getPayloadCallback() const
-    {
-        return std::static_pointer_cast<ConcreteSerializer<T>>(_payloadSerializer)->getCallback();
-    }
+    const Callbacks::PayloadSerializerCallback<T>& getPayloadCallback() const;
     
     /**
      * @brief Get the header serializer callback
@@ -153,10 +146,7 @@ public:
      * @return The callback
      */
     template <typename T>
-    const Callbacks::HeaderSerializerCallback<T>& getHeaderCallback(const std::string& name) const
-    {
-        return std::static_pointer_cast<ConcreteSerializer<T>>(_headerSerializers.at(name))->getCallback();
-    }
+    const Callbacks::HeaderSerializerCallback<T>& getHeaderCallback(const std::string& name) const;
     
     /**
      * @brief Get the Serializer functors.
@@ -182,5 +172,6 @@ private:
 
 }}
 
+#include <corokafka/impl/corokafka_producer_configuration_impl.h>
 
 #endif //BLOOMBERG_COROKAFKA_PRODUCER_CONFIGURATION_H

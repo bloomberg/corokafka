@@ -13,171 +13,183 @@
 ** See the License for the specific language governing permissions and
 ** limitations under the License.
 */
-#ifndef BLOOMBERG_COROKAFKA_HEADER_MAP_H
-#define BLOOMBERG_COROKAFKA_HEADER_MAP_H
+#ifndef BLOOMBERG_COROKAFKA_HEADER_PACK_H
+#define BLOOMBERG_COROKAFKA_HEADER_PACK_H
 
 #include <corokafka/corokafka_utils.h>
+#include <corokafka/corokafka_header_ref.h>
 #include <boost/any.hpp>
 #include <string>
 #include <map>
 #include <deque>
 #include <iterator>
+#include <initializer_list>
 
 namespace Bloomberg {
 namespace corokafka {
 
-template <typename HEADER>
-class HeaderRef
-{
-public:
-    HeaderRef(const std::string& name,
-              HEADER value) :
-        _name(name),
-        _value(std::forward<HEADER>(value))
-    {}
-    const std::string& name() const { return _name; }
-    HEADER value() const { return std::forward<HEADER>(_value); }
-private:
-    const std::string& _name;
-    HEADER             _value;
-};
-
+/**
+ * @brief The HeaderPack class wraps the functionality of rdkafka message headers.
+ *        The message header pack behaves essentially like a vector and the application can insert, view
+ *        or delete headers at will using a vector-like syntax. Message headers are indexed either by
+ *        name or by position in the list, however names are not unique in which case an index can be
+ *        specified to differentiate.
+ */
 class HeaderPack
 {
+    friend class ConsumerManagerImpl;
 public:
     using HeaderNode = std::pair<std::string, boost::any>;
     using ListType = std::deque<HeaderNode>;
     
-    HeaderPack& push_front(const std::string& name, boost::any&& header) {
-        if (name.empty()) {
-            throw std::invalid_argument("Header name cannot be empty");
-        }
-        _headers.emplace_front(name, std::move(header));
-        return *this;
-    }
+    /**
+     * @brief Creates an empty header pack.
+     */
+    HeaderPack() = default;
     
-    HeaderPack& push_front(const std::string& name, const char* header) {
-        return push_front(name, boost::any(std::string(header)));
-    }
+    /**
+     * @brief Initialize the HeaderPack with a list of headers.
+     * @param list The initializer list
+     */
+    HeaderPack(std::initializer_list<HeaderNode> list);
     
+    /**
+     * @brief Add a header to the front of the pack.
+     * @param name The header name.
+     * @param header The header.
+     * @return
+     */
     template <typename H>
-    HeaderPack& push_front(const std::string& name, H&& header) {
-        return push_front(name, boost::any(std::forward<H>(header)));
-    }
+    HeaderPack& push_front(const std::string& name, H&& header);
     
-    HeaderPack& push_back(const std::string& name, boost::any&& header) {
-        if (name.empty()) {
-            throw std::invalid_argument("Header name cannot be empty");
-        }
-        _headers.emplace_back(name, std::move(header));
-        return *this;
-    }
-    
-    HeaderPack& push_back(const std::string& name, const char* header) {
-        return push_back(name, boost::any(std::string(header)));
-    }
-    
+    /**
+     * @brief Add a header to the back of the pack.
+     * @param name The header name.
+     * @param header The header.
+     * @return
+     */
     template <typename H>
-    HeaderPack& push_back(const std::string& name, H&& header) {
-        return push_back(name, boost::any(std::forward<H>(header)));
-    }
+    HeaderPack& push_back(const std::string& name, H&& header);
     
+    /**
+     * @brief Remove a header from the front of the pack.
+     * @return A reference to the header pack.
+     */
+    HeaderPack& pop_front();
+    
+    /**
+     * @brief Remove a header from the back of the pack.
+     * @return A reference to the header pack.
+     */
+    HeaderPack& pop_back();
+    
+    /**
+     * @brief Delete the header.
+     * @param name The name of the header.
+     */
+    void erase(const std::string& name);
+    
+    /**
+     * @brief Get the size of the pack.
+     * @return The size.
+     */
+    size_t size() const;
+    
+    /**
+     * @brief Check if this pack is empty.
+     * @return True if empty, false otherwise.
+     */
+    bool empty() const;
+    
+    /**
+     * @brief If true, the pack contains headers
+     */
+    explicit operator bool() const;
+    
+    /**
+     * @brief Iterator to the beginning of the header pack.
+     * @return An header iterator.
+     * @remark If the pack is empty, begin()==end()
+     */
+    ListType::iterator begin();
+    
+    /**
+     * @brief Const iterator to the beginning of the header pack.
+     * @return An header const iterator.
+     * @remark If the pack is empty, cbegin()==cend()
+     */
+    ListType::const_iterator cbegin() const;
+    
+    /**
+     * @brief Iterator to the end of the header pack.
+     * @return An header iterator.
+     */
+    ListType::iterator end();
+    
+    /**
+     * @brief Const iterator to the end of the header pack.
+     * @return An header const iterator.
+     */
+    ListType::const_iterator cend() const;
+    
+    /**
+     * @brief Get all the header names.
+     * @return A vector containing the names.
+     */
+    std::vector<std::string> getHeaderNames() const;
+    
+    /**
+     * @brief Get the header by name.
+     * @tparam H The header type.
+     * @param name The name of the header.
+     * @param nameIndex (optional) The index of the header name if not unique. If not specified (i.e. == -1) the first
+     *                  header matching this name is returned.
+     * @return The header object.
+     */
     template <typename H>
-    HeaderPack& pop_front() {
-        _headers.pop_front();
-        return *this;
-    }
+    const H& get(const std::string& name, int nameIndex = -1) const &;
     
+    /**
+     * @brief Non-const version of the above.
+     */
     template <typename H>
-    HeaderPack& pop_back() {
-        _headers.pop_back();
-        return *this;
-    }
+    H& get(const std::string& name, int nameIndex = -1) &;
     
-    void erase(const std::string& name) {
-        _headers.erase(std::remove_if(_headers.begin(), _headers.end(), [&name](const HeaderNode& entry)->bool {
-            return StringEqualCompare()(entry.first, name);
-        }), _headers.end());
-    }
-    
-    size_t size() const {
-        return _headers.size();
-    }
-    
-    bool empty() const {
-        return _headers.size() == 0;
-    }
-    
-    explicit operator bool() const {
-        return !empty();
-    }
-    
-    // Iterator access to underlying container
-    ListType::iterator begin() { return _headers.begin(); }
-    ListType::const_iterator cbegin() const { return _headers.cbegin(); }
-    ListType::iterator end() { return _headers.end(); }
-    ListType::const_iterator cend() const { return _headers.cend(); }
-    
-    std::vector<std::string> getHeaderNames() const {
-        std::vector<std::string> names;
-        names.reserve(size());
-        for (const auto& header : _headers) {
-            names.emplace_back(header.first);
-        }
-        return names;
-    }
-    
+    /**
+     * @brief Move-able version of the above.
+     */
     template <typename H>
-    const H& get(const std::string& name, size_t nameIndex = 0) const & {
-        return boost::any_cast<const H&>(getImpl(name, nameIndex)->second);
-    }
+    H&& get(const std::string& name, int nameIndex = -1) &&;
     
+    /**
+     * @brief Header accessors by index.
+     * @tparam H The header type.
+     * @param index The index where the header is at (>= 0).
+     * @return A header reference wrapper..
+     */
     template <typename H>
-    H& get(const std::string& name, size_t nameIndex = 0) & {
-        return boost::any_cast<H&>(getImpl(name, nameIndex)->second);
-    }
+    HeaderRef<const H&> getAt(int index) const &;
     
+    /**
+     * @brief Non-const version of the above.
+     */
     template <typename H>
-    H&& get(const std::string& name, size_t nameIndex = 0) && {
-        auto it = getImpl(name, nameIndex);
-        return boost::any_cast<H&&>(std::move(it->second));
-    }
+    HeaderRef<H&> getAt(int index) &;
     
+    /**
+     * @brief Move-able version of the above.
+     */
     template <typename H>
-    HeaderRef<const H&> getAt(size_t index) const & {
-        auto entry = _headers.at(index);
-        return HeaderRef<const H&>(entry.first, boost::any_cast<const H&>(entry.second));
-    }
-    
-    template <typename H>
-    HeaderRef<H&> getAt(size_t index) & {
-        auto entry = _headers.at(index);
-        return HeaderRef<H&>(entry.first, boost::any_cast<H&>(entry.second));
-    }
-    
-    template <typename H>
-    HeaderRef<H&&> getAt(size_t index) && {
-        auto entry = _headers.at(index);
-        return HeaderRef<H&&>(entry.first, boost::any_cast<H&&>(std::move(entry.second)));
-    }
+    HeaderRef<H&&> getAt(int index) &&;
     
 private:
-    ListType::const_iterator getImpl(const std::string& name, size_t nameIndex) const {
-        return const_cast<HeaderPack*>(this)->getImpl(name, nameIndex);
-    }
+    HeaderPack& push_front(const std::string& name, boost::any&& header);
     
-    ListType::iterator getImpl(const std::string& name, size_t nameIndex) {
-        if (nameIndex >= _headers.size()) {
-            throw std::out_of_range("Invalid position");
-        }
-        size_t index = -1;
-        return std::find_if(_headers.begin(), _headers.end(), [&](const HeaderNode& entry)->bool {
-            if (StringEqualCompare()(entry.first, name)) {
-                return (++index == nameIndex);
-            }
-            return false;
-        });
-    }
+    HeaderPack& push_back(const std::string& name, boost::any&& header);
+    
+    ListType::const_iterator getImpl(const std::string& name, int nameIndex) const;
+    
+    ListType::iterator getImpl(const std::string& name, int nameIndex);
     
     // Members
     ListType    _headers;
@@ -187,4 +199,6 @@ private:
 }
 }
 
-#endif //BLOOMBERG_COROKAFKA_HEADER_MAP_H
+#include <corokafka/impl/corokafka_header_pack_impl.h>
+
+#endif //BLOOMBERG_COROKAFKA_HEADER_PACK_H

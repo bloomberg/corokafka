@@ -88,7 +88,7 @@ void ConsumerConfiguration::assignInitialPartitions(PartitionStrategy strategy,
     _initialPartitionList = std::move(partitions);
 }
 
-void ConsumerConfiguration::setCallback(Callbacks::OffsetCommitCallback callback)
+void ConsumerConfiguration::setOffsetCommitCallback(Callbacks::OffsetCommitCallback callback)
 {
     _offsetCommitCallback = std::move(callback);
 }
@@ -98,9 +98,9 @@ const Callbacks::OffsetCommitCallback& ConsumerConfiguration::getOffsetCommitCal
     return _offsetCommitCallback;
 }
 
-void ConsumerConfiguration::setCallback(Callbacks::RebalanceCallback callback)
+void ConsumerConfiguration::setRebalanceCallback(Callbacks::RebalanceCallback callback)
 {
-    _rebalanceCallback = std::move(callback);;
+    _rebalanceCallback = std::move(callback);
 }
 
 const Callbacks::RebalanceCallback& ConsumerConfiguration::getRebalanceCallback() const
@@ -108,7 +108,7 @@ const Callbacks::RebalanceCallback& ConsumerConfiguration::getRebalanceCallback(
     return _rebalanceCallback;
 }
 
-void ConsumerConfiguration::setCallback(Callbacks::PreprocessorCallback callback)
+void ConsumerConfiguration::setPreprocessorCallback(Callbacks::PreprocessorCallback callback)
 {
     _preprocessorCallback = std::move(callback);
 }
@@ -129,7 +129,7 @@ const Receiver& ConsumerConfiguration::getReceiver() const
 const Deserializer& ConsumerConfiguration::getKeyDeserializer() const
 {
     if (!_keyDeserializer) {
-        throw std::runtime_error("Deserializer not set");
+        throw std::runtime_error("Key deserializer not set");
     }
     return *_keyDeserializer;
 }
@@ -137,14 +137,18 @@ const Deserializer& ConsumerConfiguration::getKeyDeserializer() const
 const Deserializer& ConsumerConfiguration::getPayloadDeserializer() const
 {
     if (!_payloadDeserializer) {
-        throw std::runtime_error("Deserializer not set");
+        throw std::runtime_error("Payload deserializer not set");
     }
     return *_payloadDeserializer;
 }
 
 const Deserializer& ConsumerConfiguration::getHeaderDeserializer(const std::string& name) const
 {
-    return *_headerDeserializers.at(name);
+    auto it = _headerDeserializers.find(name);
+    if (it == _headerDeserializers.end()) {
+        throw std::runtime_error("Header deserializer not set for " + name);
+    }
+    return *it->second;
 }
 
 }

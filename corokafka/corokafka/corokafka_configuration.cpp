@@ -216,22 +216,22 @@ const Configuration::Options& Configuration::getTopicOptions(OptionType type) co
     return _topicOptions[(int)type];
 }
 
-void Configuration::setCallback(Callbacks::ErrorCallback callback)
+void Configuration::setErrorCallback(Callbacks::ErrorCallback callback)
 {
     _errorCallback = std::move(callback);
 }
 
-void Configuration::setCallback(Callbacks::ThrottleCallback callback)
+void Configuration::setThrottleCallback(Callbacks::ThrottleCallback callback)
 {
     _throttleCallback = std::move(callback);
 }
 
-void Configuration::setCallback(Callbacks::LogCallback callback)
+void Configuration::setLogCallback(Callbacks::LogCallback callback)
 {
     _logCallback = std::move(callback);
 }
 
-void Configuration::setCallback(Callbacks::StatsCallback callback)
+void Configuration::setStatsCallback(Callbacks::StatsCallback callback)
 {
     _statsCallback = std::move(callback);
 }
@@ -286,10 +286,12 @@ const ConfigurationOption* Configuration::findOption(const std::string& name,
 
 void Configuration::filterOptions()
 {
+    static const std::string brokerList = "metadata.broker.list";
     const std::string& internalOptionsPrefix = (_type == KafkaType::Producer) ?
         ProducerConfiguration::s_internalOptionsPrefix : ConsumerConfiguration::s_internalOptionsPrefix;
+    bool hasBrokerList = false;
     
-    auto parse = [&internalOptionsPrefix](const OptionSet& allowed, Options& internal, Options& external, const Options& config)
+    auto parse = [&internalOptionsPrefix, &hasBrokerList](const OptionSet& allowed, bool checkBrokerList, Options& internal, Options& external, const Options& config)
     {
         if (!allowed.empty()) {
             for (const auto& option : config) {
@@ -305,6 +307,9 @@ void Configuration::filterOptions()
                 }
                 else {
                     //rdkafka option
+                    if (checkBrokerList) {
+                        hasBrokerList = StringEqualCompare()(option.get_key(), brokerList);
+                    }
                     external.emplace_back(option);
                 }
             }
@@ -319,6 +324,7 @@ void Configuration::filterOptions()
     const OptionSet& internalOptions = (_type == KafkaType::Producer) ?
         ProducerConfiguration::s_internalOptions : ConsumerConfiguration::s_internalOptions;
     parse(internalOptions,
+          true,
           _options[(int)OptionType::Internal],
           _options[(int)OptionType::RdKafka],
           _options[(int)OptionType::All]);
@@ -327,9 +333,23 @@ void Configuration::filterOptions()
     const OptionSet& internalTopicOptions = (_type == KafkaType::Producer) ?
         ProducerConfiguration::s_internalTopicOptions : ConsumerConfiguration::s_internalTopicOptions;
     parse(internalTopicOptions,
+          false,
           _topicOptions[(int)OptionType::Internal],
           _topicOptions[(int)OptionType::RdKafka],
           _topicOptions[(int)OptionType::All]);
+    
+    if (!hasBrokerList) {
+        std::stringstream oss;
+        oss << "Broker list not specified for topic '" << _topic;
+        oss << "'. Please add 'metadata.broker.list' to the options specified for this ";
+        if (_type == KafkaType::Producer) {
+            oss << "producer.";
+        }
+        else {
+            oss << "consumer.";
+        }
+        throw std::runtime_error(oss.str());
+    }
 }
 
 }

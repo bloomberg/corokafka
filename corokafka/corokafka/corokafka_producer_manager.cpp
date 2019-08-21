@@ -60,11 +60,6 @@ void ProducerManager::resetQueueFullTrigger(const std::string& topic)
     return _impl->resetQueueFullTrigger(topic);
 }
 
-void ProducerManager::waitForAcks(const std::string& topic)
-{
-    _impl->waitForAcks(topic);
-}
-
 void ProducerManager::waitForAcks(const std::string& topic,
                                   std::chrono::milliseconds timeout)
 {

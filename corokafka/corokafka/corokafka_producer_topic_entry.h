@@ -64,7 +64,7 @@ struct ProducerTopicEntry : TopicEntry {
     ProducerConfiguration               _configuration;
     ProducerPtr                         _producer;
     size_t                              _topicHash{0};
-    quantum::ThreadFuture<int>::Ptr     _pollFuture{nullptr};
+    quantum::ThreadFuturePtr<int>       _pollFuture{nullptr};
     bool                                _waitForAcks{false};
     bool                                _flushWaitForAcks{rd_kafka_version() >= RD_KAFKA_ZERO_TIMEOUT_FLUSH_FIX ? false : true};
     std::chrono::milliseconds           _waitForAcksTimeout{0};

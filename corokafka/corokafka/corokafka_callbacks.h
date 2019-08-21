@@ -72,16 +72,16 @@ struct Callbacks {
     using PreprocessorCallback = std::function<bool(TopicPartition hint)>;
     
     template <typename T>
-    using KeyDeserializerCallback = typename ConcreteDeserializer<T>::Callback;
+    using KeyDeserializerCallback = std::function<T(const Buffer& buffer)>;
     
     template <typename T>
-    using HeaderDeserializerCallback = typename ConcreteDeserializer<T>::Callback;
+    using HeaderDeserializerCallback = std::function<T(const Buffer& buffer)>;
     
     template <typename T>
-    using PayloadDeserializerCallback = typename ConcreteDeserializerWithHeaders<T>::Callback;
+    using PayloadDeserializerCallback = std::function<T(const HeaderPack&, const Buffer&)>;
     
     template <typename K, typename P>
-    using ReceiverCallback = typename ConcreteReceiver<K,P>::Callback;
+    using ReceiverCallback = std::function<void(ReceivedMessage<K,P>)>;
     
     // ============================================== PRODUCER =========================================================
     using DeliveryReportCallback = std::function<void(const ProducerMetadata& metadata,
@@ -95,13 +95,13 @@ struct Callbacks {
                                                  const SentMessage& message)>;
     
     template <typename T>
-    using KeySerializerCallback = typename ConcreteSerializer<T>::Callback;
+    using KeySerializerCallback = std::function<ByteArray(const T&)>;
     
     template <typename T>
-    using HeaderSerializerCallback = typename ConcreteSerializer<T>::Callback;
+    using HeaderSerializerCallback = std::function<ByteArray(const T&)>;
     
     template <typename T>
-    using PayloadSerializerCallback = typename ConcreteSerializerWithHeaders<T>::Callback;
+    using PayloadSerializerCallback = std::function<ByteArray(const HeaderPack&, const T&)>;
 };
 
 }}
