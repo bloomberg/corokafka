@@ -1,3 +1,10 @@
+corokafka (0.2.0.33) unstable; urgency=low
+
+  * 996067f Merge branch 'master' of bbgithub.dev.bloomberg.com:eor/corokafka
+  * 22c969f Changelog for version 0.2.0.32
+
+ -- Alexander Damian <adamian@bloomberg.net>  Thu, 22 Aug 2019 17:49:39 -0400
+
 corokafka (0.2.0.32) unstable; urgency=low
 
   * 3182202 Fixed header include for cpp file
