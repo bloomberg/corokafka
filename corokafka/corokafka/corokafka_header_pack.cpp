@@ -13,9 +13,6 @@
 ** See the License for the specific language governing permissions and
 ** limitations under the License.
 */
-#ifndef BLOOMBERG_COROKAFKA_HEADER_MAP_H
-#define BLOOMBERG_COROKAFKA_HEADER_MAP_H
-
 #include <corokafka/corokafka_header_pack.h>
 
 namespace Bloomberg {
@@ -118,5 +115,3 @@ HeaderPack::ListType::iterator HeaderPack::getImpl(const std::string& name, int 
 
 }
 }
-
-#endif //BLOOMBERG_COROKAFKA_HEADER_PACK_IMPL_H
