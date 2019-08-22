@@ -83,6 +83,12 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
         throw std::runtime_error(std::string("Receiver callback not specified for topic consumer: ") + topic);
     }
     
+    const ConfigurationOption* brokerList =
+        Configuration::findOption("metadata.broker.list", rdKafkaOptions);
+    if (!brokerList) {
+        throw std::runtime_error(std::string("Consumer broker list not found. Please set 'metadata.broker.list' for topic ") + topic);
+    }
+    
     //Set the rdkafka configuration options
     KafkaConfiguration kafkaConfig(rdKafkaOptions);
     kafkaConfig.set_default_topic_configuration(TopicConfiguration(rdKafkaTopicOptions));

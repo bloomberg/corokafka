@@ -115,6 +115,12 @@ void ProducerManagerImpl::setup(const std::string& topic, ProducerTopicEntry& to
         throw std::runtime_error(std::string("Payload serializer callback not specified for topic producer: ") + topic);
     }
     
+    const ConfigurationOption* brokerList =
+        Configuration::findOption("metadata.broker.list", rdKafkaOptions);
+    if (!brokerList) {
+        throw std::runtime_error(std::string("Producer broker list not found. Please set 'metadata.broker.list' for topic ") + topic);
+    }
+    
     //Set the rdkafka configuration options
     KafkaConfiguration kafkaConfig(rdKafkaOptions);
     TopicConfiguration topicConfig(rdKafkaTopicOptions);
