@@ -1,3 +1,9 @@
+corokafka (0.2.0.31) unstable; urgency=low
+
+  * f1d96a1 Moved validation for broker list into the consumer/producer setup
+
+ -- Alexander Damian <adamian@bloomberg.net>  Thu, 22 Aug 2019 17:05:07 -0400
+
 corokafka (0.2.0.30) unstable; urgency=low
 
   * b0ae462 Merge pull request #17 from adamian/master
