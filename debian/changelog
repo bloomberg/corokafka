@@ -1,3 +1,9 @@
+corokafka (0.2.0.34) unstable; urgency=low
+
+  * 59cb536 Added support for producing messages while inside a coroutine context. This prevents the thread from blocking
+
+ -- Alexander Damian <adamian@bloomberg.net>  Fri, 13 Sep 2019 11:13:14 -0400
+
 corokafka (0.2.0.33) unstable; urgency=low
 
   * 996067f Merge branch 'master' of bbgithub.dev.bloomberg.com:eor/corokafka
