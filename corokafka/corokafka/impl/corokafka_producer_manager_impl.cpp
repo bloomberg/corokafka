@@ -596,8 +596,7 @@ void ProducerManagerImpl::adjustThrottling(ProducerTopicEntry& topicEntry,
     }
 }
 
-int ProducerManagerImpl::pollTask(quantum::ThreadPromise<int>::Ptr promise,
-                                  ProducerTopicEntry& entry)
+int ProducerManagerImpl::pollTask(ProducerTopicEntry& entry)
 {
     try {
         if (entry._forceSyncFlush || entry._preserveMessageOrder) {
@@ -607,16 +606,15 @@ int ProducerManagerImpl::pollTask(quantum::ThreadPromise<int>::Ptr promise,
         else {
             flush(entry);
         }
-        return promise->set(0);
+        return 0;
     }
     catch(const std::exception& ex) {
         exceptionHandler(ex, entry);
-        return promise->set(-1);
+        return -1;
     }
 }
 
-int ProducerManagerImpl::produceTask(quantum::ThreadPromise<int>::Ptr promise,
-                                     ProducerTopicEntry& entry,
+int ProducerManagerImpl::produceTask(ProducerTopicEntry& entry,
                                      ConcreteMessageBuilder<ByteArray>&& builder)
 {
     try {
@@ -628,11 +626,11 @@ int ProducerManagerImpl::produceTask(quantum::ThreadPromise<int>::Ptr promise,
             // Post directly to internal RdKafka outbound queue
             produceMessage(entry, builder);
         }
-        return promise->set(0);
+        return 0;
     }
     catch(const std::exception& ex) {
         exceptionHandler(ex, entry);
-        return promise->set(-1);
+        return -1;
     }
 }
 
@@ -691,15 +689,12 @@ ProducerManagerImpl::serializeMessage(ProducerTopicEntry& entry,
             }
             builder.header(Header<ByteArray>(it->first, std::move(packedHeader)));
         }
-        catch (const std::out_of_range&) {
-            std::ostringstream oss;
-            oss << "No serializer found for header: " << it->first;
-            const std::string what(oss.str());
+        catch (const std::exception& ex) {
             if (entry._skipUnknownHeaders) {
-                report(entry, LogLevel::LogDebug, 0, what, opaque);
+                report(entry, LogLevel::LogWarning, 0, ex.what(), opaque);
                 continue;
             }
-            report(entry, LogLevel::LogErr, RD_KAFKA_RESP_ERR__NOENT, what, opaque);
+            report(entry, LogLevel::LogErr, RD_KAFKA_RESP_ERR__NOT_IMPLEMENTED, ex.what(), opaque);
             return {""};
         }
     }

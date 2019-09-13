@@ -853,20 +853,19 @@ size_t ConsumerManagerImpl::getConsumerBatchSize() const
     return _batchSize;
 }
 
-int ConsumerManagerImpl::messageBatchReceiveTask(quantum::ThreadPromise<std::vector<Message>>::Ptr promise,
-                                                 ConsumerTopicEntry& entry)
+std::vector<Message> ConsumerManagerImpl::messageBatchReceiveTask(ConsumerTopicEntry& entry)
 {
     try {
         if (entry._pollTimeout.count() == -1) {
-            return promise->set(entry._consumer->poll_batch(entry._batchSize));
+            return entry._consumer->poll_batch(entry._batchSize);
         }
         else {
-            return promise->set(entry._consumer->poll_batch(entry._batchSize, entry._pollTimeout));
+            return entry._consumer->poll_batch(entry._batchSize, entry._pollTimeout);
         }
     }
     catch (const std::exception& ex) {
         exceptionHandler(ex, entry);
-        return -1;
+        throw ex;
     }
 }
 
@@ -941,18 +940,15 @@ ConsumerManagerImpl::deserializeMessage(ConsumerTopicEntry& entry,
             }
             headers.push_back(it->get_name(), std::move(header));
         }
-        catch (const std::out_of_range&) {
-            std::ostringstream oss;
-            oss << "No deserializer found for header: " << it->get_name();
-            std::string what = oss.str();
+        catch (const std::exception& ex) {
             if (entry._skipUnknownHeaders) {
-                report(entry, LogLevel::LogWarning, 0, what, kafkaMessage);
+                report(entry, LogLevel::LogWarning, 0, ex.what(), kafkaMessage);
                 continue;
             }
-            de._error = RD_KAFKA_RESP_ERR__NOENT;
+            de._error = RD_KAFKA_RESP_ERR__NOT_IMPLEMENTED;
             de._source |= (uint8_t)DeserializerError::Source::Header;
             de._headerNum = num;
-            report(entry, LogLevel::LogErr, RD_KAFKA_RESP_ERR__NOENT, what, kafkaMessage);
+            report(entry, LogLevel::LogErr, RD_KAFKA_RESP_ERR__NOT_IMPLEMENTED, ex.what(), kafkaMessage);
             break;
         }
         ++num;
@@ -973,7 +969,8 @@ ConsumerManagerImpl::deserializeMessage(ConsumerTopicEntry& entry,
     return DeserializedMessage(std::move(key), std::move(payload), std::move(headers), de);
 }
 
-int ConsumerManagerImpl::deserializeCoro(quantum::CoroContext<DeserializedMessage>::Ptr ctx,
+ConsumerManagerImpl::DeserializedMessage ConsumerManagerImpl::deserializeCoro(
+                                         quantum::VoidContextPtr ctx,
                                          ConsumerTopicEntry& entry,
                                          const Message& kafkaMessage)
 {
@@ -994,15 +991,15 @@ int ConsumerManagerImpl::deserializeCoro(quantum::CoroContext<DeserializedMessag
             DeserializedMessage dm;
             std::get<3>(dm)._error = RD_KAFKA_RESP_ERR__BAD_MSG;
             std::get<3>(dm)._source |= (uint8_t)DeserializerError::Source::Preprocessor;
-            return ctx->set(dm);
+            return dm;
         }
     }
     // Deserialize the message
-    return ctx->set(deserializeMessage(entry, kafkaMessage));
+    return deserializeMessage(entry, kafkaMessage);
 }
 
 std::vector<bool> ConsumerManagerImpl::executePreprocessorCallbacks(
-                                              quantum::CoroContext<std::vector<DeserializedMessage>>::Ptr ctx,
+                                              quantum::VoidContextPtr ctx,
                                               ConsumerTopicEntry& entry,
                                               const std::vector<Message>& messages)
 {
@@ -1026,7 +1023,7 @@ std::vector<bool> ConsumerManagerImpl::executePreprocessorCallbacks(
         }
         int ioQueueId = i + entry._receiveCallbackThreadRange.first;
         futures.emplace_back(ctx->postAsyncIo(ioQueueId, false,
-            [&entry, &skipMessages, batchIndex, batchSize, inputIt](quantum::ThreadPromisePtr<int>) mutable ->int
+            [&entry, &skipMessages, batchIndex, batchSize, inputIt]() mutable ->int
         {
             for (size_t j = batchIndex; j < (batchIndex + batchSize) && entry._preprocess; ++j, ++inputIt) {
                 skipMessages[j] = entry._preprocessorCallback(TopicPartition(inputIt->get_topic(),
@@ -1047,9 +1044,10 @@ std::vector<bool> ConsumerManagerImpl::executePreprocessorCallbacks(
     return skipMessages;
 }
 
-int ConsumerManagerImpl::deserializeBatchCoro(quantum::CoroContext<std::vector<DeserializedMessage>>::Ptr ctx,
-                                              ConsumerTopicEntry& entry,
-                                              const std::vector<Message>& messages)
+std::vector<ConsumerManagerImpl::DeserializedMessage>
+ConsumerManagerImpl::deserializeBatchCoro(quantum::VoidContextPtr ctx,
+                                          ConsumerTopicEntry& entry,
+                                          const std::vector<Message>& messages)
 {
     std::vector<bool> skipMessages;
     if (entry._configuration.getPreprocessorCallback() && entry._preprocess) {
@@ -1112,7 +1110,7 @@ int ConsumerManagerImpl::deserializeBatchCoro(quantum::CoroContext<std::vector<D
     for (auto&& f : futures) {
         f->wait(ctx);
     }
-    return ctx->set(std::move(deserializedMessages));
+    return deserializedMessages;
 }
 
 int ConsumerManagerImpl::invokeReceiver(ConsumerTopicEntry& entry,
@@ -1131,16 +1129,16 @@ int ConsumerManagerImpl::invokeReceiver(ConsumerTopicEntry& entry,
     return 0;
 }
 
-int ConsumerManagerImpl::receiverTask(quantum::ThreadPromise<int>::Ptr promise,
-                                      ConsumerTopicEntry& entry,
+int ConsumerManagerImpl::receiverTask(ConsumerTopicEntry& entry,
                                       Message&& kafkaMessage,
                                       DeserializedMessage&& deserializedMessage)
 {
-    return promise->set(invokeReceiver(entry, std::move(kafkaMessage), std::move(deserializedMessage)));
+    return invokeReceiver(entry, std::move(kafkaMessage), std::move(deserializedMessage));
 }
 
-int ConsumerManagerImpl::pollCoro(quantum::CoroContext<std::deque<MessageTuple>>::Ptr ctx,
-                                  ConsumerTopicEntry& entry)
+std::deque<ConsumerManagerImpl::MessageTuple>
+ConsumerManagerImpl::pollCoro(quantum::VoidContextPtr ctx,
+                              ConsumerTopicEntry& entry)
 {
     try {
         using MessageTuple = std::tuple<Message, quantum::CoroContext<DeserializedMessage>::Ptr>;
@@ -1163,15 +1161,15 @@ int ConsumerManagerImpl::pollCoro(quantum::CoroContext<std::deque<MessageTuple>>
             }
         }
         // Pass the message queue to the processor coroutine
-        return ctx->set(std::move(messageQueue));
+        return messageQueue;
     }
     catch (const std::exception& ex) {
         exceptionHandler(ex, entry);
-        return -1;
+        throw ex;
     }
 }
 
-void ConsumerManagerImpl::processMessageBatchOnIoThreads(quantum::CoroContext<int>::Ptr ctx,
+void ConsumerManagerImpl::processMessageBatchOnIoThreads(quantum::VoidContextPtr ctx,
                                                          ConsumerTopicEntry& entry,
                                                          std::vector<Message>&& raw,
                                                          std::vector<DeserializedMessage>&& deserializedMessages)
@@ -1230,11 +1228,11 @@ void ConsumerManagerImpl::processMessageBatchOnIoThreads(quantum::CoroContext<in
     }
 }
 
-int ConsumerManagerImpl::pollBatchCoro(quantum::CoroContext<int>::Ptr ctx,
+int ConsumerManagerImpl::pollBatchCoro(quantum::VoidContextPtr ctx,
                                        ConsumerTopicEntry& entry)
 {
     try{
-        // get the messages from the prefetch future, or
+        // get the messages from the prefetched future, or
         std::vector<Message> raw;
         if (entry._batchPrefetch)
         {
@@ -1261,7 +1259,7 @@ int ConsumerManagerImpl::pollBatchCoro(quantum::CoroContext<int>::Ptr ctx,
         else {
             invokeSingleBatchReceiver(entry, std::move(raw), std::move(deserializedMessages));
         }
-        return ctx->set(0);
+        return 0;
     }
     catch (const std::exception& ex) {
         exceptionHandler(ex, entry);
@@ -1269,8 +1267,7 @@ int ConsumerManagerImpl::pollBatchCoro(quantum::CoroContext<int>::Ptr ctx,
     }
 }
                                   
-int ConsumerManagerImpl::receiverMultipleBatchesTask(quantum::ThreadPromise<int>::Ptr promise,
-                                                     ConsumerTopicEntry& entry,
+int ConsumerManagerImpl::receiverMultipleBatchesTask(ConsumerTopicEntry& entry,
                                                      ReceivedBatch&& messageBatch)
 {
     for (auto&& messageTuple : messageBatch) {
@@ -1284,7 +1281,7 @@ int ConsumerManagerImpl::receiverMultipleBatchesTask(quantum::ThreadPromise<int>
              std::get<3>(std::get<1>(std::move(messageTuple))), //error
              makeOffsetPersistSettings(entry));
     }
-    return promise->set(0);
+    return 0;
 }
 
 int ConsumerManagerImpl::invokeSingleBatchReceiver(ConsumerTopicEntry& entry,
@@ -1313,33 +1310,31 @@ int ConsumerManagerImpl::invokeSingleBatchReceiver(ConsumerTopicEntry& entry,
     return 0;
 }
 
-int ConsumerManagerImpl::receiverSingleBatchTask(quantum::ThreadPromise<int>::Ptr promise,
-                                                 ConsumerTopicEntry& entry,
+int ConsumerManagerImpl::receiverSingleBatchTask(ConsumerTopicEntry& entry,
                                                  std::vector<Message>&& rawMessages,
                                                  std::vector<DeserializedMessage>&& deserializedMessages)
 {
-    return promise->set(invokeSingleBatchReceiver(entry, std::move(rawMessages), std::move(deserializedMessages)));
+    return invokeSingleBatchReceiver(entry, std::move(rawMessages), std::move(deserializedMessages));
 }
 
-int ConsumerManagerImpl::preprocessorTask(quantum::ThreadPromise<bool>::Ptr promise,
-                                          ConsumerTopicEntry& entry,
-                                          const Message& kafkaMessage)
+bool ConsumerManagerImpl::preprocessorTask(ConsumerTopicEntry& entry,
+                                           const Message& kafkaMessage)
 {
-    return promise->set(entry._preprocessorCallback(TopicPartition(kafkaMessage.get_topic(),
-                                                    kafkaMessage.get_partition(),
-                                                    kafkaMessage.get_offset())));
+    return entry._preprocessorCallback(TopicPartition(kafkaMessage.get_topic(),
+                                       kafkaMessage.get_partition(),
+                                       kafkaMessage.get_offset()));
 }
 
-int ConsumerManagerImpl::processorCoro(quantum::CoroContext<int>::Ptr ctx,
+int ConsumerManagerImpl::processorCoro(quantum::VoidContextPtr ctx,
                                        ConsumerTopicEntry& entry)
 {
-    try {
-        //Get the polled messages from the previous stage (non-blocking)
-        std::deque<MessageTuple> messageQueue = ctx->getPrev<std::deque<MessageTuple>>();
-        
-        // Enqueue all messages and wait for completion
-        for (auto& messageTuple : messageQueue) {
-            auto& message = std::get<0>(messageTuple);
+    //Get the polled messages from the previous stage (non-blocking)
+    std::deque<MessageTuple> messageQueue = ctx->getPrev<std::deque<MessageTuple>>();
+    
+    // Enqueue all messages and wait for completion
+    for (auto& messageTuple : messageQueue) {
+        try {
+            auto &message = std::get<0>(messageTuple);
             auto deserializedFuture = std::get<1>(messageTuple);
             if (entry._receiveOnIoThread) {
                 // Find out on which IO thread we should process this message
@@ -1363,12 +1358,11 @@ int ConsumerManagerImpl::processorCoro(quantum::CoroContext<int>::Ptr ctx,
                                deserializedFuture ? deserializedFuture->get(ctx) : DeserializedMessage());
             }
         }
-        return 0;
+        catch (const std::exception& ex) {
+            exceptionHandler(ex, entry);
+        }
     }
-    catch (const std::exception& ex) {
-        exceptionHandler(ex, entry);
-        return -1;
-    }
+    return 0;
 }
 
 void ConsumerManagerImpl::exceptionHandler(const std::exception& ex,

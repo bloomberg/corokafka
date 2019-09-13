@@ -137,52 +137,50 @@ private:
                           const std::chrono::steady_clock::time_point& now);
     
     //Coroutines and async IO
-    static int messageBatchReceiveTask(quantum::ThreadPromise<std::vector<Message>>::Ptr promise,
-                                  ConsumerTopicEntry& entry);
+    static std::vector<Message> messageBatchReceiveTask(ConsumerTopicEntry& entry);
     static int messageRoundRobinReceiveTask(quantum::ThreadPromise<MessageContainer>::Ptr promise,
                                             ConsumerTopicEntry& entry);
-    static int deserializeCoro(quantum::CoroContext<DeserializedMessage>::Ptr ctx,
-                               ConsumerTopicEntry& entry,
-                               const Message& kafkaMessage);
+    static DeserializedMessage deserializeCoro(
+                                quantum::VoidContextPtr ctx,
+                                ConsumerTopicEntry& entry,
+                                const Message& kafkaMessage);
     static std::vector<bool> executePreprocessorCallbacks(
-                                  quantum::CoroContext<std::vector<DeserializedMessage>>::Ptr ctx,
+                                  quantum::VoidContextPtr ctx,
                                   ConsumerTopicEntry& entry,
                                   const std::vector<Message>& messages);
-    static int deserializeBatchCoro(quantum::CoroContext<std::vector<DeserializedMessage>>::Ptr ctx,
+    static std::vector<DeserializedMessage> deserializeBatchCoro(
+                                    quantum::VoidContextPtr ctx,
                                     ConsumerTopicEntry& entry,
                                     const std::vector<Message>& messages);
-    static int pollCoro(quantum::CoroContext<std::deque<MessageTuple>>::Ptr ctx,
+    static std::deque<MessageTuple> pollCoro(
+                        quantum::VoidContextPtr ctx,
                         ConsumerTopicEntry& entry);
-    static int processorCoro(quantum::CoroContext<int>::Ptr ctx,
+    static int processorCoro(quantum::VoidContextPtr ctx,
                              ConsumerTopicEntry& entry);
     static int invokeReceiver(ConsumerTopicEntry& entry,
                               Message&& kafkaMessage,
                               DeserializedMessage&& deserializedMessage);
-    static int receiverTask(quantum::ThreadPromise<int>::Ptr promise,
-                            ConsumerTopicEntry& entry,
+    static int receiverTask(ConsumerTopicEntry& entry,
                             Message&& kafkaMessage,
                             DeserializedMessage&& deserializedMessage);
 
     // Batch processing coroutines and callbacks
-    static void processMessageBatchOnIoThreads(quantum::CoroContext<int>::Ptr ctx,
+    static void processMessageBatchOnIoThreads(quantum::VoidContextPtr ctx,
                                                ConsumerTopicEntry& entry,
                                                std::vector<Message>&& raw,
                                                std::vector<DeserializedMessage>&& deserializedMessages);
-    static int pollBatchCoro(quantum::CoroContext<int>::Ptr ctx,
+    static int pollBatchCoro(quantum::VoidContextPtr ctx,
                              ConsumerTopicEntry& entry);
-    static int receiverMultipleBatchesTask(quantum::ThreadPromise<int>::Ptr promise,
-                                           ConsumerTopicEntry& entry,
+    static int receiverMultipleBatchesTask(ConsumerTopicEntry& entry,
                                            ReceivedBatch&& messageBatch);
     static int invokeSingleBatchReceiver(ConsumerTopicEntry& entry,
                                      std::vector<Message>&& rawMessages,
                                      std::vector<DeserializedMessage>&& deserializedMessages);
-    static int receiverSingleBatchTask(quantum::ThreadPromise<int>::Ptr promise,
-                                        ConsumerTopicEntry& entry,
-                                        std::vector<Message>&& rawMessages,
-                                        std::vector<DeserializedMessage>&& deserializedMessages);
-    static int preprocessorTask(quantum::ThreadPromise<bool>::Ptr promise,
-                                ConsumerTopicEntry& entry,
-                                const Message& kafkaMessage);
+    static int receiverSingleBatchTask(ConsumerTopicEntry& entry,
+                                       std::vector<Message>&& rawMessages,
+                                       std::vector<DeserializedMessage>&& deserializedMessages);
+    static bool preprocessorTask(ConsumerTopicEntry& entry,
+                                 const Message& kafkaMessage);
     //Misc methods
     void setup(const std::string& topic, ConsumerTopicEntry& topicEntry);
     static void exceptionHandler(const std::exception& ex,

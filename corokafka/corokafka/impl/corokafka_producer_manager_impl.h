@@ -155,15 +155,13 @@ private:
                                  const std::chrono::steady_clock::time_point& now);
     
     // Coroutines and async IO
-    static int pollTask(quantum::ThreadPromise<int>::Ptr promise,
-                        ProducerTopicEntry& entry);
-    static int produceTask(quantum::ThreadPromise<int>::Ptr promise,
-                           ProducerTopicEntry& entry,
+    static int pollTask(ProducerTopicEntry& entry);
+    static int produceTask(ProducerTopicEntry& entry,
                            ConcreteMessageBuilder<ByteArray>&& builder);
     static int produceTaskSync(ProducerTopicEntry& entry,
                                const ConcreteMessageBuilder<ByteArray>& builder);
     template <typename K, typename P, typename HEADERS>
-    static int serializeCoro(quantum::CoroContext<BuilderTuple>::Ptr ctx,
+    static BuilderTuple serializeCoro(quantum::VoidContextPtr ctx,
                              ProducerTopicEntry& entry,
                              K&& key,
                              P&& payload,
@@ -219,21 +217,21 @@ ByteArray makeBuffer<ByteArray>(ByteArray& buffer)
 //                          Implementations
 //=============================================================================
 template <typename K, typename P, typename HEADERS>
-int ProducerManagerImpl::serializeCoro(quantum::CoroContext<BuilderTuple>::Ptr ctx,
-                                       ProducerTopicEntry& entry,
-                                       K&& key,
-                                       P&& payload,
-                                       HEADERS&& headers,
-                                       PackedOpaque* opaque)
+ProducerManagerImpl::BuilderTuple
+ProducerManagerImpl::serializeCoro(quantum::VoidContextPtr ctx,
+                                   ProducerTopicEntry& entry,
+                                   K&& key,
+                                   P&& payload,
+                                   HEADERS&& headers,
+                                   PackedOpaque* opaque)
 {
     ConcreteMessageBuilder<ByteArray> builder = serializeMessage(entry, &key, &payload, &headers, opaque->first);
     if (builder.topic().empty()) {
         //Serializing failed
-        return -1;
+        throw std::runtime_error("Serialization failed");
     }
     builder.user_data(opaque);
-    return ctx->set(BuilderTuple(&entry, std::unique_ptr<ConcreteMessageBuilder<ByteArray>>
-                                             (new ConcreteMessageBuilder<ByteArray>(std::move(builder)))));
+    return {&entry, std::unique_ptr<ConcreteMessageBuilder<ByteArray>>(new ConcreteMessageBuilder<ByteArray>(std::move(builder)))};
 }
 
 template <typename K, typename P>
