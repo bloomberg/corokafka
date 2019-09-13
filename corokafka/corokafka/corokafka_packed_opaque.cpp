@@ -29,11 +29,6 @@ namespace corokafka {
 //===========================================================================================
 
 using PackedOpaqueAllocator = Bloomberg::quantum::StackAllocator<PackedOpaque, __COROKAFKA_PACKEDOPAQUE_ALLOC_SIZE>;
-  
-PackedOpaque::PackedOpaque(void* opaque, std::promise<DeliveryReport>&& promise) :
-    std::pair<void*, std::promise<DeliveryReport>>(opaque, std::move(promise))
-{
-}
 
 void* PackedOpaque::operator new(size_t)
 {

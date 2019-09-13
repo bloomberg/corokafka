@@ -40,20 +40,20 @@ class ConsumerManager
 {
 public:
     /**
-     * @brief Pause all consumption from this topic
-     * @param topic The topic name
+     * @brief Pause all consumption from this topic.
+     * @param topic The topic name. If the topic is not specified, the function will apply to all topics.
      */
     void pause(const std::string& topic = {});
     
     /**
-     * @brief Resume all consumption from this topic
-     * @param topic The topic name
+     * @brief Resume all consumption from this topic.
+     * @param topic The topic name. If the topic is not specified, the function will apply to all topics.
      */
     void resume(const std::string& topic = {});
     
     /**
      * @brief Subscribe a previously unsubscribed consumer.
-     * @param topic The topic name.
+     * @param topic The topic name. If the topic is not specified, the function will apply to all topics.
      * @param partitionList The optional partition list assignment.
      * @note This method will only work if the consumer was been previously 'unsubscribed'. All the original
      *       configuration settings will remain the same, including PartitionStrategy (Static or Dynamic).
@@ -65,7 +65,7 @@ public:
     
     /**
      * @brief Unsubscribe from this topic.
-     * @param topic The topic name.
+     * @param topic The topic name. If the topic is not specified, the function will apply to all topics.
      */
     void unsubscribe(const std::string& topic = {});
     

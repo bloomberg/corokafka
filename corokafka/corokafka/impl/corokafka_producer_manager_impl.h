@@ -69,18 +69,20 @@ private:
                 void* opaque);
     
     template <typename K, typename P>
-    std::future<DeliveryReport> post(const std::string& topic,
-                                     K&& key,
-                                     P&& payload,
-                                     const HeaderPack& headers,
-                                     void* opaque);
+    quantum::GenericFuture<DeliveryReport>
+    post(const std::string& topic,
+         K&& key,
+         P&& payload,
+         const HeaderPack& headers,
+         void* opaque);
     
     template <typename K, typename P>
-    std::future<DeliveryReport> post(const std::string& topic,
-                                     K&& key,
-                                     P&& payload,
-                                     HeaderPack&& headers,
-                                     void* opaque);
+    quantum::GenericFuture<DeliveryReport>
+    post(const std::string& topic,
+         K&& key,
+         P&& payload,
+         HeaderPack&& headers,
+         void* opaque);
     
     void waitForAcks(const std::string& topic,
                      std::chrono::milliseconds timeout);
@@ -92,11 +94,12 @@ private:
     void post();
     
     template <typename K, typename P, typename HEADERS>
-    std::future<DeliveryReport> postImpl(const std::string& topic,
-                                         K&& key,
-                                         P&& payload,
-                                         HEADERS&& message,
-                                         void* opaque);
+    quantum::GenericFuture<DeliveryReport>
+    postImpl(const std::string& topic,
+             K&& key,
+             P&& payload,
+             HEADERS&& message,
+             void* opaque);
     
     void resetQueueFullTrigger(const std::string& topic);
     
@@ -240,6 +243,10 @@ size_t ProducerManagerImpl::send(const std::string& topic,
                                  const HeaderPack& headers,
                                  void* opaque)
 {
+    auto ctx = quantum::local::context();
+    if (ctx) {
+        return post(topic, key, payload, headers, opaque).get().getNumBytesProduced();
+    }
     auto it = _producers.find(topic);
     if (it == _producers.end()) {
         throw std::runtime_error("Invalid topic");
@@ -250,7 +257,7 @@ size_t ProducerManagerImpl::send(const std::string& topic,
         //Serializing failed
         return 0;
     }
-    builder.user_data(new PackedOpaque(opaque, std::promise<DeliveryReport>()));
+    builder.user_data(new PackedOpaque(opaque, quantum::Promise<DeliveryReport>()));
     if (!builder.payload().empty()) {
         produceMessage(topicEntry, builder);
     }
@@ -258,11 +265,12 @@ size_t ProducerManagerImpl::send(const std::string& topic,
 }
 
 template <typename K, typename P, typename HEADERS>
-std::future<DeliveryReport> ProducerManagerImpl::postImpl(const std::string& topic,
-                                                          K&& key,
-                                                          P&& payload,
-                                                          HEADERS&& headers,
-                                                          void* opaque)
+quantum::GenericFuture<DeliveryReport>
+ProducerManagerImpl::postImpl(const std::string& topic,
+                              K&& key,
+                              P&& payload,
+                              HEADERS&& headers,
+                              void* opaque)
 {
     auto it = _producers.find(topic);
     if (it == _producers.end()) {
@@ -275,9 +283,7 @@ std::future<DeliveryReport> ProducerManagerImpl::postImpl(const std::string& top
     if (topicEntry._preserveMessageOrder && (topicEntry._producer->get_buffer_size() > topicEntry._maxQueueLength)) {
         throw std::runtime_error("Internal queue full");
     }
-    std::promise<DeliveryReport> deliveryPromise;
-    std::future<DeliveryReport> deliveryFuture = deliveryPromise.get_future();
-    
+    quantum::Promise<DeliveryReport> deliveryPromise;
     // Post the serialization future and return
     {
         std::unique_lock<std::mutex> lock(_messageQueueMutex);
@@ -290,11 +296,16 @@ std::future<DeliveryReport> ProducerManagerImpl::postImpl(const std::string& top
                 new PackedOpaque(opaque, std::move(deliveryPromise))));
     }
     _emptyCondition.notify_one();
-    return deliveryFuture;
+    // Get future
+    auto ctx = quantum::local::context();
+    if (ctx) {
+        return {deliveryPromise.getICoroFuture(), ctx};
+    }
+    return deliveryPromise.getIThreadFuture();
 }
 
 template <typename K, typename P>
-std::future<DeliveryReport>
+quantum::GenericFuture<DeliveryReport>
 ProducerManagerImpl::post(const std::string& topic,
                           K&& key,
                           P&& payload,
@@ -305,7 +316,7 @@ ProducerManagerImpl::post(const std::string& topic,
 }
 
 template <typename K, typename P>
-std::future<DeliveryReport>
+quantum::GenericFuture<DeliveryReport>
 ProducerManagerImpl::post(const std::string& topic,
                           K&& key,
                           P&& payload,

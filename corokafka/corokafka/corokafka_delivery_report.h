@@ -28,17 +28,23 @@ namespace corokafka {
 class DeliveryReport
 {
 public:
+    DeliveryReport() = default;
     /**
      * @brief Constructs an instance of a message delivery report
      * @param topicPartition the partition the message was sent to
+     * @param numBytes number of bytes produced
      * @param error the error associated with the message delivery, if any
      * @param opaque a user-provided pointer to an opaque data associated with the message
      */
-    DeliveryReport(TopicPartition topicPartition, Error error, void * opaque);
+    DeliveryReport(TopicPartition topicPartition, size_t numBytes, Error error, void * opaque);
     /**
      * @brief Gets the message topic partition
      */
     const TopicPartition & getTopicPartition() const;
+    /**
+     * @brief Gets the number of bytes written if successful
+     */
+    size_t getNumBytesProduced() const;
     /**
      * @brief Gets the message delivery error
      */    
@@ -49,9 +55,10 @@ public:
     void* getOpaque() const;
     
 private:
-    TopicPartition _topicPartition;
-    Error _error;
-    void* _opaque;
+    TopicPartition  _topicPartition;
+    size_t          _numBytes{0};
+    Error           _error;
+    void*           _opaque{nullptr};
 };
  
 }}

@@ -79,18 +79,20 @@ public:
      * @warning This method will make an extra copy of the message.
      */
     template <typename K, typename P>
-    std::future<DeliveryReport> post(const std::string& topic,
-                                     K&& key,
-                                     P&& payload,
-                                     const HeaderPack& headers,
-                                     void* opaque = nullptr);
+    quantum::GenericFuture<DeliveryReport>
+    post(const std::string& topic,
+         K&& key,
+         P&& payload,
+         const HeaderPack& headers,
+         void* opaque = nullptr);
     
     template <typename K, typename P>
-    std::future<DeliveryReport> post(const std::string& topic,
-                                     K&& key,
-                                     P&& payload,
-                                     HeaderPack&& headers,
-                                     void* opaque = nullptr);
+    quantum::GenericFuture<DeliveryReport>
+    post(const std::string& topic,
+         K&& key,
+         P&& payload,
+         HeaderPack&& headers,
+         void* opaque = nullptr);
     
     /**
      * @brief Wait for all pending 'posted' messages to be ack-ed by the broker.
@@ -176,7 +178,7 @@ ProducerManager::send(const std::string& topic,
 }
 
 template <typename K, typename P>
-std::future<DeliveryReport>
+quantum::GenericFuture<DeliveryReport>
 ProducerManager::post(const std::string& topic,
                       K&& key,
                       P&& payload,
@@ -186,12 +188,12 @@ ProducerManager::post(const std::string& topic,
 }
 
 template <typename K, typename P>
-std::future<DeliveryReport>
-    ProducerManager::post(const std::string& topic,
-                          K&& key,
-                          P&& payload,
-                          HeaderPack&& headers,
-                          void* opaque) {
+quantum::GenericFuture<DeliveryReport>
+ProducerManager::post(const std::string& topic,
+                      K&& key,
+                      P&& payload,
+                      HeaderPack&& headers,
+                      void* opaque) {
     return _impl->template post<K,P>(topic, std::forward<K>(key), std::forward<P>(payload), std::move(headers), opaque);
 }
 

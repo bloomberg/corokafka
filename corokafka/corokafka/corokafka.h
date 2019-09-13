@@ -28,6 +28,8 @@
 #include <corokafka/corokafka_consumer_topic_entry.h>
 #include <corokafka/corokafka_delivery_report.h>
 #include <corokafka/corokafka_deserializer.h>
+#include <corokafka/corokafka_header_pack.h>
+#include <corokafka/corokafka_header_ref.h>
 #include <corokafka/corokafka_message.h>
 #include <corokafka/corokafka_metadata.h>
 #include <corokafka/corokafka_offset_map.h>

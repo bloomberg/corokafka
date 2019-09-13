@@ -17,21 +17,23 @@
 #define BLOOMBERG_COROKAFKA_PACKED_OPAQUE_H
 
 #include <corokafka/corokafka_delivery_report.h>
+#include <quantum/quantum.h>
 #include <utility>
 #include <future>
 
 namespace Bloomberg {
 namespace corokafka {
 
+using PackedOpaqueBase = std::pair<void*, quantum::Promise<DeliveryReport>>;
+
 /**
- * @brief Represents the packed opaque data structrure a pointer to 
+ * @brief Represents the packed opaque data structure a pointer to
  * which is associated with every sent message
  */
-class PackedOpaque : public std::pair<void*, std::promise<DeliveryReport>>
+class PackedOpaque : public PackedOpaqueBase
 {   
 public:
-    PackedOpaque(void* opaque, std::promise<DeliveryReport>&& promise);
-
+    using PackedOpaqueBase::PackedOpaqueBase;
     void* operator new(size_t);
     void operator delete(void* p);
 };

@@ -22,16 +22,22 @@ namespace corokafka {
 //                               DELIVERY REPORT
 //====================================================================================
 
-DeliveryReport::DeliveryReport(TopicPartition topicPartition, Error error, void * opaque) :
+DeliveryReport::DeliveryReport(TopicPartition topicPartition, size_t numBytes, Error error, void * opaque) :
     _topicPartition(std::move(topicPartition)),
+    _numBytes(numBytes),
     _error(std::move(error)),
     _opaque(opaque)
 {
 }
 
-const TopicPartition & DeliveryReport::getTopicPartition() const
+const TopicPartition& DeliveryReport::getTopicPartition() const
 {
     return _topicPartition;
+}
+
+size_t DeliveryReport::getNumBytesProduced() const
+{
+    return _numBytes;
 }
 
 const Error& DeliveryReport::getError() const

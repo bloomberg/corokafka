@@ -733,20 +733,24 @@ ProducerMetadata ProducerManagerImpl::makeMetadata(const ProducerTopicEntry& top
 void* ProducerManagerImpl::setPackedOpaqueFuture(const Message& kafkaMessage)
 {
     std::unique_ptr<PackedOpaque> packedOpaque(static_cast<PackedOpaque*>(kafkaMessage.get_user_data()));
-    packedOpaque->second.set_value(DeliveryReport(TopicPartition(kafkaMessage.get_topic(),
-                                                                 kafkaMessage.get_partition(),
-                                                                 kafkaMessage.get_offset()),
-                                                  kafkaMessage.get_error(), packedOpaque->first));
+    packedOpaque->second.set(DeliveryReport(TopicPartition(kafkaMessage.get_topic(),
+                                                           kafkaMessage.get_partition(),
+                                                           kafkaMessage.get_offset()),
+                                                  kafkaMessage.get_payload().get_size(),
+                                                  kafkaMessage.get_error(),
+                                                  packedOpaque->first));
     return packedOpaque->first;
 }
 
 void* ProducerManagerImpl::setPackedOpaqueFuture(const MessageBuilder& builder, Error error)
 {
     std::unique_ptr<PackedOpaque> packedOpaque(static_cast<PackedOpaque*>(builder.user_data()));
-    packedOpaque->second.set_value(DeliveryReport(TopicPartition(builder.topic(),
-                                                                 builder.partition(),
-                                                                 TopicPartition::OFFSET_INVALID),
-                                                  error, packedOpaque->first));
+    packedOpaque->second.set(DeliveryReport(TopicPartition(builder.topic(),
+                                                           builder.partition(),
+                                                           TopicPartition::OFFSET_INVALID),
+                                                  0,
+                                                  error,
+                                                  packedOpaque->first));
     return packedOpaque->first;
 }
 

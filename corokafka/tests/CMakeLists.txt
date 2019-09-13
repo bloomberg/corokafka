@@ -37,12 +37,12 @@ else()
         GTest::GTest
         GTest::Main
         pthread
-	rt
-	ssl
-	crypto
-	dl
-	z
-    )
+        rt
+        ssl
+        crypto
+        dl
+        z
+        )
     if (COROKAFKA_VERBOSE_MAKEFILE)
         message(STATUS "SOURCE_FILES = ${SOURCE_FILES}")
         get_property(inc_dirs DIRECTORY PROPERTY INCLUDE_DIRECTORIES)
