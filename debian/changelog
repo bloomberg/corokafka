@@ -1,3 +1,9 @@
+corokafka (0.2.0.35) unstable; urgency=low
+
+  * 32aa460 Fixed moved promise
+
+ -- Alexander Damian <adamian@bloomberg.net>  Fri, 13 Sep 2019 17:46:00 -0400
+
 corokafka (0.2.0.34) unstable; urgency=low
 
   * 59cb536 Added support for producing messages while inside a coroutine context. This prevents the thread from blocking
