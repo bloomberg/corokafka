@@ -284,6 +284,14 @@ ProducerManagerImpl::postImpl(const std::string& topic,
         throw std::runtime_error("Internal queue full");
     }
     quantum::Promise<DeliveryReport> deliveryPromise;
+    quantum::GenericFuture<DeliveryReport> deliveryFuture;
+    auto ctx = quantum::local::context();
+    if (ctx) {
+        deliveryFuture = {deliveryPromise.getICoroFuture(), ctx};
+    }
+    else {
+        deliveryFuture = deliveryPromise.getIThreadFuture();
+    }
     // Post the serialization future and return
     {
         std::unique_lock<std::mutex> lock(_messageQueueMutex);
@@ -296,12 +304,7 @@ ProducerManagerImpl::postImpl(const std::string& topic,
                 new PackedOpaque(opaque, std::move(deliveryPromise))));
     }
     _emptyCondition.notify_one();
-    // Get future
-    auto ctx = quantum::local::context();
-    if (ctx) {
-        return {deliveryPromise.getICoroFuture(), ctx};
-    }
-    return deliveryPromise.getIThreadFuture();
+    return deliveryFuture;
 }
 
 template <typename K, typename P>
