@@ -1,3 +1,9 @@
+corokafka (0.2.0.38) unstable; urgency=low
+
+  * No commits found
+
+ -- eorbuild <eorbuild@addev.bloomberg.com>  Sat, 14 Sep 2019 13:10:44 -0400
+
 corokafka (0.2.0.37) unstable; urgency=low
 
   * 18280cb Merge pull request #18 from adamian/v2api
