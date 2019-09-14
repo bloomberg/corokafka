@@ -1,3 +1,10 @@
+corokafka (0.2.0.37) unstable; urgency=low
+
+  * 18280cb Merge pull request #18 from adamian/v2api
+  * 80848ac Changed quantum callbacks to use v2 api Fix header serializer/deserializer catch statement
+
+ -- Alexander Damian <adamian@bloomberg.net>  Sat, 14 Sep 2019 13:09:39 -0400
+
 corokafka (0.2.0.36) unstable; urgency=low
 
   * No commits found
