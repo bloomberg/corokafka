@@ -108,7 +108,7 @@ const Serializer& ProducerConfiguration::getHeaderSerializer(const std::string& 
 {
     auto it = _headerSerializers.find(name);
     if (it == _headerSerializers.end()) {
-        throw std::runtime_error("Header serializer not set for" + name);
+        throw std::runtime_error("Header serializer not set for " + name);
     }
     return *it->second;
 }
