@@ -1,3 +1,9 @@
+corokafka (0.2.0.39) unstable; urgency=low
+
+  * 502efda Removed rapidjson header. Added cmake logs when finding dependent libraries
+
+ -- Alexander Damian <adamian@bloomberg.net>  Mon, 16 Sep 2019 17:24:53 -0400
+
 corokafka (0.2.0.38) unstable; urgency=low
 
   * No commits found
