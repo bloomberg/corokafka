@@ -161,12 +161,16 @@ endif()
 find_package(Quantum CONFIG REQUIRED)
 if (NOT Quantum_FOUND)
     message(FATAL_ERROR "Could not find Quantum library. Please set QUANTUM_ROOT to the Quantum install folder.")
+else()
+    message(STATUS "Found Quantum library.")
 endif()
 
 # Find the cppkafka library installation
 find_package(CppKafka CONFIG REQUIRED)
 if (NOT CppKafka_FOUND)
     message(FATAL_ERROR "Could not find CppKafka library. Please set CPPKAFKA_ROOT to the CppKafka install folder.")
+else()
+    message(STATUS "Found CppKafka library.")
 endif()
 
 add_subdirectory(${PROJECT_TARGET_NAME})

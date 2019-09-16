@@ -20,7 +20,6 @@
 #include <corokafka/corokafka_connector_configuration.h>
 #include <corokafka/corokafka_producer_configuration.h>
 #include <corokafka/corokafka_consumer_configuration.h>
-#include <rapidjson/schema.h>
 
 namespace Bloomberg {
 namespace corokafka {
