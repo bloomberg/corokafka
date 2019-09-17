@@ -1,3 +1,10 @@
+corokafka (0.2.0.40) unstable; urgency=low
+
+  * 5be8d5d Merge pull request #21 from adamian/master
+  * 94eec60 Removed -Wabi flag and throw error if CMAKE_BUILD_TYPE is not set for the project
+
+ -- Alexander Damian <adamian@bloomberg.net>  Tue, 17 Sep 2019 09:14:05 -0400
+
 corokafka (0.2.0.39) unstable; urgency=low
 
   * 502efda Removed rapidjson header. Added cmake logs when finding dependent libraries
