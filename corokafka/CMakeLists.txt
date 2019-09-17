@@ -6,6 +6,14 @@ if (${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.12.0")
     cmake_policy(SET CMP0074 NEW)
 endif()
 
+# Ensure we have a proper build type
+if (NOT CMAKE_BUILD_TYPE)
+    message(FATAL_ERROR "CMAKE_BUILD_TYPE not set.")
+endif()
+if (COROKAFKA_VERBOSE_MAKEFILE)
+    message(STATUS "Build type set to ${CMAKE_BUILD_TYPE}")
+endif()
+
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/")
 
 include(GNUInstallDirs)
@@ -53,7 +61,6 @@ message(STATUS "RdKafka_ROOT = [${RdKafka_ROOT}]")
 #Global options
 set(LINKER_LANGUAGE CXX)
 set(CMAKE_INCLUDE_DIRECTORIES_BEFORE ON)
-set(CMAKE_BUILD_TYPE Debug)
 
 #Set the compiler if the CXX environment variable is not set
 if (NOT CMAKE_CXX_COMPILER)
@@ -67,7 +74,7 @@ endif()
 
 #Set compile flags if CXXFLAGS environment variable is not set
 if (NOT CMAKE_CXX_FLAGS)
-    set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wabi ${WERROR} -O0 -m64 -std=c++${CMAKE_CXX_STANDARD} -ftemplate-backtrace-limit=0")
+    set(CMAKE_CXX_FLAGS "-Wall -Wextra ${WERROR} -O0 -m64 -std=c++${CMAKE_CXX_STANDARD} -ftemplate-backtrace-limit=0")
 endif()
 
 if (COROKAFKA_VERBOSE_MAKEFILE)
