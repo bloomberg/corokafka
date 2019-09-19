@@ -906,11 +906,15 @@ ConsumerManagerImpl::deserializeMessage(ConsumerTopicEntry& entry,
         de._source |= (uint8_t)DeserializerError::Source::Kafka;
         return DeserializedMessage(boost::any(), boost::any(), HeaderPack{}, de);
     }
+    
+    //Get the topic partition
+    TopicPartition toppar(kafkaMessage.get_topic(), kafkaMessage.get_partition(), kafkaMessage.get_offset());
+    
     //Deserialize the key
     boost::any key = CallbackInvoker<Deserializer>("key_deserializer",
                                                    entry._configuration.getKeyDeserializer(),
                                                    entry._consumer.get())
-                     (kafkaMessage.get_key());
+                     (toppar, kafkaMessage.get_key());
     if (key.empty()) {
         // Decoding failed
         de._error = RD_KAFKA_RESP_ERR__KEY_DESERIALIZATION;
@@ -927,7 +931,7 @@ ConsumerManagerImpl::deserializeMessage(ConsumerTopicEntry& entry,
             boost::any header = CallbackInvoker<Deserializer>("header_deserializer",
                                                               entry._configuration.getHeaderDeserializer(it->get_name()),
                                                               entry._consumer.get())
-                     (it->get_value());
+                     (toppar, it->get_value());
             if (header.empty()) {
                 // Decoding failed
                 de._error = RD_KAFKA_RESP_ERR__VALUE_DESERIALIZATION;
@@ -958,7 +962,7 @@ ConsumerManagerImpl::deserializeMessage(ConsumerTopicEntry& entry,
     boost::any payload = CallbackInvoker<Deserializer>("payload_deserializer",
                                                        entry._configuration.getPayloadDeserializer(),
                                                        entry._consumer.get())
-                     (headers, kafkaMessage.get_payload());
+                     (toppar, headers, kafkaMessage.get_payload());
     if (payload.empty()) {
         // Decoding failed
         de._error = RD_KAFKA_RESP_ERR__VALUE_DESERIALIZATION;
@@ -1027,8 +1031,8 @@ std::vector<bool> ConsumerManagerImpl::executePreprocessorCallbacks(
         {
             for (size_t j = batchIndex; j < (batchIndex + batchSize) && entry._preprocess; ++j, ++inputIt) {
                 skipMessages[j] = entry._preprocessorCallback(TopicPartition(inputIt->get_topic(),
-                                                              inputIt->get_partition(),
-                                                              inputIt->get_offset()));
+                                                                             inputIt->get_partition(),
+                                                                             inputIt->get_offset()));
             }
             return 0;
         }));

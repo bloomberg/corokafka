@@ -50,8 +50,8 @@ struct Deserializer
     using ResultType = boost::any;
     using result_type = ResultType; //cppkafka compatibility for callback invoker
     virtual ~Deserializer() = default;
-    virtual ResultType operator()(const Buffer&) const { return {}; };
-    virtual ResultType operator()(const HeaderPack&, const Buffer&) const { return {}; }
+    virtual ResultType operator()(const TopicPartition&, const Buffer&) const { return {}; };
+    virtual ResultType operator()(const TopicPartition&, const HeaderPack&, const Buffer&) const { return {}; }
     virtual explicit operator bool() const = 0;
 };
 
@@ -60,7 +60,7 @@ class ConcreteDeserializer : public Deserializer
 {
 public:
     using ResultType = Deserializer::ResultType;
-    using Callback = std::function<T(const Buffer& buffer)>;
+    using Callback = std::function<T(const TopicPartition&, const Buffer& buffer)>;
     
     //Ctor
     ConcreteDeserializer(Callback callback) :
@@ -69,12 +69,12 @@ public:
     
     const Callback& getCallback() const { return _func; }
     
-    ResultType operator()(const Buffer& buffer) const final {
-        return _func(buffer);
+    ResultType operator()(const TopicPartition& toppar,
+                          const Buffer& buffer) const final {
+        return _func(toppar, buffer);
     }
     
     explicit operator bool() const final { return (bool)_func; }
-    
 private:
     Callback _func;
 };
@@ -84,7 +84,7 @@ class ConcreteDeserializerWithHeaders : public Deserializer
 {
 public:
     using ResultType = Deserializer::ResultType;
-    using Callback = std::function<T(const HeaderPack&, const Buffer&)>;
+    using Callback = std::function<T(const TopicPartition&, const HeaderPack&, const Buffer&)>;
     
     //Ctor
     ConcreteDeserializerWithHeaders(Callback callback) :
@@ -93,12 +93,13 @@ public:
     
     const Callback& getCallback() const { return _func; }
     
-    ResultType operator()(const HeaderPack& headers, const Buffer& buffer) const final {
-        return _func(headers, buffer);
+    ResultType operator()(const TopicPartition& toppar,
+                          const HeaderPack& headers,
+                          const Buffer& buffer) const final {
+        return _func(toppar, headers, buffer);
     }
     
     explicit operator bool() const final { return (bool)_func; }
-    
 private:
     Callback _func;
 };
