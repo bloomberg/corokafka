@@ -72,13 +72,13 @@ struct Callbacks {
     using PreprocessorCallback = std::function<bool(TopicPartition hint)>;
     
     template <typename T>
-    using KeyDeserializerCallback = std::function<T(const Buffer& buffer)>;
+    using KeyDeserializerCallback = std::function<T(const TopicPartition&, const Buffer&)>;
     
     template <typename T>
-    using HeaderDeserializerCallback = std::function<T(const Buffer& buffer)>;
+    using HeaderDeserializerCallback = std::function<T(const TopicPartition&, const Buffer& buffer)>;
     
     template <typename T>
-    using PayloadDeserializerCallback = std::function<T(const HeaderPack&, const Buffer&)>;
+    using PayloadDeserializerCallback = std::function<T(const TopicPartition&, const HeaderPack&, const Buffer&)>;
     
     template <typename K, typename P>
     using ReceiverCallback = std::function<void(ReceivedMessage<K,P>)>;
