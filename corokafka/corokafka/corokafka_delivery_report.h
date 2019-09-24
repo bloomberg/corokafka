@@ -44,7 +44,7 @@ public:
     /**
      * @brief Gets the number of bytes written if successful
      */
-    size_t getNumBytesProduced() const;
+    size_t getNumBytesWritten() const;
     /**
      * @brief Gets the message delivery error
      */    
