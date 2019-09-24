@@ -40,7 +40,7 @@ public:
     /**
      * @brief Gets the message topic partition
      */
-    const cppkafka::TopicPartition & getTopicPartition() const;
+    const cppkafka::TopicPartition& getTopicPartition() const;
     /**
      * @brief Gets the number of bytes written if successful
      */
@@ -53,13 +53,21 @@ public:
      * @brief Gets the opaque data associated with the message
      */
     void* getOpaque() const;
-    
+    /**
+     * @brief Get a string representation of this object
+     */
+    std::string toString() const;
 private:
-    cppkafka::TopicPartition  _topicPartition;
-    size_t          _numBytes{0};
-    cppkafka::Error           _error;
-    void*           _opaque{nullptr};
+    cppkafka::TopicPartition    _topicPartition;
+    size_t                      _numBytes{0};
+    cppkafka::Error             _error;
+    void*                       _opaque{nullptr};
 };
+
+/**
+ * @brief Print to stream
+ */
+std::ostream& operator<<(std::ostream& output, const DeliveryReport& dr);
  
 }}
 

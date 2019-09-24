@@ -14,6 +14,7 @@
 ** limitations under the License.
 */
 #include <corokafka/corokafka_delivery_report.h>
+#include <sstream>
 
 namespace Bloomberg {
 namespace corokafka {
@@ -48,6 +49,28 @@ const cppkafka::Error& DeliveryReport::getError() const
 void* DeliveryReport::getOpaque() const
 {
     return _opaque;
+}
+
+std::string DeliveryReport::toString() const
+{
+    std::ostringstream oss;
+    oss << "Delivered to: " << _topicPartition;
+    if (_error) {
+        oss << " error: " << _error;
+    }
+    else {
+        oss << " num bytes: " << _numBytes;
+    }
+    if (_opaque) {
+        oss << " opaque: " << std::hex << _opaque;
+    }
+    return oss.str();
+}
+
+std::ostream& operator<<(std::ostream& output, const DeliveryReport& dr)
+{
+    output << dr.toString();
+    return output;
 }
   
 }
