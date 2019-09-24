@@ -1,3 +1,10 @@
+corokafka (0.2.0.44) unstable; urgency=low
+
+  * 5508853 Merge pull request #35 from adamian/concepts
+  * 6be3b1a Added streaming capability to DeliveryReport class
+
+ -- Alexander Damian <adamian@bloomberg.net>  Wed, 25 Sep 2019 00:17:00 +0100
+
 corokafka (0.2.0.43) unstable; urgency=low
 
   * ff40474 Merge pull request #34 from adamian/concepts
