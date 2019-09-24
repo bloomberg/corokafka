@@ -29,7 +29,7 @@ public:
     /**
      * @sa IMessage::getKeyBuffer
      */
-    const Buffer& getKeyBuffer() const final;
+    const cppkafka::Buffer& getKeyBuffer() const final;
     /**
      * @sa IMessage::getHeaderList
      */
@@ -37,7 +37,7 @@ public:
     /**
      * @sa IMessage::getPayloadBuffer
      */
-    const Buffer& getPayloadBuffer() const final;
+    const cppkafka::Buffer& getPayloadBuffer() const final;
     /**
      * @sa IMessage::getHandle
      */
@@ -45,7 +45,7 @@ public:
     /**
      * @sa IMessage::getError
      */
-    Error getError() const final;
+    cppkafka::Error getError() const final;
     /**
      * @sa IMessage::getTopic
      */
@@ -81,12 +81,12 @@ public:
 #endif
 
 private:
-    SentMessage(const Message& kafkaMessage, void* opaque);
-    SentMessage(const MessageBuilder& builder, Error error, void* opaque);
+    SentMessage(const cppkafka::Message& kafkaMessage, void* opaque);
+    SentMessage(const cppkafka::MessageBuilder& builder, cppkafka::Error error, void* opaque);
     
-    const Message*          _message;
-    const MessageBuilder*   _builder;
-    Error                   _error;
+    const cppkafka::Message*          _message;
+    const cppkafka::MessageBuilder*   _builder;
+    cppkafka::Error                   _error;
     void*                   _opaque;
 };
 

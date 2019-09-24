@@ -8,7 +8,8 @@ endif()
 
 # Ensure we have a proper build type
 if (NOT CMAKE_BUILD_TYPE)
-    message(FATAL_ERROR "CMAKE_BUILD_TYPE not set.")
+    message(WARNING "CMAKE_BUILD_TYPE not set. Using Debug.")
+    set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type")
 endif()
 if (COROKAFKA_VERBOSE_MAKEFILE)
     message(STATUS "Build type set to ${CMAKE_BUILD_TYPE}")

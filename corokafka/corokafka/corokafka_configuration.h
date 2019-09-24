@@ -30,7 +30,7 @@ class Configuration {
     friend class ConsumerManagerImpl;
     friend class ProducerManagerImpl;
 public:
-    using Options = std::vector<ConfigurationOption>;
+    using Options = std::vector<cppkafka::ConfigurationOption>;
     using OptionSet = std::set<std::string, StringLessCompare>;
     enum class OptionType : int { All = 0, RdKafka = 1, Internal = 2 };
     
@@ -70,7 +70,7 @@ public:
      * @param name The name of the configuration option.
      * @return A pointer to the configuration object or null if it's not found.
      */
-    const ConfigurationOption* getOption(const std::string& name) const;
+    const cppkafka::ConfigurationOption* getOption(const std::string& name) const;
     
     /**
      * @brief Get the topic options list.
@@ -84,7 +84,7 @@ public:
      * @param name The name of the topic configuration option.
      * @return A pointer to the configuration object or null if it's not found.
      */
-    const ConfigurationOption* getTopicOption(const std::string& name) const;
+    const cppkafka::ConfigurationOption* getTopicOption(const std::string& name) const;
     
     /**
      * @brief Set the error callback.
@@ -153,8 +153,8 @@ protected:
     
     Configuration(KafkaType type,
                   const std::string& topic,
-                  std::initializer_list<ConfigurationOption> options,
-                  std::initializer_list<ConfigurationOption> topicOptions);
+                  std::initializer_list<cppkafka::ConfigurationOption> options,
+                  std::initializer_list<cppkafka::ConfigurationOption> topicOptions);
     
     Configuration(const Configuration&) = default;
     Configuration(Configuration&&) = default;
@@ -163,7 +163,7 @@ protected:
     virtual ~Configuration() = default;
     
 private:
-    static const ConfigurationOption* findOption(const std::string& name,
+    static const cppkafka::ConfigurationOption* findOption(const std::string& name,
                                                  const Options& config);
     void filterOptions();
     

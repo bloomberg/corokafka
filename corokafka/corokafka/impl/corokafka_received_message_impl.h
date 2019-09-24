@@ -21,9 +21,9 @@ namespace corokafka {
 //====================================================================================
 template <typename K, typename P>
 ReceivedMessage<K,P>::ReceivedMessage(
-                                BackoffCommitter& committer,
+                                cppkafka::BackoffCommitter& committer,
                                 OffsetMap& offsets,
-                                Message&& kafkaMessage,
+                                cppkafka::Message&& kafkaMessage,
                                 K&& key,
                                 P&& payload,
                                 HeaderPack&& headers,
@@ -64,7 +64,7 @@ uint64_t ReceivedMessage<K,P>::getHandle() const
 }
 
 template <typename K, typename P>
-const Buffer& ReceivedMessage<K,P>::getKeyBuffer() const
+const cppkafka::Buffer& ReceivedMessage<K,P>::getKeyBuffer() const
 {
     return _message.get_key();
 }
@@ -77,13 +77,13 @@ ReceivedMessage<K,P>::getHeaderList() const
 }
 
 template <typename K, typename P>
-const Buffer& ReceivedMessage<K,P>::getPayloadBuffer() const
+const cppkafka::Buffer& ReceivedMessage<K,P>::getPayloadBuffer() const
 {
     return _message.get_payload();
 }
 
 template <typename K, typename P>
-Error ReceivedMessage<K,P>::getError() const
+cppkafka::Error ReceivedMessage<K,P>::getError() const
 {
     return _error._error;
 }
@@ -115,7 +115,7 @@ int64_t ReceivedMessage<K,P>::getOffset() const
 template <typename K, typename P>
 std::chrono::milliseconds ReceivedMessage<K,P>::getTimestamp() const
 {
-    boost::optional<MessageTimestamp> timestamp = _message.get_timestamp();
+    boost::optional<cppkafka::MessageTimestamp> timestamp = _message.get_timestamp();
     if (!timestamp) {
         throw std::runtime_error("Timestamp not set");
     }
@@ -141,13 +141,13 @@ void ReceivedMessage<K,P>::setOpaque(const void* opaque)
 }
 
 template <typename K, typename P>
-Error ReceivedMessage<K,P>::commit(const void* opaque)
+cppkafka::Error ReceivedMessage<K,P>::commit(const void* opaque)
 {
     _opaque = opaque;
     if ((_opaque != nullptr) &&
         (_offsetSettings._autoOffsetPersistStrategy == OffsetPersistStrategy::Commit) &&
         _committer.get_consumer().get_configuration().get_offset_commit_callback()) {
-        _offsets.insert(TopicPartition(getTopic(), getPartition(), getOffset()), opaque);
+        _offsets.insert(cppkafka::TopicPartition(getTopic(), getPartition(), getOffset()), opaque);
     }
     return doCommit();
 }
@@ -264,7 +264,7 @@ void ReceivedMessage<K,P>::validateHeadersError() const
 }
 
 template <typename K, typename P>
-Error ReceivedMessage<K,P>::doCommit()
+cppkafka::Error ReceivedMessage<K,P>::doCommit()
 {
     try {
         if (!_message) {
@@ -287,10 +287,10 @@ Error ReceivedMessage<K,P>::doCommit()
         }
         _isPersisted = true;
     }
-    catch (const HandleException& ex) {
+    catch (const cppkafka::HandleException& ex) {
         return ex.get_error();
     }
-    catch (const ActionTerminatedException& ex) {
+    catch (const cppkafka::ActionTerminatedException& ex) {
         return RD_KAFKA_RESP_ERR__FAIL; //no more retries left
     }
     catch (...) {

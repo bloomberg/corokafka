@@ -65,7 +65,7 @@ public:
     /**
      * @sa IMessage::getKeyBuffer
      */
-    const Buffer& getKeyBuffer() const final;
+    const cppkafka::Buffer& getKeyBuffer() const final;
     /**
      * @sa IMessage::getHeaderList
      * @note This functions returns a const reference to the Kafka raw headers.
@@ -75,7 +75,7 @@ public:
     /**
      * @sa IMessage::getPayloadBuffer
      */
-    const Buffer& getPayloadBuffer() const final;
+    const cppkafka::Buffer& getPayloadBuffer() const final;
     /**
      * @sa IMessage::getHandle
      */
@@ -83,7 +83,7 @@ public:
     /**
      * @sa IMessage::getError
      */
-    Error getError() const final;
+    cppkafka::Error getError() const final;
     /**
      * @brief Returns the number of the header which contains an error.
      * @return The header number.
@@ -132,7 +132,7 @@ public:
      * @remark If commit() is not called explicitly, it will be called by ~ReceivedMessage() if
      *         'internal.consumer.auto.offset.persist=true'.
      */
-    Error commit(const void* opaque = nullptr);
+    cppkafka::Error commit(const void* opaque = nullptr);
     /**
      * @brief Helper function to indicate if the message error is an EOF.
      * @return True if EOF was encountered for the partition, False otherwise.
@@ -164,9 +164,9 @@ public:
     HeaderPack& getHeaders() &;
     HeaderPack&& getHeaders() &&;
 private:
-    ReceivedMessage(BackoffCommitter& committer,
+    ReceivedMessage(cppkafka::BackoffCommitter& committer,
                     OffsetMap& offsets,
-                    Message&& kafkaMessage,
+                    cppkafka::Message&& kafkaMessage,
                     K&& key,
                     P&& payload,
                     HeaderPack&& headers,
@@ -175,11 +175,11 @@ private:
     void validateKeyError() const;
     void validatePayloadError() const;
     void validateHeadersError() const;
-    Error doCommit();
+    cppkafka::Error doCommit();
     
-    BackoffCommitter&           _committer;
+    cppkafka::BackoffCommitter&           _committer;
     OffsetMap&                  _offsets;
-    Message                     _message;
+    cppkafka::Message           _message;
     K                           _key;
     P                           _payload;
     HeaderPack                  _headers;

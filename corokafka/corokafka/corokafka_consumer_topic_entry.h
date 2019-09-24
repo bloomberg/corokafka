@@ -28,10 +28,10 @@
 namespace Bloomberg {
 namespace corokafka {
 
-using ConsumerType = Consumer;
+using ConsumerType = cppkafka::Consumer;
 using ConsumerPtr = std::unique_ptr<ConsumerType>;
-using CommitterPtr = std::unique_ptr<BackoffCommitter>;
-using PollingStrategyPtr = std::unique_ptr<RoundRobinPollStrategy>;
+using CommitterPtr = std::unique_ptr<cppkafka::BackoffCommitter>;
+using PollingStrategyPtr = std::unique_ptr<cppkafka::RoundRobinPollStrategy>;
 
 struct ConsumerTopicEntry : TopicEntry {
     ConsumerTopicEntry(ConsumerPtr consumer,
@@ -89,8 +89,8 @@ struct ConsumerTopicEntry : TopicEntry {
     OffsetPersistStrategy           _autoOffsetPersistStrategy{OffsetPersistStrategy::Store};
     ExecMode                        _autoCommitExec{ExecMode::Async};
     bool                            _batchPrefetch{false};
-    LogLevel                        _logLevel{LogLevel::LogInfo};
-    quantum::ICoroFuture<std::vector<Message>>::Ptr _messagePrefetchFuture;
+    cppkafka::LogLevel              _logLevel{cppkafka::LogLevel::LogInfo};
+    quantum::ICoroFuture<std::vector<cppkafka::Message>>::Ptr _messagePrefetchFuture;
     Callbacks::PreprocessorCallback _preprocessorCallback;
     bool                            _preprocess{true};
     bool                            _preprocessOnIoThread{true};

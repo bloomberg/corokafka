@@ -16,7 +16,7 @@
 #ifndef BLOOMBERG_COROKAFKA_UTILS_H
 #define BLOOMBERG_COROKAFKA_UTILS_H
 
-#include <corokafka/detail/corokafka_namespace_forwarding.h>
+#include <cppkafka/cppkafka.h>
 #include <corokafka/corokafka_utils.h>
 #include <quantum/quantum.h>
 #include <functional>
@@ -38,7 +38,7 @@ enum class ExecMode : char { Sync,    ///< Execute synchronously
 enum class OffsetPersistStrategy : char { Commit,  ///< Commits the offset to the broker
                                           Store }; ///< Stores locally in rdkafka
                              
-LogLevel logLevelFromString(const std::string& level);
+cppkafka::LogLevel logLevelFromString(const std::string& level);
 
 struct Empty{};
 
@@ -61,7 +61,7 @@ struct TopicEntry {};
 void handleException(const std::exception& ex,
                      const Metadata& metadata,
                      const Configuration& config,
-                     LogLevel level);
+                     cppkafka::LogLevel level);
 
 using ByteArray = std::vector<uint8_t>;
 
@@ -152,12 +152,12 @@ std::unique_ptr<T, DT> unique_pointer_cast(VoidPtr&& base, DT&& d = DT())
 //======================================================================================================================
 // Users may override for specific BufferTypes
 template <typename T, typename C>
-std::ostream& operator<<(std::ostream& stream, const BasicMessageBuilder<T, C>&) {
+std::ostream& operator<<(std::ostream& stream, const cppkafka::BasicMessageBuilder<T, C>&) {
     return stream; //don't print anything by default
 }
 
 template <typename C>
-std::ostream& operator<<(std::ostream& stream, const BasicMessageBuilder<std::string, C>& builder) {
+std::ostream& operator<<(std::ostream& stream, const cppkafka::BasicMessageBuilder<std::string, C>& builder) {
     ssize_t max_len = getMaxMessageBuilderOutputLength();
     size_t payload_len = (max_len == -1) ? builder.payload().size() :
                          std::min(builder.payload().size(), (size_t)max_len);
@@ -173,7 +173,7 @@ std::ostream& operator<<(std::ostream& stream, const BasicMessageBuilder<std::st
 }
 
 template <typename C>
-std::ostream& operator<<(std::ostream& stream, const BasicMessageBuilder<std::vector<unsigned char>, C>& builder) {
+std::ostream& operator<<(std::ostream& stream, const cppkafka::BasicMessageBuilder<std::vector<unsigned char>, C>& builder) {
     ssize_t max_len = getMaxMessageBuilderOutputLength();
     size_t payload_len = (max_len == -1) ? builder.payload().size() :
                           std::min(builder.payload().size(), (size_t)max_len);
@@ -189,7 +189,7 @@ std::ostream& operator<<(std::ostream& stream, const BasicMessageBuilder<std::ve
 }
 
 // Specialized for Buffer container
-std::ostream& operator<<(std::ostream& stream, const MessageBuilder& builder);
+std::ostream& operator<<(std::ostream& stream, const cppkafka::MessageBuilder& builder);
 
 //======================================================================================================================
 //                                               Traits

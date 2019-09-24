@@ -21,7 +21,7 @@ namespace corokafka {
 //====================================================================================
 //                               SENT MESSAGE
 //====================================================================================
-SentMessage::SentMessage(const Message& kafkaMessage, void* opaque) :
+SentMessage::SentMessage(const cppkafka::Message& kafkaMessage, void* opaque) :
     _message(&kafkaMessage),
     _builder(nullptr),
     _error(kafkaMessage.get_error()),
@@ -29,7 +29,7 @@ SentMessage::SentMessage(const Message& kafkaMessage, void* opaque) :
 {
 }
 
-SentMessage::SentMessage(const MessageBuilder& builder, Error error, void* opaque) :
+SentMessage::SentMessage(const cppkafka::MessageBuilder& builder, cppkafka::Error error, void* opaque) :
     _message(nullptr),
     _builder(&builder),
     _error(error),
@@ -42,7 +42,7 @@ uint64_t SentMessage::getHandle() const
     return _message ? (uint64_t)_message->get_handle() : 0;
 }
 
-const Buffer& SentMessage::getKeyBuffer() const
+const cppkafka::Buffer& SentMessage::getKeyBuffer() const
 {
     return _message ? _message->get_key() : _builder->key();
 }
@@ -52,12 +52,12 @@ const IMessage::HeaderListType& SentMessage::getHeaderList() const
     return _message ? _message->get_header_list() : _builder->header_list();
 }
 
-const Buffer& SentMessage::getPayloadBuffer() const
+const cppkafka::Buffer& SentMessage::getPayloadBuffer() const
 {
     return _message ? _message->get_payload() : _builder->payload();
 }
 
-Error SentMessage::getError() const
+cppkafka::Error SentMessage::getError() const
 {
     return _error;
 }
@@ -74,13 +74,13 @@ int SentMessage::getPartition() const
 
 int64_t SentMessage::getOffset() const
 {
-    return _message ? _message->get_offset() : (int64_t)TopicPartition::OFFSET_INVALID;
+    return _message ? _message->get_offset() : (int64_t)cppkafka::TopicPartition::OFFSET_INVALID;
 }
 
 std::chrono::milliseconds SentMessage::getTimestamp() const
 {
     if (_message) {
-        boost::optional<MessageTimestamp> timestamp = _message->get_timestamp();
+        boost::optional<cppkafka::MessageTimestamp> timestamp = _message->get_timestamp();
         if (!timestamp) {
             throw std::runtime_error("Timestamp not set");
         }

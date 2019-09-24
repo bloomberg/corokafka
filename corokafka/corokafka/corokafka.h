@@ -45,6 +45,5 @@
 #include <corokafka/corokafka_throttle_control.h>
 #include <corokafka/corokafka_utils.h>
 #include <corokafka/detail/corokafka_macros.h>
-#include <corokafka/detail/corokafka_namespace_forwarding.h>
 
 #endif //BLOOMBERG_COROKAFKA_H

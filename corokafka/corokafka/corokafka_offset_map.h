@@ -30,19 +30,19 @@ public:
         _mutex(new std::mutex())
     {}
     
-    void insert(const TopicPartition& position, const void* opaque) {
+    void insert(const cppkafka::TopicPartition& position, const void* opaque) {
         if (opaque == nullptr) return;
         std::lock_guard<std::mutex> lock(*_mutex);
         _map[position] = opaque;
     }
     
-    void insert(TopicPartition&& position, const void* opaque) {
+    void insert(cppkafka::TopicPartition&& position, const void* opaque) {
         if (opaque == nullptr) return;
         std::lock_guard<std::mutex> lock(*_mutex);
         _map[std::move(position)] = opaque;
     }
     
-    const void* find(const TopicPartition& position) const {
+    const void* find(const cppkafka::TopicPartition& position) const {
         if (_map.empty()) return nullptr;
         std::lock_guard<std::mutex> lock(*_mutex);
         auto it = _map.find(position);
@@ -52,7 +52,7 @@ public:
         return it->second;
     }
 
-    const void* remove(const TopicPartition& position) {
+    const void* remove(const cppkafka::TopicPartition& position) {
         if (_map.empty()) return nullptr;
         std::lock_guard<std::mutex> lock(*_mutex);
         auto it = _map.find(position);
@@ -88,7 +88,7 @@ public:
 private:
     struct TopicPartitionComparator
     {
-        bool operator()(const TopicPartition& lhs, const TopicPartition& rhs) const {
+        bool operator()(const cppkafka::TopicPartition& lhs, const cppkafka::TopicPartition& rhs) const {
             int lhsPartition = lhs.get_partition(), rhsPartition = rhs.get_partition();
             int64_t lhsOffset = lhs.get_offset(), rhsOffset = rhs.get_offset();
             return std::tie(lhs.get_topic(), lhsPartition, lhsOffset) <
@@ -96,7 +96,7 @@ private:
         }
     };
     // Indexed by partition and offset number
-    using MapType = std::map<TopicPartition, const void*, TopicPartitionComparator>;
+    using MapType = std::map<cppkafka::TopicPartition, const void*, TopicPartitionComparator>;
     
     MapType                             _map;
     mutable std::unique_ptr<std::mutex> _mutex;

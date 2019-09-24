@@ -30,9 +30,9 @@ struct Receiver
     using ResultType = void;
     using result_type = ResultType; //cppkafka compatibility for callback invoker
     virtual ~Receiver() = default;
-    virtual ResultType operator()(BackoffCommitter& committer,
+    virtual ResultType operator()(cppkafka::BackoffCommitter& committer,
                                   OffsetMap& offsets,
-                                  Message&& kafkaMessage,
+                                  cppkafka::Message&& kafkaMessage,
                                   boost::any&& key,
                                   boost::any&& payload,
                                   HeaderPack&& headers,
@@ -56,9 +56,9 @@ public:
     
     const Callback& getCallback() const { return _func; }
     
-    void operator()(BackoffCommitter& committer,
+    void operator()(cppkafka::BackoffCommitter& committer,
                     OffsetMap& offsets,
-                    Message&& kafkaMessage,
+                    cppkafka::Message&& kafkaMessage,
                     boost::any&& key,
                     boost::any&& payload,
                     HeaderPack&& headers,

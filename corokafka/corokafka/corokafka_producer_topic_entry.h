@@ -29,7 +29,7 @@
 namespace Bloomberg {
 namespace corokafka {
 
-using ProducerType = BufferedProducer<ByteArray>;
+using ProducerType = cppkafka::BufferedProducer<ByteArray>;
 using ProducerPtr = std::unique_ptr<ProducerType>;
 
 enum class QueueFullNotification {
@@ -72,9 +72,9 @@ struct ProducerTopicEntry : TopicEntry {
     bool                                _forceSyncFlush{false};
     bool                                _preserveMessageOrder{false};
     bool                                _skipUnknownHeaders{true};
-    Producer::PayloadPolicy             _payloadPolicy{Producer::PayloadPolicy::COPY_PAYLOAD};
+    cppkafka::Producer::PayloadPolicy   _payloadPolicy{cppkafka::Producer::PayloadPolicy::COPY_PAYLOAD};
     size_t                              _maxQueueLength{10000};
-    LogLevel                            _logLevel{LogLevel::LogInfo};
+    cppkafka::LogLevel                  _logLevel{cppkafka::LogLevel::LogInfo};
     QueueFullNotification               _queueFullNotification{QueueFullNotification::OncePerMessage};
     bool                                _queueFullTrigger{true};
     ThrottleControl                     _throttleControl;

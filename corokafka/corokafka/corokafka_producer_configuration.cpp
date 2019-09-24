@@ -51,8 +51,8 @@ ProducerConfiguration::ProducerConfiguration(const std::string& topic,
 }
 
 ProducerConfiguration::ProducerConfiguration(const std::string& topic,
-                                             std::initializer_list<ConfigurationOption> options,
-                                             std::initializer_list<ConfigurationOption> topicOptions) :
+                                             std::initializer_list<cppkafka::ConfigurationOption> options,
+                                             std::initializer_list<cppkafka::ConfigurationOption> topicOptions) :
     Configuration(KafkaType::Producer, topic, std::move(options), std::move(topicOptions))
 {
 

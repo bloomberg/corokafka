@@ -46,31 +46,31 @@ public:
     /**
      * @sa Metadata::queryOffsetsAtTime
      */
-    TopicPartitionList queryOffsetsAtTime(Timestamp timestamp) const final;
+    cppkafka::TopicPartitionList queryOffsetsAtTime(Timestamp timestamp) const final;
     /**
      * @brief Query the remote broker for the committed offsets.
      * @return The committed offsets list.
      * @remark This method blocks until offset data is received. It is preferable *not* to call this
      *         method from within a callback.
      */
-    TopicPartitionList queryCommittedOffsets() const;
+    cppkafka::TopicPartitionList queryCommittedOffsets() const;
     /**
      * @brief Gets the last offset positions locally known.
      * @return The offset list.
      * @remark The offset positions represent the offsets of the last message(s) delivered to the application
      *         but not yet committed.
      */
-    TopicPartitionList getOffsetPositions() const;
+    cppkafka::TopicPartitionList getOffsetPositions() const;
     /**
      * @brief Get the current partition assignment for this consumer.
      * @return The partition list.
      */
-    const TopicPartitionList& getPartitionAssignment() const;
+    const cppkafka::TopicPartitionList& getPartitionAssignment() const;
     /**
      * @brief Get information about the group this consumer belongs to (if any).
      * @return The group info.
      */
-    GroupInformation getGroupInformation() const;
+    cppkafka::GroupInformation getGroupInformation() const;
     
     /**
      * @brief Get the current partition strategy.
@@ -80,11 +80,11 @@ public:
     
 private:
     ConsumerMetadata(const std::string& topic,
-                     Consumer* handle,
+                     cppkafka::Consumer* handle,
                      PartitionStrategy strategy);
     ConsumerMetadata(const std::string& topic,
-                     const Topic& kafkaTopic,
-                     Consumer* handle,
+                     const cppkafka::Topic& kafkaTopic,
+                     cppkafka::Consumer* handle,
                      PartitionStrategy strategy);
     
     PartitionStrategy _strategy;

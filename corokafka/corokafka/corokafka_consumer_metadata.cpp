@@ -23,16 +23,16 @@ namespace corokafka {
 //=============================================================================
 
 ConsumerMetadata::ConsumerMetadata(const std::string& topic,
-                                   Consumer* handle,
+                                   cppkafka::Consumer* handle,
                                    PartitionStrategy strategy) :
-    Metadata(topic, Topic(), handle),
+    Metadata(topic, cppkafka::Topic(), handle),
     _strategy(strategy)
 {
 }
 
 ConsumerMetadata::ConsumerMetadata(const std::string& topic,
-                                   const Topic& kafkaTopic,
-                                   Consumer* handle,
+                                   const cppkafka::Topic& kafkaTopic,
+                                   cppkafka::Consumer* handle,
                                    PartitionStrategy strategy) :
     Metadata(topic, kafkaTopic, handle),
     _strategy(strategy)
@@ -60,17 +60,17 @@ Metadata::OffsetWatermarkList ConsumerMetadata::getOffsetWatermarks() const
     OffsetWatermarkList offsets;
     for (const auto& partition : getPartitionAssignment()) {
         offsets.emplace_back(partition.get_partition(),
-                             static_cast<const Consumer*>(_handle)->get_offsets(partition));
+                             static_cast<const cppkafka::Consumer*>(_handle)->get_offsets(partition));
     }
     return offsets;
 }
 
-TopicPartitionList ConsumerMetadata::queryOffsetsAtTime(Metadata::Timestamp timestamp) const
+cppkafka::TopicPartitionList ConsumerMetadata::queryOffsetsAtTime(Metadata::Timestamp timestamp) const
 {
     if (!_handle) {
         throw std::runtime_error("Null consumer");
     }
-    KafkaHandleBase::TopicPartitionsTimestampsMap timestampMap;
+    cppkafka::KafkaHandleBase::TopicPartitionsTimestampsMap timestampMap;
     std::chrono::milliseconds epochTime = timestamp.time_since_epoch();
     for (const auto& partition : getPartitionAssignment()) {
         timestampMap[partition] = epochTime;
@@ -78,39 +78,39 @@ TopicPartitionList ConsumerMetadata::queryOffsetsAtTime(Metadata::Timestamp time
     return _handle->get_offsets_for_times(timestampMap);
 }
 
-TopicPartitionList ConsumerMetadata::queryCommittedOffsets() const
+cppkafka::TopicPartitionList ConsumerMetadata::queryCommittedOffsets() const
 {
     if (!_handle) {
         throw std::runtime_error("Null consumer");
     }
-    return static_cast<const Consumer*>(_handle)->get_offsets_committed(getPartitionAssignment());
+    return static_cast<const cppkafka::Consumer*>(_handle)->get_offsets_committed(getPartitionAssignment());
 }
 
-TopicPartitionList ConsumerMetadata::getOffsetPositions() const
+cppkafka::TopicPartitionList ConsumerMetadata::getOffsetPositions() const
 {
     if (!_handle) {
         throw std::runtime_error("Null consumer");
     }
-    return static_cast<const Consumer*>(_handle)->get_offsets_position(getPartitionAssignment());
+    return static_cast<const cppkafka::Consumer*>(_handle)->get_offsets_position(getPartitionAssignment());
 }
 
-const TopicPartitionList& ConsumerMetadata::getPartitionAssignment() const
+const cppkafka::TopicPartitionList& ConsumerMetadata::getPartitionAssignment() const
 {
     if (!_handle) {
         throw std::runtime_error("Null consumer");
     }
     if (_partitions.empty()) {
-        _partitions = static_cast<const Consumer*>(_handle)->get_assignment();
+        _partitions = static_cast<const cppkafka::Consumer*>(_handle)->get_assignment();
     }
     return _partitions;
 }
 
-GroupInformation ConsumerMetadata::getGroupInformation() const
+cppkafka::GroupInformation ConsumerMetadata::getGroupInformation() const
 {
     if (!_handle) {
         throw std::runtime_error("Null consumer");
     }
-    return _handle->get_consumer_group(static_cast<const Consumer*>(_handle)->get_member_id());
+    return _handle->get_consumer_group(static_cast<const cppkafka::Consumer*>(_handle)->get_member_id());
 }
 
 PartitionStrategy ConsumerMetadata::getPartitionStrategy() const

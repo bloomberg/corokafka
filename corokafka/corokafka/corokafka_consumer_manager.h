@@ -61,7 +61,7 @@ public:
      *       shall be used with offsets set to RD_KAFKA_OFFSET_STORED.
      */
     void subscribe(const std::string& topic,
-                   TopicPartitionList partitionList = {});
+                   cppkafka::TopicPartitionList partitionList = {});
     
     /**
      * @brief Unsubscribe from this topic.
@@ -81,7 +81,7 @@ public:
      * @warning If this method is used, 'internal.consumer.auto.offset.persist' must be set to 'false' and NO commits
      *          should be made via the ReceivedMessage::commit() API.
      */
-    Error commit(const TopicPartition& topicPartition,
+    cppkafka::Error commit(const cppkafka::TopicPartition& topicPartition,
                  const void* opaque = nullptr,
                  bool forceSync = false);
     
@@ -93,7 +93,7 @@ public:
      *                  'internal.consumer.commit.exec' setting.
      * @return Error object. If the number of retries reach 0, error contains RD_KAFKA_RESP_ERR__FAIL.
      */
-    Error commit(const TopicPartitionList& topicPartitions,
+    cppkafka::Error commit(const cppkafka::TopicPartitionList& topicPartitions,
                  const void* opaque = nullptr,
                  bool forceSync = false);
     

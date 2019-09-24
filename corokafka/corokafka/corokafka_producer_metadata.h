@@ -38,7 +38,7 @@ public:
      * @brief Get all partitions belonging to this topic.
      * @return The partition list.
      */
-    const TopicPartitionList& getTopicPartitions() const;
+    const cppkafka::TopicPartitionList& getTopicPartitions() const;
     /**
      * @sa Metadata::queryOffsetWatermarks
      */
@@ -46,7 +46,7 @@ public:
     /**
      * @sa Metadata::queryOffsetsAtTime
      */
-    TopicPartitionList queryOffsetsAtTime(Timestamp timestamp) const final;
+    cppkafka::TopicPartitionList queryOffsetsAtTime(Timestamp timestamp) const final;
     /**
      * @brief Get the length of the outbound RdKafka queue for this producer.
      * @return The queue length.
@@ -61,13 +61,13 @@ public:
     size_t getInternalQueueLength() const;
 private:
     ProducerMetadata(const std::string& topic,
-                     BufferedProducer<ByteArray>* producer);
+                     cppkafka::BufferedProducer<ByteArray>* producer);
     ProducerMetadata(const std::string& topic,
-                     const Topic& kafkaTopic,
-                     BufferedProducer<ByteArray>* producer);
+                     const cppkafka::Topic& kafkaTopic,
+                     cppkafka::BufferedProducer<ByteArray>* producer);
     
     //Members
-    BufferedProducer<ByteArray>* _bufferedProducer;
+    cppkafka::BufferedProducer<ByteArray>* _bufferedProducer;
 };
 
 }}

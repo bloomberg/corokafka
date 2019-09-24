@@ -61,7 +61,7 @@ void ConsumerManager::resume(const std::string& topic)
 }
 
 void ConsumerManager::subscribe(const std::string& topic,
-                                TopicPartitionList partitionList)
+                                cppkafka::TopicPartitionList partitionList)
 {
     _impl->subscribe(topic, std::move(partitionList));
 }
@@ -71,16 +71,16 @@ void ConsumerManager::unsubscribe(const std::string& topic)
     _impl->unsubscribe(topic);
 }
 
-Error ConsumerManager::commit(const TopicPartition& topicPartition,
-                              const void* opaque,
-                              bool forceSync)
+cppkafka::Error ConsumerManager::commit(const cppkafka::TopicPartition& topicPartition,
+                                          const void* opaque,
+                                          bool forceSync)
 {
     return _impl->commit(topicPartition, opaque, forceSync);
 }
 
-Error ConsumerManager::commit(const TopicPartitionList& topicPartitions,
-                              const void* opaque,
-                              bool forceSync)
+cppkafka::Error ConsumerManager::commit(const cppkafka::TopicPartitionList& topicPartitions,
+                                          const void* opaque,
+                                          bool forceSync)
 {
     return _impl->commit(topicPartitions, opaque, forceSync);
 }

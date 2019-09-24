@@ -57,8 +57,8 @@ public:
      * @note 'metadata.broker.list' must be supplied in 'options'.
      */
     ProducerConfiguration(const std::string& topic,
-                          std::initializer_list<ConfigurationOption> options,
-                          std::initializer_list<ConfigurationOption> topicOptions = {});
+                          std::initializer_list<cppkafka::ConfigurationOption> options,
+                          std::initializer_list<cppkafka::ConfigurationOption> topicOptions = {});
     
     /**
      * @brief Set the delivery report callback.

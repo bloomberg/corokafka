@@ -40,7 +40,7 @@ public:
     
 private:
     using ConfigMap = ConfigurationBuilder::ConfigMap<ProducerConfiguration>;
-    using BuilderTuple = std::tuple<ProducerTopicEntry*, std::unique_ptr<ConcreteMessageBuilder<ByteArray>>>;
+    using BuilderTuple = std::tuple<ProducerTopicEntry*, std::unique_ptr<cppkafka::ConcreteMessageBuilder<ByteArray>>>;
     using MessageFuture = quantum::ThreadContextPtr<BuilderTuple>;
     using Producers = std::unordered_map<std::string,
                                          ProducerTopicEntry,
@@ -107,46 +107,46 @@ private:
     
     // Callbacks
     static int32_t partitionerCallback(ProducerTopicEntry& topicEntry,
-                                       const Topic& topic,
-                                       const Buffer& key,
+                                       const cppkafka::Topic& topic,
+                                       const cppkafka::Buffer& key,
                                        int32_t partitionCount);
     static void errorCallback2(ProducerTopicEntry& topicEntry,
-                               KafkaHandleBase& handle,
+                               cppkafka::KafkaHandleBase& handle,
                                int error,
                                const std::string& reason);
     static void errorCallback(ProducerTopicEntry& topicEntry,
-                               KafkaHandleBase& handle,
+                               cppkafka::KafkaHandleBase& handle,
                                int error,
                                const std::string& reason,
                                void* opaque);
     static void throttleCallback(ProducerTopicEntry& topicEntry,
-                                 KafkaHandleBase& handle,
+                                 cppkafka::KafkaHandleBase& handle,
                                  const std::string& brokerName,
                                  int32_t brokerId,
                                  std::chrono::milliseconds throttleDuration);
     static void logCallback(ProducerTopicEntry& topicEntry,
-                            KafkaHandleBase& handle,
+                            cppkafka::KafkaHandleBase& handle,
                             int level,
                             const std::string& facility,
                             const std::string& message);
     static void statsCallback(ProducerTopicEntry& topicEntry,
-                              KafkaHandleBase& handle,
+                              cppkafka::KafkaHandleBase& handle,
                               const std::string& json);
     static void produceSuccessCallback(ProducerTopicEntry& topicEntry,
-                                       const Message& kafkaMessage);
+                                       const cppkafka::Message& kafkaMessage);
     static void produceTerminationCallback(ProducerTopicEntry& topicEntry,
-                                           const Message& kafkaMessage);
+                                           const cppkafka::Message& kafkaMessage);
     static bool flushFailureCallback(ProducerTopicEntry& topicEntry,
-                                         const MessageBuilder& builder,
-                                         Error error);
+                                         const cppkafka::MessageBuilder& builder,
+                                         cppkafka::Error error);
     static void flushTerminationCallback(ProducerTopicEntry& topicEntry,
-                                         const MessageBuilder& builder,
-                                         Error error);
+                                         const cppkafka::MessageBuilder& builder,
+                                         cppkafka::Error error);
     static void queueFullCallback(ProducerTopicEntry& topicEntry,
-                                  const MessageBuilder& builder);
+                                  const cppkafka::MessageBuilder& builder);
     //log + error callback wrapper
     static void report(ProducerTopicEntry& topicEntry,
-                       LogLevel level,
+                       cppkafka::LogLevel level,
                        int error,
                        const std::string& reason,
                        void* opaque);
@@ -157,9 +157,9 @@ private:
     // Coroutines and async IO
     static int pollTask(ProducerTopicEntry& entry);
     static int produceTask(ProducerTopicEntry& entry,
-                           ConcreteMessageBuilder<ByteArray>&& builder);
+                           cppkafka::ConcreteMessageBuilder<ByteArray>&& builder);
     static int produceTaskSync(ProducerTopicEntry& entry,
-                               const ConcreteMessageBuilder<ByteArray>& builder);
+                               const cppkafka::ConcreteMessageBuilder<ByteArray>& builder);
     template <typename K, typename P, typename HEADERS>
     static BuilderTuple serializeCoro(quantum::VoidContextPtr ctx,
                              ProducerTopicEntry& entry,
@@ -167,7 +167,7 @@ private:
                              P&& payload,
                              HEADERS&& headers,
                              PackedOpaque* opaque);
-    static ConcreteMessageBuilder<ByteArray>
+    static cppkafka::ConcreteMessageBuilder<ByteArray>
     serializeMessage(ProducerTopicEntry& entry,
                      const void* key,
                      const void* payload,
@@ -175,7 +175,7 @@ private:
                      void* opaque);
     
     static void produceMessage(const ProducerTopicEntry& topicEntry,
-                               const ConcreteMessageBuilder<ByteArray>& builder);
+                               const cppkafka::ConcreteMessageBuilder<ByteArray>& builder);
     static void flush(const ProducerTopicEntry& topicEntry);
     
     // Misc methods
@@ -184,8 +184,8 @@ private:
                                  const ProducerTopicEntry& topicEntry);
     static ProducerMetadata makeMetadata(const ProducerTopicEntry& topicEntry);
     // Returns raw user data pointer
-    static void* setPackedOpaqueFuture(const Message& kafkaMessage);
-    static void* setPackedOpaqueFuture(const MessageBuilder& builder, Error error);
+    static void* setPackedOpaqueFuture(const cppkafka::Message& kafkaMessage);
+    static void* setPackedOpaqueFuture(const cppkafka::MessageBuilder& builder, cppkafka::Error error);
     
     // Members
     quantum::Dispatcher&        _dispatcher;
@@ -202,9 +202,9 @@ template <typename BufferType>
 BufferType makeBuffer(ByteArray& buffer);
 
 template <> inline
-Buffer makeBuffer<Buffer>(ByteArray& buffer)
+cppkafka::Buffer makeBuffer<cppkafka::Buffer>(ByteArray& buffer)
 {
-    return Buffer(buffer.data(), buffer.size());
+    return cppkafka::Buffer(buffer.data(), buffer.size());
 }
 
 template <> inline
@@ -225,13 +225,13 @@ ProducerManagerImpl::serializeCoro(quantum::VoidContextPtr ctx,
                                    HEADERS&& headers,
                                    PackedOpaque* opaque)
 {
-    ConcreteMessageBuilder<ByteArray> builder = serializeMessage(entry, &key, &payload, &headers, opaque->first);
+    cppkafka::ConcreteMessageBuilder<ByteArray> builder = serializeMessage(entry, &key, &payload, &headers, opaque->first);
     if (builder.topic().empty()) {
         //Serializing failed
         throw std::runtime_error("Serialization failed");
     }
     builder.user_data(opaque);
-    return {&entry, std::unique_ptr<ConcreteMessageBuilder<ByteArray>>(new ConcreteMessageBuilder<ByteArray>(std::move(builder)))};
+    return {&entry, std::unique_ptr<cppkafka::ConcreteMessageBuilder<ByteArray>>(new cppkafka::ConcreteMessageBuilder<ByteArray>(std::move(builder)))};
 }
 
 template <typename K, typename P>
@@ -250,7 +250,7 @@ size_t ProducerManagerImpl::send(const std::string& topic,
         throw std::runtime_error("Invalid topic");
     }
     ProducerTopicEntry& topicEntry = it->second;
-    ConcreteMessageBuilder<ByteArray> builder = serializeMessage(topicEntry, &key, &payload, &headers, opaque);
+    cppkafka::ConcreteMessageBuilder<ByteArray> builder = serializeMessage(topicEntry, &key, &payload, &headers, opaque);
     if (builder.topic().empty()) {
         //Serializing failed
         return 0;
@@ -275,7 +275,7 @@ ProducerManagerImpl::postImpl(const std::string& topic,
         throw std::runtime_error("Invalid topic");
     }
     ProducerTopicEntry& topicEntry = it->second;
-    if (topicEntry._payloadPolicy == Producer::PayloadPolicy::PASSTHROUGH_PAYLOAD) {
+    if (topicEntry._payloadPolicy == cppkafka::Producer::PayloadPolicy::PASSTHROUGH_PAYLOAD) {
         throw std::runtime_error("Invalid async operation for pass-through payload policy - use send() instead.");
     }
     if (topicEntry._preserveMessageOrder && (topicEntry._producer->get_buffer_size() > topicEntry._maxQueueLength)) {

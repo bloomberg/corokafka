@@ -29,7 +29,7 @@ namespace corokafka {
 
 struct Callbacks {
     // =========================================== CONNECTOR ===========================================================
-    using ConnectorLogCallback = std::function<void(LogLevel level,
+    using ConnectorLogCallback = std::function<void(cppkafka::LogLevel level,
                                                     const std::string& facility,
                                                     const std::string& message)>;
     
@@ -42,7 +42,7 @@ struct Callbacks {
     //       Deserialization => can be safely cast to a 'Message*' which contains the raw unpacked message.
     //       All other contexts => NULL
     using ErrorCallback = std::function<void(const Metadata& metadata,
-                                             Error error,
+                                             cppkafka::Error error,
                                              const std::string& reason,
                                              void* opaque)>;
     
@@ -52,7 +52,7 @@ struct Callbacks {
                                                 std::chrono::milliseconds throttle_time)>;
     
     using LogCallback = std::function<void(const Metadata& metadata,
-                                           LogLevel level,
+                                           cppkafka::LogLevel level,
                                            const std::string& facility,
                                            const std::string& message)>;
     
@@ -61,24 +61,24 @@ struct Callbacks {
     
     // ============================================== CONSUMER =========================================================
     using OffsetCommitCallback = std::function<void(const ConsumerMetadata& metadata,
-                                                    Error error,
-                                                    const TopicPartitionList& topicPartitions,
+                                                    cppkafka::Error error,
+                                                    const cppkafka::TopicPartitionList& topicPartitions,
                                                     const std::vector<const void*>& opaques)>;
     
     using RebalanceCallback = std::function<void(const ConsumerMetadata& metadata,
-                                                 Error error,
-                                                 TopicPartitionList& topicPartitions)>;
+                                                 cppkafka::Error error,
+                                                 cppkafka::TopicPartitionList& topicPartitions)>;
     
-    using PreprocessorCallback = std::function<bool(TopicPartition hint)>;
-    
-    template <typename T>
-    using KeyDeserializerCallback = std::function<T(const TopicPartition&, const Buffer&)>;
+    using PreprocessorCallback = std::function<bool(cppkafka::TopicPartition hint)>;
     
     template <typename T>
-    using HeaderDeserializerCallback = std::function<T(const TopicPartition&, const Buffer& buffer)>;
+    using KeyDeserializerCallback = std::function<T(const cppkafka::TopicPartition&, const cppkafka::Buffer&)>;
     
     template <typename T>
-    using PayloadDeserializerCallback = std::function<T(const TopicPartition&, const HeaderPack&, const Buffer&)>;
+    using HeaderDeserializerCallback = std::function<T(const cppkafka::TopicPartition&, const cppkafka::Buffer& buffer)>;
+    
+    template <typename T>
+    using PayloadDeserializerCallback = std::function<T(const cppkafka::TopicPartition&, const HeaderPack&, const cppkafka::Buffer&)>;
     
     template <typename K, typename P>
     using ReceiverCallback = std::function<void(ReceivedMessage<K,P>)>;
@@ -88,7 +88,7 @@ struct Callbacks {
                                                       const SentMessage& message)>;
     
     using PartitionerCallback = std::function<int32_t(const ProducerMetadata& metadata,
-                                                      const Buffer& key,
+                                                      const cppkafka::Buffer& key,
                                                       int32_t partition_count)>;
     
     using QueueFullCallback = std::function<void(const ProducerMetadata& metadata,

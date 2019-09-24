@@ -23,11 +23,11 @@ namespace corokafka {
 //=============================================================================
 // Constructor
 Metadata::Metadata(const std::string& topic,
-                   const Topic& kafkaTopic,
-                   KafkaHandleBase* handle) :
+                   const cppkafka::Topic& kafkaTopic,
+                   cppkafka::KafkaHandleBase* handle) :
     _topic(topic),
     _handle(handle),
-    _kafkaTopic(Topic::make_non_owning(kafkaTopic.get_handle()))
+    _kafkaTopic(cppkafka::Topic::make_non_owning(kafkaTopic.get_handle()))
 {
 }
 
@@ -46,7 +46,7 @@ const std::string& Metadata::getTopic() const
     return _topic;
 }
 
-const Topic& Metadata::getTopicObject() const
+const cppkafka::Topic& Metadata::getTopicObject() const
 {
     if (!_handle) {
         throw std::runtime_error("Null handle");
@@ -57,7 +57,7 @@ const Topic& Metadata::getTopicObject() const
     return _kafkaTopic;
 }
 
-TopicMetadata Metadata::getTopicMetadata() const
+cppkafka::TopicMetadata Metadata::getTopicMetadata() const
 {
     if (!_handle) {
         throw std::runtime_error("Null handle");

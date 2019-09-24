@@ -57,8 +57,8 @@ public:
      * @note 'metadata.broker.list' must be supplied in 'options'.
      */
     ConsumerConfiguration(const std::string& topic,
-                          std::initializer_list<ConfigurationOption> options,
-                          std::initializer_list<ConfigurationOption> topicOptions = {});
+                          std::initializer_list<cppkafka::ConfigurationOption> options,
+                          std::initializer_list<cppkafka::ConfigurationOption> topicOptions = {});
     
     /**
      * @brief Assign partitions and offsets on startup for this consumer.
@@ -70,7 +70,7 @@ public:
      *         to rdkafka::rd_kafka_subscribe().
      */
     void assignInitialPartitions(PartitionStrategy strategy,
-                                 TopicPartitionList partitions);
+                                 cppkafka::TopicPartitionList partitions);
     
     /**
      * @brief Get the partition strategy used by this consumer.
@@ -83,7 +83,7 @@ public:
      * @brief Get the initial partition assignment.
      * @return The partition assignment.
      */
-    const TopicPartitionList& getInitialPartitionAssignment() const;
+    const cppkafka::TopicPartitionList& getInitialPartitionAssignment() const;
     
     /**
      * @brief Set the offset commit callback.
@@ -219,7 +219,7 @@ private:
     DeserializerPtr                         _payloadDeserializer;
     std::map<std::string, DeserializerPtr>  _headerDeserializers;
     std::shared_ptr<Receiver>               _receiver;
-    TopicPartitionList                      _initialPartitionList;
+    cppkafka::TopicPartitionList            _initialPartitionList;
     PartitionStrategy                       _strategy{PartitionStrategy::Dynamic};
     static const OptionSet                  s_internalOptions;
     static const OptionSet                  s_internalTopicOptions;
