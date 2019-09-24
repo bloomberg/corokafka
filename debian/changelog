@@ -1,3 +1,10 @@
+corokafka (0.2.0.43) unstable; urgency=low
+
+  * ff40474 Merge pull request #34 from adamian/concepts
+  * 2f7c34d Removed namespace forwarding for cppkafka types
+
+ -- Alexander Damian <adamian@bloomberg.net>  Tue, 24 Sep 2019 23:27:13 +0100
+
 corokafka (0.2.0.42) unstable; urgency=low
 
   * 2ad2d6e Merge pull request #33 from adamian/concepts
