@@ -16,7 +16,7 @@
 #ifndef BLOOMBERG_COROKAFKA_DELIVERY_REPORT_H
 #define BLOOMBERG_COROKAFKA_DELIVERY_REPORT_H
 
-#include <corokafka/detail/corokafka_namespace_forwarding.h>
+#include <cppkafka/cppkafka.h>
 
 namespace Bloomberg {
 namespace corokafka {
@@ -36,11 +36,11 @@ public:
      * @param error the error associated with the message delivery, if any
      * @param opaque a user-provided pointer to an opaque data associated with the message
      */
-    DeliveryReport(TopicPartition topicPartition, size_t numBytes, Error error, void * opaque);
+    DeliveryReport(cppkafka::TopicPartition topicPartition, size_t numBytes, cppkafka::Error error, void * opaque);
     /**
      * @brief Gets the message topic partition
      */
-    const TopicPartition & getTopicPartition() const;
+    const cppkafka::TopicPartition & getTopicPartition() const;
     /**
      * @brief Gets the number of bytes written if successful
      */
@@ -48,16 +48,16 @@ public:
     /**
      * @brief Gets the message delivery error
      */    
-    const Error& getError() const;
+    const cppkafka::Error& getError() const;
     /**
      * @brief Gets the opaque data associated with the message
      */
     void* getOpaque() const;
     
 private:
-    TopicPartition  _topicPartition;
+    cppkafka::TopicPartition  _topicPartition;
     size_t          _numBytes{0};
-    Error           _error;
+    cppkafka::Error           _error;
     void*           _opaque{nullptr};
 };
  

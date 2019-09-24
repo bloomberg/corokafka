@@ -40,7 +40,7 @@ struct DeserializerError
     bool isPreprocessorError() const { return (_source & (uint8_t)Source::Preprocessor) != 0; }
     
     //members
-    Error       _error{RD_KAFKA_RESP_ERR_NO_ERROR};
+    cppkafka::Error       _error{RD_KAFKA_RESP_ERR_NO_ERROR};
     uint8_t     _source{0};
     int         _headerNum{-1};
 };
@@ -50,8 +50,8 @@ struct Deserializer
     using ResultType = boost::any;
     using result_type = ResultType; //cppkafka compatibility for callback invoker
     virtual ~Deserializer() = default;
-    virtual ResultType operator()(const TopicPartition&, const Buffer&) const { return {}; };
-    virtual ResultType operator()(const TopicPartition&, const HeaderPack&, const Buffer&) const { return {}; }
+    virtual ResultType operator()(const cppkafka::TopicPartition&, const cppkafka::Buffer&) const { return {}; };
+    virtual ResultType operator()(const cppkafka::TopicPartition&, const HeaderPack&, const cppkafka::Buffer&) const { return {}; }
     virtual explicit operator bool() const = 0;
 };
 
@@ -60,7 +60,7 @@ class ConcreteDeserializer : public Deserializer
 {
 public:
     using ResultType = Deserializer::ResultType;
-    using Callback = std::function<T(const TopicPartition&, const Buffer& buffer)>;
+    using Callback = std::function<T(const cppkafka::TopicPartition&, const cppkafka::Buffer& buffer)>;
     
     //Ctor
     ConcreteDeserializer(Callback callback) :
@@ -69,8 +69,8 @@ public:
     
     const Callback& getCallback() const { return _func; }
     
-    ResultType operator()(const TopicPartition& toppar,
-                          const Buffer& buffer) const final {
+    ResultType operator()(const cppkafka::TopicPartition& toppar,
+                          const cppkafka::Buffer& buffer) const final {
         return _func(toppar, buffer);
     }
     
@@ -84,7 +84,7 @@ class ConcreteDeserializerWithHeaders : public Deserializer
 {
 public:
     using ResultType = Deserializer::ResultType;
-    using Callback = std::function<T(const TopicPartition&, const HeaderPack&, const Buffer&)>;
+    using Callback = std::function<T(const cppkafka::TopicPartition&, const HeaderPack&, const cppkafka::Buffer&)>;
     
     //Ctor
     ConcreteDeserializerWithHeaders(Callback callback) :
@@ -93,9 +93,9 @@ public:
     
     const Callback& getCallback() const { return _func; }
     
-    ResultType operator()(const TopicPartition& toppar,
+    ResultType operator()(const cppkafka::TopicPartition& toppar,
                           const HeaderPack& headers,
-                          const Buffer& buffer) const final {
+                          const cppkafka::Buffer& buffer) const final {
         return _func(toppar, headers, buffer);
     }
     

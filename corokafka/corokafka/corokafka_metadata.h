@@ -24,7 +24,7 @@ namespace corokafka {
 
 struct OffsetWatermark {
     OffsetWatermark(int partition,
-                    KafkaHandleBase::OffsetTuple watermark) :
+                    cppkafka::KafkaHandleBase::OffsetTuple watermark) :
         _partition(partition),
        _watermark{std::get<0>(watermark), std::get<1>(watermark)}
     {}
@@ -73,7 +73,7 @@ public:
      * @remark This method blocks until offset data is received. It is preferable *not* to call this
      *         method from within a callback.
      */
-    virtual TopicPartitionList queryOffsetsAtTime(Timestamp timestamp) const = 0;
+    virtual cppkafka::TopicPartitionList queryOffsetsAtTime(Timestamp timestamp) const = 0;
     
     /**
      * @brief Indicates if the rdkafka consumer/producer handle is valid and set
@@ -97,7 +97,7 @@ public:
      * @brief Get the topic-specific metadata.
      * @return The metadata.
      */
-    TopicMetadata getTopicMetadata() const;
+    cppkafka::TopicMetadata getTopicMetadata() const;
     
     /**
      * @brief Get the RdKafka internal name for this consumer or producer.
@@ -115,15 +115,15 @@ public:
 protected:
     // Constructor
     Metadata(const std::string& topic,
-             const Topic& kafkaTopic,
-             KafkaHandleBase* handle);
+             const cppkafka::Topic& kafkaTopic,
+             cppkafka::KafkaHandleBase* handle);
     
-    const Topic& getTopicObject() const;
+    const cppkafka::Topic& getTopicObject() const;
     
     const std::string&            _topic;
-    KafkaHandleBase*              _handle;
-    mutable Topic                 _kafkaTopic;
-    mutable TopicPartitionList    _partitions;
+    cppkafka::KafkaHandleBase*              _handle;
+    mutable cppkafka::Topic                 _kafkaTopic;
+    mutable cppkafka::TopicPartitionList    _partitions;
 };
 
 }

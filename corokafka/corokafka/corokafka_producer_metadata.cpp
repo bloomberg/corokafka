@@ -23,21 +23,21 @@ namespace corokafka {
 //=============================================================================
 
 ProducerMetadata::ProducerMetadata(const std::string& topic,
-                                   BufferedProducer<ByteArray>* producer) :
-    Metadata(topic, Topic(), producer ? &producer->get_producer() : nullptr),
+                                   cppkafka::BufferedProducer<ByteArray>* producer) :
+    Metadata(topic, cppkafka::Topic(), producer ? &producer->get_producer() : nullptr),
     _bufferedProducer(producer)
 {
 }
 
 ProducerMetadata::ProducerMetadata(const std::string& topic,
-                                   const Topic& kafkaTopic,
-                                   BufferedProducer<ByteArray>* producer) :
+                                   const cppkafka::Topic& kafkaTopic,
+                                   cppkafka::BufferedProducer<ByteArray>* producer) :
     Metadata(topic, kafkaTopic, producer ? &producer->get_producer() : nullptr),
     _bufferedProducer(producer)
 {
 }
 
-const TopicPartitionList& ProducerMetadata::getTopicPartitions() const
+const cppkafka::TopicPartitionList& ProducerMetadata::getTopicPartitions() const
 {
     if (_partitions.empty()) {
         for (const auto& meta : getTopicMetadata().get_partitions()) {
@@ -59,12 +59,12 @@ Metadata::OffsetWatermarkList ProducerMetadata::queryOffsetWatermarks() const
     return offsets;
 }
 
-TopicPartitionList ProducerMetadata::queryOffsetsAtTime(Timestamp timestamp) const
+cppkafka::TopicPartitionList ProducerMetadata::queryOffsetsAtTime(Timestamp timestamp) const
 {
     if (!_handle) {
         throw std::runtime_error("Null producer");
     }
-    KafkaHandleBase::TopicPartitionsTimestampsMap timestampMap;
+    cppkafka::KafkaHandleBase::TopicPartitionsTimestampsMap timestampMap;
     std::chrono::milliseconds epochTime = timestamp.time_since_epoch();
     for (const auto& partition : getTopicPartitions()) {
         timestampMap[partition] = epochTime;

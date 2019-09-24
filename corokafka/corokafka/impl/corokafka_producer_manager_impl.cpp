@@ -63,7 +63,7 @@ ProducerManagerImpl::~ProducerManagerImpl()
 }
 
 void ProducerManagerImpl::produceMessage(const ProducerTopicEntry& entry,
-                                         const ConcreteMessageBuilder<ByteArray>& builder)
+                                         const cppkafka::ConcreteMessageBuilder<ByteArray>& builder)
 {
     if (entry._waitForAcks) {
         if (entry._waitForAcksTimeout.count() == -1) {
@@ -115,23 +115,23 @@ void ProducerManagerImpl::setup(const std::string& topic, ProducerTopicEntry& to
         throw std::runtime_error(std::string("Payload serializer callback not specified for topic producer: ") + topic);
     }
     
-    const ConfigurationOption* brokerList =
+    const cppkafka::ConfigurationOption* brokerList =
         Configuration::findOption("metadata.broker.list", rdKafkaOptions);
     if (!brokerList) {
         throw std::runtime_error(std::string("Producer broker list not found. Please set 'metadata.broker.list' for topic ") + topic);
     }
     
     //Set the rdkafka configuration options
-    KafkaConfiguration kafkaConfig(rdKafkaOptions);
-    TopicConfiguration topicConfig(rdKafkaTopicOptions);
+    cppkafka::Configuration kafkaConfig(rdKafkaOptions);
+    cppkafka::TopicConfiguration topicConfig(rdKafkaTopicOptions);
     
-    const ConfigurationOption* autoThrottle =
+    const cppkafka::ConfigurationOption* autoThrottle =
         Configuration::findOption("internal.producer.auto.throttle", internalOptions);
     if (autoThrottle) {
         topicEntry._throttleControl.autoThrottle() = StringEqualCompare()(autoThrottle->get_value(), "true");
     }
     
-    const ConfigurationOption* throttleMultiplier =
+    const cppkafka::ConfigurationOption* throttleMultiplier =
         Configuration::findOption("internal.producer.auto.throttle.multiplier", internalOptions);
     if (throttleMultiplier) {
         topicEntry._throttleControl.throttleMultiplier() = std::stol(throttleMultiplier->get_value());
@@ -163,13 +163,13 @@ void ProducerManagerImpl::setup(const std::string& topic, ProducerTopicEntry& to
         kafkaConfig.set_stats_callback(statsFunc);
     }
     
-    const ConfigurationOption* maxQueueLength =
+    const cppkafka::ConfigurationOption* maxQueueLength =
         Configuration::findOption("internal.producer.max.queue.length", internalOptions);
     if (maxQueueLength) {
         topicEntry._maxQueueLength = std::stoll(maxQueueLength->get_value());
     }
     
-    const ConfigurationOption* preserveMessageOrder =
+    const cppkafka::ConfigurationOption* preserveMessageOrder =
         Configuration::findOption("internal.producer.preserve.message.order", internalOptions);
     if (preserveMessageOrder) {
         topicEntry._preserveMessageOrder = StringEqualCompare()(preserveMessageOrder->get_value(), "true");
@@ -180,13 +180,13 @@ void ProducerManagerImpl::setup(const std::string& topic, ProducerTopicEntry& to
     }
     
     size_t internalProducerRetries = 0;
-    const ConfigurationOption* numRetriesOption =
+    const cppkafka::ConfigurationOption* numRetriesOption =
         Configuration::findOption("internal.producer.retries", internalOptions);
     if (numRetriesOption) {
         internalProducerRetries = std::stoll(numRetriesOption->get_value());
     }
     
-    const ConfigurationOption* skipUnknownHeaders =
+    const cppkafka::ConfigurationOption* skipUnknownHeaders =
         Configuration::findOption("internal.producer.skip.unknown.headers", internalOptions);
     if (skipUnknownHeaders) {
         topicEntry._skipUnknownHeaders = StringEqualCompare()(skipUnknownHeaders->get_value(), "true");
@@ -199,21 +199,21 @@ void ProducerManagerImpl::setup(const std::string& topic, ProducerTopicEntry& to
     //=======================================================================================
     
     //Create a buffered producer
-    topicEntry._producer.reset(new BufferedProducer<ByteArray>(kafkaConfig));
+    topicEntry._producer.reset(new cppkafka::BufferedProducer<ByteArray>(kafkaConfig));
     
     //Set internal config options
     if (numRetriesOption) {
         topicEntry._producer->set_max_number_retries(internalProducerRetries);
     }
     
-    const ConfigurationOption* payloadPolicy =
+    const cppkafka::ConfigurationOption* payloadPolicy =
         Configuration::findOption("internal.producer.payload.policy", internalOptions);
     if (payloadPolicy) {
         if (StringEqualCompare()(payloadPolicy->get_value(), "passthrough")) {
-            topicEntry._payloadPolicy = Producer::PayloadPolicy::PASSTHROUGH_PAYLOAD;
+            topicEntry._payloadPolicy = cppkafka::Producer::PayloadPolicy::PASSTHROUGH_PAYLOAD;
         }
         else if (StringEqualCompare()(payloadPolicy->get_value(), "copy")) {
-            topicEntry._payloadPolicy = Producer::PayloadPolicy::COPY_PAYLOAD;
+            topicEntry._payloadPolicy = cppkafka::Producer::PayloadPolicy::COPY_PAYLOAD;
         }
         else {
             throw std::runtime_error("Unknown internal.producer.payload.policy");
@@ -221,33 +221,33 @@ void ProducerManagerImpl::setup(const std::string& topic, ProducerTopicEntry& to
         topicEntry._producer->get_producer().set_payload_policy(topicEntry._payloadPolicy);
     }
     
-    const ConfigurationOption* logLevel =
+    const cppkafka::ConfigurationOption* logLevel =
         Configuration::findOption("internal.producer.log.level", internalOptions);
     if (logLevel) {
-        LogLevel level = logLevelFromString(logLevel->get_value());
+        cppkafka::LogLevel level = logLevelFromString(logLevel->get_value());
         topicEntry._producer->get_producer().set_log_level(level);
         topicEntry._logLevel = level;
     }
     
-    const ConfigurationOption* pollTimeout =
+    const cppkafka::ConfigurationOption* pollTimeout =
         Configuration::findOption("internal.producer.timeout.ms", internalOptions);
     if (pollTimeout) {
         topicEntry._producer->get_producer().set_timeout(std::chrono::milliseconds(std::stoll(pollTimeout->get_value())));
     }
     
-    const ConfigurationOption* waitForAcks =
+    const cppkafka::ConfigurationOption* waitForAcks =
         Configuration::findOption("internal.producer.wait.for.acks", internalOptions);
     if (waitForAcks) {
         topicEntry._waitForAcks = StringEqualCompare()(waitForAcks->get_value(), "true");
     }
     
-    const ConfigurationOption* flushWaitForAcks =
+    const cppkafka::ConfigurationOption* flushWaitForAcks =
         Configuration::findOption("internal.producer.flush.wait.for.acks", internalOptions);
     if (flushWaitForAcks) {
         topicEntry._flushWaitForAcks = StringEqualCompare()(flushWaitForAcks->get_value(), "true");
     }
     
-    const ConfigurationOption* waitForAcksTimeout =
+    const cppkafka::ConfigurationOption* waitForAcksTimeout =
         Configuration::findOption("internal.producer.wait.for.acks.timeout.ms", internalOptions);
     if (waitForAcksTimeout) {
         topicEntry._waitForAcksTimeout = std::chrono::milliseconds(std::stoll(waitForAcksTimeout->get_value()));
@@ -256,7 +256,7 @@ void ProducerManagerImpl::setup(const std::string& topic, ProducerTopicEntry& to
         }
     }
     
-    const ConfigurationOption* flushWaitForAcksTimeout =
+    const cppkafka::ConfigurationOption* flushWaitForAcksTimeout =
         Configuration::findOption("internal.producer.flush.wait.for.acks.timeout.ms", internalOptions);
     if (flushWaitForAcksTimeout) {
         topicEntry._flushWaitForAcksTimeout = std::chrono::milliseconds(std::stoll(flushWaitForAcksTimeout->get_value()));
@@ -283,7 +283,7 @@ void ProducerManagerImpl::setup(const std::string& topic, ProducerTopicEntry& to
     topicEntry._producer->set_flush_termination_callback(flushTerminationFunc);
     
     if (topicEntry._configuration.getQueueFullCallback()) {
-        const ConfigurationOption* queueFullNotification =
+        const cppkafka::ConfigurationOption* queueFullNotification =
         Configuration::findOption("internal.producer.queue.full.notification", internalOptions);
         if (queueFullNotification) {
             if (StringEqualCompare()(queueFullNotification->get_value(), "edgeTriggered")) {
@@ -438,18 +438,18 @@ void ProducerManagerImpl::enableMessageFanout(bool value)
 // Callbacks
 int32_t ProducerManagerImpl::partitionerCallback(
                         ProducerTopicEntry& topicEntry,
-                        const Topic&,
-                        const Buffer& key,
+                        const cppkafka::Topic&,
+                        const cppkafka::Buffer& key,
                         int32_t partitionCount)
 {
-    return CallbackInvoker<Callbacks::PartitionerCallback>
+    return cppkafka::CallbackInvoker<Callbacks::PartitionerCallback>
         ("partition", topicEntry._configuration.getPartitionerCallback(), &topicEntry._producer->get_producer())
             (makeMetadata(topicEntry), key, partitionCount);
 }
 
 void ProducerManagerImpl::errorCallback2(
                         ProducerTopicEntry& topicEntry,
-                        KafkaHandleBase& handle,
+                        cppkafka::KafkaHandleBase& handle,
                         int error,
                         const std::string& reason)
 {
@@ -458,19 +458,19 @@ void ProducerManagerImpl::errorCallback2(
 
 void ProducerManagerImpl::errorCallback(
                         ProducerTopicEntry& topicEntry,
-                        KafkaHandleBase& handle,
+                        cppkafka::KafkaHandleBase& handle,
                         int error,
                         const std::string& reason,
                         void* opaque)
 {
-    CallbackInvoker<Callbacks::ErrorCallback>
+    cppkafka::CallbackInvoker<Callbacks::ErrorCallback>
         ("error", topicEntry._configuration.getErrorCallback(), &handle)
-            (makeMetadata(topicEntry), Error((rd_kafka_resp_err_t)error), reason, opaque);
+            (makeMetadata(topicEntry), cppkafka::Error((rd_kafka_resp_err_t)error), reason, opaque);
 }
 
 void ProducerManagerImpl::throttleCallback(
                         ProducerTopicEntry& topicEntry,
-                        KafkaHandleBase& handle,
+                        cppkafka::KafkaHandleBase& handle,
                         const std::string& brokerName,
                         int32_t brokerId,
                         std::chrono::milliseconds throttleDuration)
@@ -487,61 +487,61 @@ void ProducerManagerImpl::throttleCallback(
             topicEntry._forceSyncFlush = true;
         }
     }
-    CallbackInvoker<Callbacks::ThrottleCallback>
+    cppkafka::CallbackInvoker<Callbacks::ThrottleCallback>
         ("throttle", topicEntry._configuration.getThrottleCallback(), &handle)
             (makeMetadata(topicEntry), brokerName, brokerId, throttleDuration);
 }
 
 void ProducerManagerImpl::logCallback(
                         ProducerTopicEntry& topicEntry,
-                        KafkaHandleBase& handle,
+                        cppkafka::KafkaHandleBase& handle,
                         int level,
                         const std::string& facility,
                         const std::string& message)
 {
-    CallbackInvoker<Callbacks::LogCallback>
+    cppkafka::CallbackInvoker<Callbacks::LogCallback>
         ("log", topicEntry._configuration.getLogCallback(), &handle)
-            (makeMetadata(topicEntry), static_cast<LogLevel>(level), facility, message);
+            (makeMetadata(topicEntry), static_cast<cppkafka::LogLevel>(level), facility, message);
 }
 
 void ProducerManagerImpl::statsCallback(
                         ProducerTopicEntry& topicEntry,
-                        KafkaHandleBase& handle,
+                        cppkafka::KafkaHandleBase& handle,
                         const std::string& json)
 {
-    CallbackInvoker<Callbacks::StatsCallback>
+    cppkafka::CallbackInvoker<Callbacks::StatsCallback>
         ("stats", topicEntry._configuration.getStatsCallback(), &handle)
             (makeMetadata(topicEntry), json);
 }
 
 void ProducerManagerImpl::produceSuccessCallback(
                         ProducerTopicEntry& topicEntry,
-                        const Message& kafkaMessage)
+                        const cppkafka::Message& kafkaMessage)
 {
     void* opaque = setPackedOpaqueFuture(kafkaMessage); //set future
-    CallbackInvoker<Callbacks::DeliveryReportCallback>
+    cppkafka::CallbackInvoker<Callbacks::DeliveryReportCallback>
         ("produce success", topicEntry._configuration.getDeliveryReportCallback(), &topicEntry._producer->get_producer())
             (makeMetadata(topicEntry), SentMessage(kafkaMessage, opaque));
 }
 
 void ProducerManagerImpl::produceTerminationCallback(
                         ProducerTopicEntry& topicEntry,
-                        const Message& kafkaMessage)
+                        const cppkafka::Message& kafkaMessage)
 {
     void* opaque = setPackedOpaqueFuture(kafkaMessage); //set future
-    CallbackInvoker<Callbacks::DeliveryReportCallback>
+    cppkafka::CallbackInvoker<Callbacks::DeliveryReportCallback>
         ("produce failure", topicEntry._configuration.getDeliveryReportCallback(), &topicEntry._producer->get_producer())
             (makeMetadata(topicEntry), SentMessage(kafkaMessage, opaque));
 }
 
 bool ProducerManagerImpl::flushFailureCallback(
                         ProducerTopicEntry& topicEntry,
-                        const MessageBuilder& builder,
-                        Error error)
+                        const cppkafka::MessageBuilder& builder,
+                        cppkafka::Error error)
 {
     std::ostringstream oss;
     oss << "Failed to enqueue message " << builder;
-    report(topicEntry, LogLevel::LogErr, error.get_error(), oss.str(), nullptr);
+    report(topicEntry, cppkafka::LogLevel::LogErr, error.get_error(), oss.str(), nullptr);
     return ((error.get_error() != RD_KAFKA_RESP_ERR_MSG_SIZE_TOO_LARGE) &&
             (error.get_error() != RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION) &&
             (error.get_error() != RD_KAFKA_RESP_ERR__UNKNOWN_TOPIC));
@@ -549,22 +549,22 @@ bool ProducerManagerImpl::flushFailureCallback(
 
 void ProducerManagerImpl::flushTerminationCallback(
                         ProducerTopicEntry& topicEntry,
-                        const MessageBuilder& builder,
-                        Error error)
+                        const cppkafka::MessageBuilder& builder,
+                        cppkafka::Error error)
 {
     void* opaque = setPackedOpaqueFuture(builder, error); //set future
-    CallbackInvoker<Callbacks::DeliveryReportCallback>
+    cppkafka::CallbackInvoker<Callbacks::DeliveryReportCallback>
         ("produce failure", topicEntry._configuration.getDeliveryReportCallback(), &topicEntry._producer->get_producer())
             (makeMetadata(topicEntry), SentMessage(builder, error, opaque));
 }
 
 void ProducerManagerImpl::queueFullCallback(ProducerTopicEntry& topicEntry,
-                                            const MessageBuilder& builder)
+                                            const cppkafka::MessageBuilder& builder)
 {
     bool notify = (topicEntry._queueFullNotification != QueueFullNotification::EdgeTriggered) || topicEntry._queueFullTrigger;
     if (notify) {
         topicEntry._queueFullTrigger = false; //clear trigger
-        CallbackInvoker<Callbacks::QueueFullCallback>
+        cppkafka::CallbackInvoker<Callbacks::QueueFullCallback>
         ("queue full", topicEntry._configuration.getQueueFullCallback(), &topicEntry._producer->get_producer())
             (makeMetadata(topicEntry), SentMessage(builder,
                                                    RD_KAFKA_RESP_ERR__QUEUE_FULL,
@@ -574,7 +574,7 @@ void ProducerManagerImpl::queueFullCallback(ProducerTopicEntry& topicEntry,
 
 void ProducerManagerImpl::report(
                     ProducerTopicEntry& topicEntry,
-                    LogLevel level,
+                    cppkafka::LogLevel level,
                     int error,
                     const std::string& reason,
                     void* opaque)
@@ -615,7 +615,7 @@ int ProducerManagerImpl::pollTask(ProducerTopicEntry& entry)
 }
 
 int ProducerManagerImpl::produceTask(ProducerTopicEntry& entry,
-                                     ConcreteMessageBuilder<ByteArray>&& builder)
+                                     cppkafka::ConcreteMessageBuilder<ByteArray>&& builder)
 {
     try {
         if (entry._preserveMessageOrder) {
@@ -635,7 +635,7 @@ int ProducerManagerImpl::produceTask(ProducerTopicEntry& entry,
 }
 
 int ProducerManagerImpl::produceTaskSync(ProducerTopicEntry& entry,
-                                         const ConcreteMessageBuilder<ByteArray>& builder)
+                                         const cppkafka::ConcreteMessageBuilder<ByteArray>& builder)
 {
     try {
         if (entry._preserveMessageOrder) {
@@ -654,21 +654,21 @@ int ProducerManagerImpl::produceTaskSync(ProducerTopicEntry& entry,
     }
 }
 
-ConcreteMessageBuilder<ByteArray>
+cppkafka::ConcreteMessageBuilder<ByteArray>
 ProducerManagerImpl::serializeMessage(ProducerTopicEntry& entry,
                                       const void* key,
                                       const void* payload,
                                       const HeaderPack* headers,
                                       void* opaque)
 {
-    ConcreteMessageBuilder<ByteArray> builder(entry._configuration.getTopic());
+    cppkafka::ConcreteMessageBuilder<ByteArray> builder(entry._configuration.getTopic());
     
     //Serialize the key
-    Serializer::ResultType packedKey = CallbackInvoker<Serializer>
+    Serializer::ResultType packedKey = cppkafka::CallbackInvoker<Serializer>
         ("key_serializer", entry._configuration.getKeySerializer(), &entry._producer->get_producer())(key);
     if (packedKey.empty()) {
         // Key is empty or encoding failed
-        report(entry, LogLevel::LogErr, RD_KAFKA_RESP_ERR__KEY_SERIALIZATION, "Failed to serialize key", opaque);
+        report(entry, cppkafka::LogLevel::LogErr, RD_KAFKA_RESP_ERR__KEY_SERIALIZATION, "Failed to serialize key", opaque);
         return {""};
     }
     builder.key(std::move(packedKey));
@@ -677,34 +677,34 @@ ProducerManagerImpl::serializeMessage(ProducerTopicEntry& entry,
     for (auto it = headers->cbegin(); it != headers->cend(); ++it) {
         try {
             //Serialize the header
-            Serializer::ResultType packedHeader = CallbackInvoker<Serializer>
+            Serializer::ResultType packedHeader = cppkafka::CallbackInvoker<Serializer>
                 ("header_serializer", entry._configuration.getHeaderSerializer(it->first), &entry._producer->get_producer())
                 (boost::unsafe_any_cast<void*>(&it->second));
             if (packedHeader.empty()) {
                 // Header is empty or encoding failed
                 std::ostringstream oss;
                 oss << "Failed to serialize header: " << it->first;
-                report(entry, LogLevel::LogErr, RD_KAFKA_RESP_ERR__VALUE_SERIALIZATION, oss.str(), opaque);
+                report(entry, cppkafka::LogLevel::LogErr, RD_KAFKA_RESP_ERR__VALUE_SERIALIZATION, oss.str(), opaque);
                 return {""};
             }
-            builder.header(Header<ByteArray>(it->first, std::move(packedHeader)));
+            builder.header(cppkafka::Header<ByteArray>(it->first, std::move(packedHeader)));
         }
         catch (const std::exception& ex) {
             if (entry._skipUnknownHeaders) {
-                report(entry, LogLevel::LogWarning, 0, ex.what(), opaque);
+                report(entry, cppkafka::LogLevel::LogWarning, 0, ex.what(), opaque);
                 continue;
             }
-            report(entry, LogLevel::LogErr, RD_KAFKA_RESP_ERR__NOT_IMPLEMENTED, ex.what(), opaque);
+            report(entry, cppkafka::LogLevel::LogErr, RD_KAFKA_RESP_ERR__NOT_IMPLEMENTED, ex.what(), opaque);
             return {""};
         }
     }
     
     //Serialize the payload
-    Serializer::ResultType packedPayload = CallbackInvoker<Serializer>
+    Serializer::ResultType packedPayload = cppkafka::CallbackInvoker<Serializer>
         ("payload_serializer", entry._configuration.getPayloadSerializer(), &entry._producer->get_producer())(headers, payload);
     if (packedPayload.empty()) {
         // Payload is empty or encoding failed
-        report(entry, LogLevel::LogErr, RD_KAFKA_RESP_ERR__VALUE_SERIALIZATION, "Failed to serialize payload", opaque);
+        report(entry, cppkafka::LogLevel::LogErr, RD_KAFKA_RESP_ERR__VALUE_SERIALIZATION, "Failed to serialize payload", opaque);
         return {""};
     }
     builder.payload(std::move(packedPayload));
@@ -725,10 +725,10 @@ ProducerMetadata ProducerManagerImpl::makeMetadata(const ProducerTopicEntry& top
     return ProducerMetadata(topicEntry._configuration.getTopic(), topicEntry._producer.get());
 }
 
-void* ProducerManagerImpl::setPackedOpaqueFuture(const Message& kafkaMessage)
+void* ProducerManagerImpl::setPackedOpaqueFuture(const cppkafka::Message& kafkaMessage)
 {
     std::unique_ptr<PackedOpaque> packedOpaque(static_cast<PackedOpaque*>(kafkaMessage.get_user_data()));
-    packedOpaque->second.set(DeliveryReport(TopicPartition(kafkaMessage.get_topic(),
+    packedOpaque->second.set(DeliveryReport(cppkafka::TopicPartition(kafkaMessage.get_topic(),
                                                            kafkaMessage.get_partition(),
                                                            kafkaMessage.get_offset()),
                                                   kafkaMessage.get_payload().get_size(),
@@ -737,12 +737,12 @@ void* ProducerManagerImpl::setPackedOpaqueFuture(const Message& kafkaMessage)
     return packedOpaque->first;
 }
 
-void* ProducerManagerImpl::setPackedOpaqueFuture(const MessageBuilder& builder, Error error)
+void* ProducerManagerImpl::setPackedOpaqueFuture(const cppkafka::MessageBuilder& builder, cppkafka::Error error)
 {
     std::unique_ptr<PackedOpaque> packedOpaque(static_cast<PackedOpaque*>(builder.user_data()));
-    packedOpaque->second.set(DeliveryReport(TopicPartition(builder.topic(),
+    packedOpaque->second.set(DeliveryReport(cppkafka::TopicPartition(builder.topic(),
                                                            builder.partition(),
-                                                           TopicPartition::OFFSET_INVALID),
+                                                           cppkafka::TopicPartition::OFFSET_INVALID),
                                                   0,
                                                   error,
                                                   packedOpaque->first));

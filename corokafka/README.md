@@ -85,7 +85,7 @@ void deliveryReportCallback(const corokafka::ProducerMetadata& metadata,
 
 // Define a log callback (optional - see documentation for all available callbacks)
 void logCallback(const corokafka::Metadata& metadata,
-                 corokafka::LogLevel level,
+                 cppkafka::LogLevel level,
                  const std::string& facility,
                  const std::string& message)
 {
@@ -118,13 +118,13 @@ payloadSerializerCallback(const corokafka::HeaderPack&, const std::string& paylo
 }
 
 // Create a topic configuration (optional)
-std::initializer_list<corokafka::ConfigurationOption > topicOptions = {
+std::initializer_list<cppkafka::ConfigurationOption > topicOptions = {
     { "produce.offset.report",  true },
     { "request.required.acks", -1 }
 };
 
 // Create a producer configuration (only 'metadata.broker.list' setting is mandatory)
-std::initializer_list<corokafka::ConfigurationOption > configOptions = {
+std::initializer_list<cppkafka::ConfigurationOption > configOptions = {
     { "metadata.broker.list", "broker_url:port" },
     { "api.version.request", true },
     { "internal.producer.retries", 5 }
@@ -215,14 +215,14 @@ void messageProcessor()
 }
 
 //==========================================================================
-//                             Consumer setup
+//                             cppkafka::Consumer setup
 //==========================================================================
 #include <quantum/quantum.h>
 #include <corokafka/corokafka.h>
 
 // Define a log callback (optional - see documentation for all available callbacks)
 void logCallback(const corokafka::Metadata& metadata,
-                 corokafka::LogLevel level,
+                 cppkafka::LogLevel level,
                  const std::string& facility,
                  const std::string& message)
 {
@@ -233,20 +233,20 @@ void logCallback(const corokafka::Metadata& metadata,
 
 // Define deserializers (mandatory for key and payload)
 size_t
-keyDeserializerCallback(const corokafka::Buffer& key)
+keyDeserializerCallback(const cppkafka::Buffer& key)
 {
     return *static_cast<const size_t*>((void*)key.get_data());
 }
 
 // Optional header deserializer
 std::string
-headerDeserializerCallback(const corokafka::Buffer& header)
+headerDeserializerCallback(const cppkafka::Buffer& header)
 {
     return {header.begin(), header.end()};
 }
 
 std::string
-payloadDeserializerCallback(const corokafka::HeaderPack&, const corokafka::Buffer& payload)
+payloadDeserializerCallback(const corokafka::HeaderPack&, const cppkafka::Buffer& payload)
 {
     return {payload.begin(), payload.end()};
 }
@@ -276,7 +276,7 @@ void receiverCallback(corokafka::ReceivedMessage<size_t, std::string> message)
 }
 
 // Create the producer and topic config
-std::initializer_list<corokafka::ConfigurationOption > configOptions = {
+std::initializer_list<cppkafka::ConfigurationOption > configOptions = {
     { "metadata.broker.list", "broker_url:port" },
     { "group.id", "my-group" },
     { "api.version.request", true },
@@ -299,10 +299,10 @@ config.setReceiverCallback(receiverCallback);
 // Optionally set initial partition assignment (4 partitions per topic)
 config.assignInitialPartitions(corokafka::PartitionStrategy::Dynamic,
     {
-    {topic, 0, corokafka::TopicPartition::OFFSET_BEGINNING},
-    {topic, 1, corokafka::TopicPartition::OFFSET_BEGINNING},
-    {topic, 2, corokafka::TopicPartition::OFFSET_BEGINNING},
-    {topic, 3, corokafka::TopicPartition::OFFSET_BEGINNING}
+    {topic, 0, cppkafka::TopicPartition::OFFSET_BEGINNING},
+    {topic, 1, cppkafka::TopicPartition::OFFSET_BEGINNING},
+    {topic, 2, cppkafka::TopicPartition::OFFSET_BEGINNING},
+    {topic, 3, cppkafka::TopicPartition::OFFSET_BEGINNING}
     });
 
 // Create the connector (this will subscribe all consumers and start receiving messages)

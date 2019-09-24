@@ -35,37 +35,37 @@ void setMaxMessageBuilderOutputLength(ssize_t length)
     maxMessageBuilderOutputLength = length;
 }
 
-LogLevel logLevelFromString(const std::string& level)
+cppkafka::LogLevel logLevelFromString(const std::string& level)
 {
     StringEqualCompare compare;
     if (compare(level, "emergency")) {
-        return LogLevel::LogEmerg;
+        return cppkafka::LogLevel::LogEmerg;
     }
     if (compare(level, "alert")) {
-        return LogLevel::LogAlert;
+        return cppkafka::LogLevel::LogAlert;
     }
     if (compare(level, "critical")) {
-        return LogLevel::LogCrit;
+        return cppkafka::LogLevel::LogCrit;
     }
     if (compare(level, "error")) {
-        return LogLevel::LogErr;
+        return cppkafka::LogLevel::LogErr;
     }
     if (compare(level, "warning")) {
-        return LogLevel::LogWarning;
+        return cppkafka::LogLevel::LogWarning;
     }
     if (compare(level, "notice")) {
-        return LogLevel::LogNotice;
+        return cppkafka::LogLevel::LogNotice;
     }
     if (compare(level, "info")) {
-        return LogLevel::LogInfo;
+        return cppkafka::LogLevel::LogInfo;
     }
     if (compare(level, "debug")) {
-        return LogLevel::LogDebug;
+        return cppkafka::LogLevel::LogDebug;
     }
     throw std::invalid_argument("Unknown log level");
 }
 
-std::ostream& operator<<(std::ostream& stream, const MessageBuilder& builder) {
+std::ostream& operator<<(std::ostream& stream, const cppkafka::MessageBuilder& builder) {
     ssize_t max_len = getMaxMessageBuilderOutputLength();
     size_t payload_len = (max_len == -1) ? builder.payload().get_size() :
                          std::min(builder.payload().get_size(), (size_t)max_len);
@@ -83,10 +83,10 @@ std::ostream& operator<<(std::ostream& stream, const MessageBuilder& builder) {
 void handleException(const std::exception& ex,
                      const Metadata& metadata,
                      const Configuration& config,
-                     LogLevel level)
+                     cppkafka::LogLevel level)
 {
-    CallbackInvoker<Callbacks::ErrorCallback> error_cb("error", config.getErrorCallback(), nullptr);
-    const HandleException* hex = dynamic_cast<const HandleException*>(&ex);
+    cppkafka::CallbackInvoker<Callbacks::ErrorCallback> error_cb("error", config.getErrorCallback(), nullptr);
+    const cppkafka::HandleException* hex = dynamic_cast<const cppkafka::HandleException*>(&ex);
     if (error_cb) {
         if (hex) {
             error_cb(metadata, hex->get_error(), hex->what(), nullptr);
@@ -95,10 +95,10 @@ void handleException(const std::exception& ex,
             error_cb(metadata, RD_KAFKA_RESP_ERR_UNKNOWN, ex.what(), nullptr);
         }
     }
-    if (level >= LogLevel::LogErr) {
-        CallbackInvoker<Callbacks::LogCallback> logger_cb("log", config.getLogCallback(), nullptr);
+    if (level >= cppkafka::LogLevel::LogErr) {
+        cppkafka::CallbackInvoker<Callbacks::LogCallback> logger_cb("log", config.getLogCallback(), nullptr);
         if (logger_cb) {
-            logger_cb(metadata, LogLevel::LogErr, "corokafka", ex.what());
+            logger_cb(metadata, cppkafka::LogLevel::LogErr, "corokafka", ex.what());
         }
     }
 }

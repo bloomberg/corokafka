@@ -63,7 +63,7 @@ void ConnectorImpl::shutdown(bool drain,
             if (_config.getLogCallback()) {
                 std::ostringstream oss;
                 oss << "Joining on poll thread failed with error: " << ex.what();
-                _config.getLogCallback()(LogLevel::LogErr, "corokafka", oss.str());
+                _config.getLogCallback()(cppkafka::LogLevel::LogErr, "corokafka", oss.str());
             }
         }
         
@@ -75,7 +75,7 @@ void ConnectorImpl::shutdown(bool drain,
             if (_config.getLogCallback()) {
                 std::ostringstream oss;
                 oss << "Joining on post thread failed with error: " << ex.what();
-                _config.getLogCallback()(LogLevel::LogErr, "corokafka", oss.str());
+                _config.getLogCallback()(cppkafka::LogLevel::LogErr, "corokafka", oss.str());
             }
         }
         
@@ -100,7 +100,7 @@ void ConnectorImpl::poll()
             if (_config.getLogCallback()) {
                 std::ostringstream oss;
                 oss << "Caught exception while polling: " << ex.what();
-                _config.getLogCallback()(LogLevel::LogErr, "corokafka", oss.str());
+                _config.getLogCallback()(cppkafka::LogLevel::LogErr, "corokafka", oss.str());
             }
         }
         auto end = std::chrono::high_resolution_clock::now();
@@ -121,7 +121,7 @@ void ConnectorImpl::post()
             if (_config.getLogCallback()) {
                 std::ostringstream oss;
                 oss << "Caught exception while posting: " << ex.what();
-                _config.getLogCallback()(LogLevel::LogErr, "corokafka", oss.str());
+                _config.getLogCallback()(cppkafka::LogLevel::LogErr, "corokafka", oss.str());
             }
         }
     }

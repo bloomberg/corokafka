@@ -29,8 +29,8 @@ namespace corokafka {
 class IMessage
 {
 public:
-    using HeaderType = Message::HeaderType;
-    using HeaderListType = Message::HeaderListType;
+    using HeaderType = cppkafka::Message::HeaderType;
+    using HeaderListType = cppkafka::Message::HeaderListType;
     /**
      * @brief Destructor
      */
@@ -47,7 +47,7 @@ public:
      * @return A non-owning Buffer.
      * @warning This buffer is owned by the rdkafka library and is valid until this object is deleted.
      */
-    virtual const Buffer& getKeyBuffer() const = 0;
+    virtual const cppkafka::Buffer& getKeyBuffer() const = 0;
     /**
      * @brief Get the raw Kafka header list.
      * @return A header list composed of non-owning Buffers.
@@ -58,12 +58,12 @@ public:
      * @return A non-owning Buffer.
      * @warning This buffer is owned by the rdkafka library and is valid until this object is deleted.
      */
-    virtual const Buffer& getPayloadBuffer() const = 0;
+    virtual const cppkafka::Buffer& getPayloadBuffer() const = 0;
     /**
      * @brief Returns the message error if any.
      * @return The Error
      */
-    virtual Error getError() const = 0;
+    virtual cppkafka::Error getError() const = 0;
     /**
      * @brief Get the topic name.
      * @return The name.

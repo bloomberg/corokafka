@@ -186,8 +186,8 @@ Configuration::Configuration(KafkaType type,
 
 Configuration::Configuration(KafkaType type,
                              const std::string& topic,
-                             std::initializer_list<ConfigurationOption> options,
-                             std::initializer_list<ConfigurationOption> topicOptions) :
+                             std::initializer_list<cppkafka::ConfigurationOption> options,
+                             std::initializer_list<cppkafka::ConfigurationOption> topicOptions) :
     _type(type),
     _topic(topic)
 {
@@ -261,21 +261,21 @@ const Callbacks::StatsCallback& Configuration::getStatsCallback() const
     return _statsCallback;
 }
 
-const ConfigurationOption* Configuration::getOption(const std::string& name) const
+const cppkafka::ConfigurationOption* Configuration::getOption(const std::string& name) const
 {
     return findOption(name, _options[(int)OptionType::All]);
 }
 
-const ConfigurationOption* Configuration::getTopicOption(const std::string& name) const
+const cppkafka::ConfigurationOption* Configuration::getTopicOption(const std::string& name) const
 {
     return findOption(name, _topicOptions[(int)OptionType::All]);
 }
 
-const ConfigurationOption* Configuration::findOption(const std::string& name,
+const cppkafka::ConfigurationOption* Configuration::findOption(const std::string& name,
                                                      const Options& config)
 {
     const auto it = std::find_if(config.cbegin(), config.cend(),
-                                 [&name](const ConfigurationOption& config)->bool {
+                                 [&name](const cppkafka::ConfigurationOption& config)->bool {
         return StringEqualCompare()(config.get_key(), name);
     });
     if (it != config.cend()) {

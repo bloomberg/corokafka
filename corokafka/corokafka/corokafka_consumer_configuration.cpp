@@ -61,8 +61,8 @@ ConsumerConfiguration::ConsumerConfiguration(const std::string& topic,
 }
 
 ConsumerConfiguration::ConsumerConfiguration(const std::string& topic,
-                                             std::initializer_list<ConfigurationOption> options,
-                                             std::initializer_list<ConfigurationOption> topicOptions) :
+                                             std::initializer_list<cppkafka::ConfigurationOption> options,
+                                             std::initializer_list<cppkafka::ConfigurationOption> topicOptions) :
     Configuration(KafkaType::Consumer, topic, std::move(options), std::move(topicOptions))
 {
 
@@ -73,13 +73,13 @@ PartitionStrategy ConsumerConfiguration::getPartitionStrategy() const
     return _strategy;
 }
 
-const TopicPartitionList& ConsumerConfiguration::getInitialPartitionAssignment() const
+const cppkafka::TopicPartitionList& ConsumerConfiguration::getInitialPartitionAssignment() const
 {
     return _initialPartitionList;
 }
 
 void ConsumerConfiguration::assignInitialPartitions(PartitionStrategy strategy,
-                                                    TopicPartitionList partitions)
+                                                    cppkafka::TopicPartitionList partitions)
 {
     if ((strategy == PartitionStrategy::Static) && partitions.empty()) {
         throw std::invalid_argument("Initial partition assignment is empty");

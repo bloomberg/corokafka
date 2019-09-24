@@ -30,7 +30,7 @@
 namespace Bloomberg {
 namespace corokafka {
 
-using MessageContainer = quantum::Buffer<Message>;
+using MessageContainer = quantum::Buffer<cppkafka::Message>;
 
 class ConsumerManagerImpl
 {
@@ -41,8 +41,8 @@ public:
 private:
     using ConfigMap = ConfigurationBuilder::ConfigMap<ConsumerConfiguration>;
     using DeserializedMessage = std::tuple<boost::any, boost::any, HeaderPack, DeserializerError>;
-    using MessageTuple = std::tuple<Message, quantum::CoroContext<DeserializedMessage>::Ptr>;
-    using ReceivedBatch = std::vector<std::tuple<Message, DeserializedMessage>>;
+    using MessageTuple = std::tuple<cppkafka::Message, quantum::CoroContext<DeserializedMessage>::Ptr>;
+    using ReceivedBatch = std::vector<std::tuple<cppkafka::Message, DeserializedMessage>>;
     
     ConsumerManagerImpl(quantum::Dispatcher& dispatcher,
                         const ConnectorConfiguration& connectorConfiguration,
@@ -60,20 +60,20 @@ private:
     void resume(const std::string& topic);
     
     void subscribe(const std::string& topic,
-                   TopicPartitionList partitionList);
+                   cppkafka::TopicPartitionList partitionList);
     
     void unsubscribe(const std::string& topic);
     
-    Error commit(const TopicPartition& topicPartition,
+    cppkafka::Error commit(const cppkafka::TopicPartition& topicPartition,
                  const void* opaque,
                  bool forceSync);
     
-    Error commit(const TopicPartitionList& topicPartitions,
+    cppkafka::Error commit(const cppkafka::TopicPartitionList& topicPartitions,
                  const void* opaque,
                  bool forceSync);
     
-    Error commitImpl(ConsumerTopicEntry& topicEntry,
-                     const TopicPartitionList& topicPartitions,
+    cppkafka::Error commitImpl(ConsumerTopicEntry& topicEntry,
+                     const cppkafka::TopicPartitionList& topicPartitions,
                      const void* opaque,
                      bool forceSync);
     
@@ -91,96 +91,96 @@ private:
     
     //Callbacks
     static void errorCallback2(ConsumerTopicEntry& topicEntry,
-                               KafkaHandleBase& handle,
+                               cppkafka::KafkaHandleBase& handle,
                                int error,
                                const std::string& reason);
     static void errorCallback(ConsumerTopicEntry& topicEntry,
-                              KafkaHandleBase& handle,
+                              cppkafka::KafkaHandleBase& handle,
                               int error,
                               const std::string& reason,
-                              Message* message);
+                              cppkafka::Message* message);
     static void throttleCallback(ConsumerTopicEntry& topicEntry,
-                                 KafkaHandleBase& handle,
+                                 cppkafka::KafkaHandleBase& handle,
                                  const std::string& brokerName,
                                  int32_t brokerId,
                                  std::chrono::milliseconds throttleDuration);
     static void logCallback(ConsumerTopicEntry& topicEntry,
-                            KafkaHandleBase& handle,
+                            cppkafka::KafkaHandleBase& handle,
                             int level,
                             const std::string& facility,
                             const std::string& message);
     static void statsCallback(ConsumerTopicEntry& topicEntry,
-                              KafkaHandleBase& handle,
+                              cppkafka::KafkaHandleBase& handle,
                               const std::string& json);
     static void offsetCommitCallback(ConsumerTopicEntry& topicEntry,
-                                     Consumer& consumer,
-                                     Error error,
-                                     const TopicPartitionList& topicPartitions);
+                                     cppkafka::Consumer& consumer,
+                                     cppkafka::Error error,
+                                     const cppkafka::TopicPartitionList& topicPartitions);
     static bool offsetCommitErrorCallback(ConsumerTopicEntry& topicEntry,
-                                          Error error);
+                                          cppkafka::Error error);
     static bool preprocessorCallback(ConsumerTopicEntry& topicEntry,
-                                     TopicPartition hint);
+                                     cppkafka::TopicPartition hint);
     static void assignmentCallback(ConsumerTopicEntry& topicEntry,
-                                   TopicPartitionList& topicPartitions);
+                                   cppkafka::TopicPartitionList& topicPartitions);
     static void revocationCallback(ConsumerTopicEntry& topicEntry,
-                                   const TopicPartitionList& topicPartitions);
+                                   const cppkafka::TopicPartitionList& topicPartitions);
     static void rebalanceErrorCallback(ConsumerTopicEntry& topicEntry,
-                                       Error error);
+                                       cppkafka::Error error);
     //log + error callback wrapper
     static void report(ConsumerTopicEntry& topicEntry,
-                       LogLevel level,
+                       cppkafka::LogLevel level,
                        int error,
                        const std::string& reason,
-                       const Message& message);
+                       const cppkafka::Message& message);
     
     void adjustThrottling(ConsumerTopicEntry& topicEntry,
                           const std::chrono::steady_clock::time_point& now);
     
     //Coroutines and async IO
-    static std::vector<Message> messageBatchReceiveTask(ConsumerTopicEntry& entry);
+    static std::vector<cppkafka::Message> messageBatchReceiveTask(ConsumerTopicEntry& entry);
     static int messageRoundRobinReceiveTask(quantum::ThreadPromise<MessageContainer>::Ptr promise,
                                             ConsumerTopicEntry& entry);
     static DeserializedMessage deserializeCoro(
                                 quantum::VoidContextPtr ctx,
                                 ConsumerTopicEntry& entry,
-                                const Message& kafkaMessage);
+                                const cppkafka::Message& kafkaMessage);
     static std::vector<bool> executePreprocessorCallbacks(
                                   quantum::VoidContextPtr ctx,
                                   ConsumerTopicEntry& entry,
-                                  const std::vector<Message>& messages);
+                                  const std::vector<cppkafka::Message>& messages);
     static std::vector<DeserializedMessage> deserializeBatchCoro(
                                     quantum::VoidContextPtr ctx,
                                     ConsumerTopicEntry& entry,
-                                    const std::vector<Message>& messages);
+                                    const std::vector<cppkafka::Message>& messages);
     static std::deque<MessageTuple> pollCoro(
                         quantum::VoidContextPtr ctx,
                         ConsumerTopicEntry& entry);
     static int processorCoro(quantum::VoidContextPtr ctx,
                              ConsumerTopicEntry& entry);
     static int invokeReceiver(ConsumerTopicEntry& entry,
-                              Message&& kafkaMessage,
+                              cppkafka::Message&& kafkaMessage,
                               DeserializedMessage&& deserializedMessage);
     static int receiverTask(ConsumerTopicEntry& entry,
-                            Message&& kafkaMessage,
+                            cppkafka::Message&& kafkaMessage,
                             DeserializedMessage&& deserializedMessage);
 
     // Batch processing coroutines and callbacks
     static void processMessageBatchOnIoThreads(quantum::VoidContextPtr ctx,
                                                ConsumerTopicEntry& entry,
-                                               std::vector<Message>&& raw,
+                                               std::vector<cppkafka::Message>&& raw,
                                                std::vector<DeserializedMessage>&& deserializedMessages);
     static int pollBatchCoro(quantum::VoidContextPtr ctx,
                              ConsumerTopicEntry& entry);
     static int receiverMultipleBatchesTask(ConsumerTopicEntry& entry,
                                            ReceivedBatch&& messageBatch);
     static int invokeSingleBatchReceiver(ConsumerTopicEntry& entry,
-                                     std::vector<Message>&& rawMessages,
+                                     std::vector<cppkafka::Message>&& rawMessages,
                                      std::vector<DeserializedMessage>&& deserializedMessages);
     static int receiverSingleBatchTask(ConsumerTopicEntry& entry,
-                                       std::vector<Message>&& rawMessages,
+                                       std::vector<cppkafka::Message>&& rawMessages,
                                        std::vector<DeserializedMessage>&& deserializedMessages);
     static bool preprocessorTask(ConsumerTopicEntry& entry,
-                                 const Message& kafkaMessage);
+                                 const cppkafka::Message& kafkaMessage);
     //Misc methods
     void setup(const std::string& topic, ConsumerTopicEntry& topicEntry);
     static void exceptionHandler(const std::exception& ex,
@@ -190,7 +190,7 @@ private:
                                      const std::pair<int,int>& range);
     static DeserializedMessage
     deserializeMessage(ConsumerTopicEntry& entry,
-                       const Message& kafkaMessage);
+                       const cppkafka::Message& kafkaMessage);
     
     static OffsetPersistSettings makeOffsetPersistSettings(const ConsumerTopicEntry& topicEntry);
     
