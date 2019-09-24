@@ -35,7 +35,7 @@ const TopicPartition& DeliveryReport::getTopicPartition() const
     return _topicPartition;
 }
 
-size_t DeliveryReport::getNumBytesProduced() const
+size_t DeliveryReport::getNumBytesWritten() const
 {
     return _numBytes;
 }

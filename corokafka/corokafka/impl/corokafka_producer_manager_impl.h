@@ -243,7 +243,7 @@ size_t ProducerManagerImpl::send(const std::string& topic,
 {
     auto ctx = quantum::local::context();
     if (ctx) {
-        return post(topic, key, payload, headers, opaque).get().getNumBytesProduced();
+        return post(topic, key, payload, headers, opaque).get().getNumBytesWritten();
     }
     auto it = _producers.find(topic);
     if (it == _producers.end()) {
