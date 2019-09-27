@@ -18,6 +18,10 @@
 namespace Bloomberg {
 namespace corokafka {
 
+HeaderPack::HeaderPack(size_t numElements) :
+    _headers(numElements)
+{}
+
 HeaderPack::HeaderPack(std::initializer_list<HeaderNode> list) :
     _headers(list)
 {
@@ -111,6 +115,30 @@ HeaderPack::ListType::iterator HeaderPack::getImpl(const std::string& name, int 
         }
         return it;
     }
+}
+
+HeaderPack::HeaderNode& HeaderPack::operator[](size_t index)
+{
+    return _headers[index];
+}
+
+size_t HeaderPack::numValidHeaders() const {
+    size_t num = 0;
+    for (const auto& h : _headers) {
+        if (!h.second.empty()) ++num;
+    }
+    return num;
+}
+
+bool HeaderPack::isValidAt(int index) const
+{
+    const auto& entry = _headers.at(index);
+    return !entry.second.empty();
+}
+
+bool HeaderPack::isValid(const std::string& name, int nameIndex) const
+{
+    return !getImpl(name, nameIndex)->second.empty();
 }
 
 }

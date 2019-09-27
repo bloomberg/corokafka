@@ -18,7 +18,6 @@
 
 #include <corokafka/corokafka_utils.h>
 #include <corokafka/corokafka_sent_message.h>
-#include <corokafka/corokafka_serializer.h>
 #include <corokafka/corokafka_deserializer.h>
 #include <corokafka/corokafka_receiver.h>
 #include <corokafka/corokafka_consumer_metadata.h>
@@ -71,17 +70,8 @@ struct Callbacks {
     
     using PreprocessorCallback = std::function<bool(cppkafka::TopicPartition hint)>;
     
-    template <typename T>
-    using KeyDeserializerCallback = std::function<T(const cppkafka::TopicPartition&, const cppkafka::Buffer&)>;
-    
-    template <typename T>
-    using HeaderDeserializerCallback = std::function<T(const cppkafka::TopicPartition&, const cppkafka::Buffer& buffer)>;
-    
-    template <typename T>
-    using PayloadDeserializerCallback = std::function<T(const cppkafka::TopicPartition&, const HeaderPack&, const cppkafka::Buffer&)>;
-    
-    template <typename K, typename P>
-    using ReceiverCallback = std::function<void(ReceivedMessage<K,P>)>;
+    template <typename TOPIC>
+    using ReceiverCallback = std::function<void(typename TOPIC::ReceivedMessageType)>;
     
     // ============================================== PRODUCER =========================================================
     using DeliveryReportCallback = std::function<void(const ProducerMetadata& metadata,
@@ -93,15 +83,6 @@ struct Callbacks {
     
     using QueueFullCallback = std::function<void(const ProducerMetadata& metadata,
                                                  const SentMessage& message)>;
-    
-    template <typename T>
-    using KeySerializerCallback = std::function<ByteArray(const T&)>;
-    
-    template <typename T>
-    using HeaderSerializerCallback = std::function<ByteArray(const T&)>;
-    
-    template <typename T>
-    using PayloadSerializerCallback = std::function<ByteArray(const HeaderPack&, const T&)>;
 };
 
 }}

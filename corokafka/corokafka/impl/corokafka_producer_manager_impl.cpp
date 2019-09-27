@@ -63,7 +63,7 @@ ProducerManagerImpl::~ProducerManagerImpl()
 }
 
 void ProducerManagerImpl::produceMessage(const ProducerTopicEntry& entry,
-                                         const cppkafka::ConcreteMessageBuilder<ByteArray>& builder)
+                                         const ProducerMessageBuilder<ByteArray>& builder)
 {
     if (entry._waitForAcks) {
         if (entry._waitForAcksTimeout.count() == -1) {
@@ -107,14 +107,6 @@ void ProducerManagerImpl::setup(const std::string& topic, ProducerTopicEntry& to
     const Configuration::Options& internalOptions = topicEntry._configuration.getOptions(Configuration::OptionType::Internal);
     
     //Validate config
-    if (!topicEntry._configuration.getKeySerializer()) {
-        throw std::runtime_error(std::string("Key serializer callback not specified for topic producer: ") + topic);
-    }
-    
-    if (!topicEntry._configuration.getPayloadSerializer()) {
-        throw std::runtime_error(std::string("Payload serializer callback not specified for topic producer: ") + topic);
-    }
-    
     const cppkafka::ConfigurationOption* brokerList =
         Configuration::findOption("metadata.broker.list", rdKafkaOptions);
     if (!brokerList) {
@@ -184,12 +176,6 @@ void ProducerManagerImpl::setup(const std::string& topic, ProducerTopicEntry& to
         Configuration::findOption("internal.producer.retries", internalOptions);
     if (numRetriesOption) {
         internalProducerRetries = std::stoll(numRetriesOption->get_value());
-    }
-    
-    const cppkafka::ConfigurationOption* skipUnknownHeaders =
-        Configuration::findOption("internal.producer.skip.unknown.headers", internalOptions);
-    if (skipUnknownHeaders) {
-        topicEntry._skipUnknownHeaders = StringEqualCompare()(skipUnknownHeaders->get_value(), "true");
     }
     
     kafkaConfig.set_default_topic_configuration(topicConfig);
@@ -409,10 +395,10 @@ void ProducerManagerImpl::post()
                     topicEntry._topicHash = std::hash<std::string>()(topicEntry._configuration.getTopic());
                 }
                 _dispatcher.postAsyncIo((int)topicEntry._topicHash % numIoThreads,
-                                        false, produceTask, topicEntry, std::move(*std::get<1>(builderTuple)));
+                                        false, produceTask, topicEntry, std::move(std::get<1>(builderTuple)));
             }
             else {
-                produceTaskSync(topicEntry, *std::get<1>(builderTuple));
+                produceTaskSync(topicEntry, std::get<1>(builderTuple));
             }
         }
         catch (...) {
@@ -615,7 +601,7 @@ int ProducerManagerImpl::pollTask(ProducerTopicEntry& entry)
 }
 
 int ProducerManagerImpl::produceTask(ProducerTopicEntry& entry,
-                                     cppkafka::ConcreteMessageBuilder<ByteArray>&& builder)
+                                     ProducerMessageBuilder<ByteArray>&& builder)
 {
     try {
         if (entry._preserveMessageOrder) {
@@ -635,7 +621,7 @@ int ProducerManagerImpl::produceTask(ProducerTopicEntry& entry,
 }
 
 int ProducerManagerImpl::produceTaskSync(ProducerTopicEntry& entry,
-                                         const cppkafka::ConcreteMessageBuilder<ByteArray>& builder)
+                                         const ProducerMessageBuilder<ByteArray>& builder)
 {
     try {
         if (entry._preserveMessageOrder) {
@@ -652,66 +638,6 @@ int ProducerManagerImpl::produceTaskSync(ProducerTopicEntry& entry,
         exceptionHandler(ex, entry);
         return -1;
     }
-}
-
-cppkafka::ConcreteMessageBuilder<ByteArray>
-ProducerManagerImpl::serializeMessage(ProducerTopicEntry& entry,
-                                      const void* key,
-                                      const void* payload,
-                                      const HeaderPack* headers,
-                                      void* opaque)
-{
-    cppkafka::ConcreteMessageBuilder<ByteArray> builder(entry._configuration.getTopic());
-    
-    //Serialize the key
-    Serializer::ResultType packedKey = cppkafka::CallbackInvoker<Serializer>
-        ("key_serializer", entry._configuration.getKeySerializer(), &entry._producer->get_producer())(key);
-    if (packedKey.empty()) {
-        // Key is empty or encoding failed
-        report(entry, cppkafka::LogLevel::LogErr, RD_KAFKA_RESP_ERR__KEY_SERIALIZATION, "Failed to serialize key", opaque);
-        return {""};
-    }
-    builder.key(std::move(packedKey));
-    
-    //Serialize the headers if any
-    for (auto it = headers->cbegin(); it != headers->cend(); ++it) {
-        try {
-            //Serialize the header
-            Serializer::ResultType packedHeader = cppkafka::CallbackInvoker<Serializer>
-                ("header_serializer", entry._configuration.getHeaderSerializer(it->first), &entry._producer->get_producer())
-                (boost::unsafe_any_cast<void*>(&it->second));
-            if (packedHeader.empty()) {
-                // Header is empty or encoding failed
-                std::ostringstream oss;
-                oss << "Failed to serialize header: " << it->first;
-                report(entry, cppkafka::LogLevel::LogErr, RD_KAFKA_RESP_ERR__VALUE_SERIALIZATION, oss.str(), opaque);
-                return {""};
-            }
-            builder.header(cppkafka::Header<ByteArray>(it->first, std::move(packedHeader)));
-        }
-        catch (const std::exception& ex) {
-            if (entry._skipUnknownHeaders) {
-                report(entry, cppkafka::LogLevel::LogWarning, 0, ex.what(), opaque);
-                continue;
-            }
-            report(entry, cppkafka::LogLevel::LogErr, RD_KAFKA_RESP_ERR__NOT_IMPLEMENTED, ex.what(), opaque);
-            return {""};
-        }
-    }
-    
-    //Serialize the payload
-    Serializer::ResultType packedPayload = cppkafka::CallbackInvoker<Serializer>
-        ("payload_serializer", entry._configuration.getPayloadSerializer(), &entry._producer->get_producer())(headers, payload);
-    if (packedPayload.empty()) {
-        // Payload is empty or encoding failed
-        report(entry, cppkafka::LogLevel::LogErr, RD_KAFKA_RESP_ERR__VALUE_SERIALIZATION, "Failed to serialize payload", opaque);
-        return {""};
-    }
-    builder.payload(std::move(packedPayload));
-    
-    // Add timestamp
-    builder.timestamp(std::chrono::high_resolution_clock::now());
-    return builder;
 }
 
 void ProducerManagerImpl::exceptionHandler(const std::exception& ex,

@@ -40,9 +40,9 @@ struct DeserializerError
     bool isPreprocessorError() const { return (_source & (uint8_t)Source::Preprocessor) != 0; }
     
     //members
-    cppkafka::Error       _error{RD_KAFKA_RESP_ERR_NO_ERROR};
-    uint8_t     _source{0};
-    int         _headerNum{-1};
+    cppkafka::Error     _error{RD_KAFKA_RESP_ERR_NO_ERROR};
+    uint8_t             _source{0};
+    int                 _headerNum{-1};
 };
 
 struct Deserializer
@@ -51,8 +51,7 @@ struct Deserializer
     using result_type = ResultType; //cppkafka compatibility for callback invoker
     virtual ~Deserializer() = default;
     virtual ResultType operator()(const cppkafka::TopicPartition&, const cppkafka::Buffer&) const { return {}; };
-    virtual ResultType operator()(const cppkafka::TopicPartition&, const HeaderPack&, const cppkafka::Buffer&) const { return {}; }
-    virtual explicit operator bool() const = 0;
+    explicit operator bool() const { return true; };
 };
 
 template <typename T>
@@ -62,46 +61,10 @@ public:
     using ResultType = Deserializer::ResultType;
     using Callback = std::function<T(const cppkafka::TopicPartition&, const cppkafka::Buffer& buffer)>;
     
-    //Ctor
-    ConcreteDeserializer(Callback callback) :
-        _func(std::move(callback))
-    {}
-    
-    const Callback& getCallback() const { return _func; }
-    
     ResultType operator()(const cppkafka::TopicPartition& toppar,
                           const cppkafka::Buffer& buffer) const final {
-        return _func(toppar, buffer);
+        return deserialize(toppar, buffer, (T*)0);
     }
-    
-    explicit operator bool() const final { return (bool)_func; }
-private:
-    Callback _func;
-};
-
-template <typename T>
-class ConcreteDeserializerWithHeaders : public Deserializer
-{
-public:
-    using ResultType = Deserializer::ResultType;
-    using Callback = std::function<T(const cppkafka::TopicPartition&, const HeaderPack&, const cppkafka::Buffer&)>;
-    
-    //Ctor
-    ConcreteDeserializerWithHeaders(Callback callback) :
-        _func(std::move(callback))
-    {}
-    
-    const Callback& getCallback() const { return _func; }
-    
-    ResultType operator()(const cppkafka::TopicPartition& toppar,
-                          const HeaderPack& headers,
-                          const cppkafka::Buffer& buffer) const final {
-        return _func(toppar, headers, buffer);
-    }
-    
-    explicit operator bool() const final { return (bool)_func; }
-private:
-    Callback _func;
 };
 
 }

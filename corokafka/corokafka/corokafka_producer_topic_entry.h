@@ -71,7 +71,6 @@ struct ProducerTopicEntry : TopicEntry {
     std::chrono::milliseconds           _flushWaitForAcksTimeout{rd_kafka_version() >= RD_KAFKA_ZERO_TIMEOUT_FLUSH_FIX ? 0 : 100};
     bool                                _forceSyncFlush{false};
     bool                                _preserveMessageOrder{false};
-    bool                                _skipUnknownHeaders{true};
     cppkafka::Producer::PayloadPolicy   _payloadPolicy{cppkafka::Producer::PayloadPolicy::COPY_PAYLOAD};
     size_t                              _maxQueueLength{10000};
     cppkafka::LogLevel                  _logLevel{cppkafka::LogLevel::LogInfo};

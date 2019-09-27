@@ -46,19 +46,19 @@ H&& HeaderPack::get(const std::string& name, int nameIndex) && {
 
 template <typename H>
 HeaderRef<const H&> HeaderPack::getAt(int index) const & {
-    auto entry = _headers.at(index);
+    const auto& entry = _headers.at(index);
     return HeaderRef<const H&>(entry.first, boost::any_cast<const H&>(entry.second));
 }
 
 template <typename H>
 HeaderRef<H&> HeaderPack::getAt(int index) & {
-    auto entry = _headers.at(index);
+    auto& entry = _headers.at(index);
     return HeaderRef<H&>(entry.first, boost::any_cast<H&>(entry.second));
 }
 
 template <typename H>
 HeaderRef<H&&> HeaderPack::getAt(int index) && {
-    auto entry = _headers.at(index);
+    auto& entry = _headers.at(index);
     return HeaderRef<H&&>(entry.first, boost::any_cast<H&&>(std::move(entry.second)));
 }
 

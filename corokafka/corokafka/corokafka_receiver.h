@@ -41,13 +41,16 @@ struct Receiver
     virtual explicit operator bool() const = 0;
 };
 
-template <typename K, typename P>
+template <typename TOPIC>
 class ConcreteReceiver : public Receiver
 {
 public:
     using ResultType = Receiver::ResultType;
-    using Unpacked = std::tuple<K,P>;
-    using Callback = std::function<ResultType(ReceivedMessage<K,P>)>;
+    using Key = typename TOPIC::KeyType;
+    using Payload = typename TOPIC::PayloadType;
+    using HeadersType = typename TOPIC::HeadersType;
+    using ReceivedMessageType = ReceivedMessage<Key,Payload,HeadersType>;
+    using Callback = std::function<ResultType(ReceivedMessageType)>;
     
     //Ctor
     ConcreteReceiver(Callback callback) :
@@ -64,14 +67,14 @@ public:
                     HeaderPack&& headers,
                     DeserializerError&& error,
                     const OffsetPersistSettings& offsetSettings) const final {
-        _func(ReceivedMessage<K,P>(committer,
-                                   offsets,
-                                   std::move(kafkaMessage),
-                                   key.empty() ? K() : boost::any_cast<K&&>(std::move(key)),
-                                   payload.empty() ? P() : boost::any_cast<P&&>(std::move(payload)),
-                                   std::move(headers),
-                                   std::move(error),
-                                   offsetSettings));
+        _func(ReceivedMessageType(committer,
+                               offsets,
+                               std::move(kafkaMessage),
+                               std::move(key),
+                               std::move(payload),
+                               std::move(headers),
+                               std::move(error),
+                               offsetSettings));
     }
     
     explicit operator bool() const final { return (bool)_func; }

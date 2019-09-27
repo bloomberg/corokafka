@@ -71,18 +71,7 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
     const Configuration::Options& rdKafkaTopicOptions = topicEntry._configuration.getTopicOptions(Configuration::OptionType::RdKafka);
     const Configuration::Options& internalOptions = topicEntry._configuration.getOptions(Configuration::OptionType::Internal);
     
-    if (!topicEntry._configuration.getKeyDeserializer()) {
-        throw std::runtime_error(std::string("Key deserializer callback not specified for topic consumer: ") + topic);
-    }
-    
-    if (!topicEntry._configuration.getPayloadDeserializer()) {
-        throw std::runtime_error(std::string("Payload deserializer callback not specified for topic consumer: ") + topic);
-    }
-    
-    if (!topicEntry._configuration.getReceiver()) {
-        throw std::runtime_error(std::string("Receiver callback not specified for topic consumer: ") + topic);
-    }
-    
+    //Validate config
     const cppkafka::ConfigurationOption* brokerList =
         Configuration::findOption("metadata.broker.list", rdKafkaOptions);
     if (!brokerList) {
@@ -907,12 +896,14 @@ ConsumerManagerImpl::deserializeMessage(ConsumerTopicEntry& entry,
         return DeserializedMessage(boost::any(), boost::any(), HeaderPack{}, de);
     }
     
+    const TypeErasedDeserializer& deserializer = entry._configuration.getTypeErasedDeserializer();
+    
     //Get the topic partition
     cppkafka::TopicPartition toppar(kafkaMessage.get_topic(), kafkaMessage.get_partition(), kafkaMessage.get_offset());
     
     //Deserialize the key
     boost::any key = cppkafka::CallbackInvoker<Deserializer>("key_deserializer",
-                                                   entry._configuration.getKeyDeserializer(),
+                                                   *deserializer._keyDeserializer,
                                                    entry._consumer.get())
                      (toppar, kafkaMessage.get_key());
     if (key.empty()) {
@@ -923,16 +914,18 @@ ConsumerManagerImpl::deserializeMessage(ConsumerTopicEntry& entry,
     }
     
     //Deserialize the headers if any
-    HeaderPack headers;
+    HeaderPack headers(deserializer._headerEntries.size());
     int num = 0;
     const cppkafka::HeaderList<cppkafka::Header<cppkafka::Buffer>>& kafkaHeaders = kafkaMessage.get_header_list();
     for (auto it = kafkaHeaders.begin(); it != kafkaHeaders.end(); ++it) {
         try {
-            boost::any header = cppkafka::CallbackInvoker<Deserializer>("header_deserializer",
-                                                              entry._configuration.getHeaderDeserializer(it->get_name()),
-                                                              entry._consumer.get())
-                     (toppar, it->get_value());
-            if (header.empty()) {
+            const TypeErasedDeserializer::HeaderEntry& headerEntry = deserializer._headerDeserializers.at(it->get_name());
+            headers[headerEntry._pos].first = it->get_name();
+            headers[headerEntry._pos].second = cppkafka::CallbackInvoker<Deserializer>("header_deserializer",
+                                                                                       *headerEntry._deserializer,
+                                                                                       entry._consumer.get())
+                                                                         (toppar, it->get_value());
+            if (headers[headerEntry._pos].second.empty()) {
                 // Decoding failed
                 de._error = RD_KAFKA_RESP_ERR__VALUE_DESERIALIZATION;
                 de._source |= (uint8_t)DeserializerError::Source::Header;
@@ -942,7 +935,6 @@ ConsumerManagerImpl::deserializeMessage(ConsumerTopicEntry& entry,
                 report(entry, cppkafka::LogLevel::LogErr, RD_KAFKA_RESP_ERR__VALUE_DESERIALIZATION, oss.str(), kafkaMessage);
                 break;
             }
-            headers.push_back(it->get_name(), std::move(header));
         }
         catch (const std::exception& ex) {
             if (entry._skipUnknownHeaders) {
@@ -960,9 +952,9 @@ ConsumerManagerImpl::deserializeMessage(ConsumerTopicEntry& entry,
     
     //Deserialize the payload
     boost::any payload = cppkafka::CallbackInvoker<Deserializer>("payload_deserializer",
-                                                       entry._configuration.getPayloadDeserializer(),
+                                                       *deserializer._payloadDeserializer,
                                                        entry._consumer.get())
-                     (toppar, headers, kafkaMessage.get_payload());
+                     (toppar, kafkaMessage.get_payload());
     if (payload.empty()) {
         // Decoding failed
         de._error = RD_KAFKA_RESP_ERR__VALUE_DESERIALIZATION;
@@ -973,10 +965,10 @@ ConsumerManagerImpl::deserializeMessage(ConsumerTopicEntry& entry,
     return DeserializedMessage(std::move(key), std::move(payload), std::move(headers), de);
 }
 
-ConsumerManagerImpl::DeserializedMessage ConsumerManagerImpl::deserializeCoro(
-                                         quantum::VoidContextPtr ctx,
-                                         ConsumerTopicEntry& entry,
-                                         const cppkafka::Message& kafkaMessage)
+ConsumerManagerImpl::DeserializedMessage
+ConsumerManagerImpl::deserializeCoro(quantum::VoidContextPtr ctx,
+                                     ConsumerTopicEntry& entry,
+                                     const cppkafka::Message& kafkaMessage)
 {
     bool skip = false;
     if (entry._preprocessorCallback && entry._preprocess) {
@@ -1121,7 +1113,7 @@ int ConsumerManagerImpl::invokeReceiver(ConsumerTopicEntry& entry,
                                         cppkafka::Message&& kafkaMessage,
                                         DeserializedMessage&& deserializedMessage)
 {
-    cppkafka::CallbackInvoker<Receiver>("receiver", entry._configuration.getReceiver(), entry._consumer.get())
+    cppkafka::CallbackInvoker<Receiver>("receiver", entry._configuration.getTypeErasedReceiver(), entry._consumer.get())
           (*entry._committer,
            entry._offsets,
            std::move(kafkaMessage), //kafka raw message
@@ -1275,7 +1267,7 @@ int ConsumerManagerImpl::receiverMultipleBatchesTask(ConsumerTopicEntry& entry,
                                                      ReceivedBatch&& messageBatch)
 {
     for (auto&& messageTuple : messageBatch) {
-        cppkafka::CallbackInvoker<Receiver>("receiver", entry._configuration.getReceiver(), entry._consumer.get())
+        cppkafka::CallbackInvoker<Receiver>("receiver", entry._configuration.getTypeErasedReceiver(), entry._consumer.get())
             (*entry._committer,
              entry._offsets,
              std::get<0>(std::move(messageTuple)), //kafka raw message
@@ -1298,7 +1290,7 @@ int ConsumerManagerImpl::invokeSingleBatchReceiver(ConsumerTopicEntry& entry,
         if (rawIx > rawMessages.size()) {
             throw std::out_of_range("Invalid message index");
         }
-        cppkafka::CallbackInvoker<Receiver>("receiver", entry._configuration.getReceiver(), entry._consumer.get())
+        cppkafka::CallbackInvoker<Receiver>("receiver", entry._configuration.getTypeErasedReceiver(), entry._consumer.get())
             (*entry._committer,
              entry._offsets,
              std::move(rawMessage), //kafka raw message

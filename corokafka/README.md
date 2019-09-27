@@ -58,10 +58,63 @@ In the following example we will be producing some messages with a key of type `
 `std::string` and a simple header called _Header1_. For full producer API see [here](https://bbgithub.dev.bloomberg.com/eor/corokafka/blob/master/corokafka/corokafka/corokafka_producer_manager.h#L34).
 ```
 //==========================================================================
+//                       Serializers/Deserializers
+//==========================================================================
+//------------------------ serializers.h -----------------------------------
+// This serializer is used for the key
+std::vector<uint8_t> serialize(const size_t&);
+
+// This serializer is used for the headers and the payload
+std::vector<uint8_t> serialize(const std::string&);
+
+// This is the deserializer for the key
+size_t deserialize(const cppkafka::TopicPartition&, const cppkafka::Buffer&, size_t*)
+
+// This is the deserializer for the header and payload
+std::string deserialize(const cppkafka::TopicPartition&, const cppkafka::Buffer&, std::string*);
+
+//------------------------ serializers.cpp -----------------------------------
+std::vector<uint8_t> serialize(const size_t& key)
+{
+    return {reinterpret_cast<const uint8_t*>(&key),
+            reinterpret_cast<const uint8_t*>(&key) + sizeof(size_t)};
+}
+
+std::vector<uint8_t> serialize(const std::string& header)
+{
+    return {header.begin(), header.end()};
+}
+
+size_t deserialize(const cppkafka::TopicPartition&, 
+                   const cppkafka::Buffer& key, 
+                   size_t* /*unused*/)
+{
+    return *static_cast<const size_t*>((void*)key.get_data());
+}
+
+std::string deserialize(const cppkafka::TopicPartition&, 
+                        const cppkafka::Buffer& headerOrPayload, 
+                        std::string* /*unused*/)
+{
+    return {headerOrPayload.begin(), headerOrPayload.end()};
+}
+
+//==========================================================================
+//                                Topic
+//==========================================================================
+//------------------------------ mytopic.h ---------------------------------
+#include <serializers.h>
+#include <corokafka/corokafka.h>
+
+using MyTopic = corokafka::Topic<size_t, std::string, coroakafka::Headers<std::string>>;
+
+// Create a topic which will be shared between producer and consumer.
+static MyTopic myTopic("my-topic", corokafka::Header<std::string>("Header1");
+
+//==========================================================================
 //                          Producer setup
 //==========================================================================
-#include <quantum/quantum.h>
-#include <corokafka/corokafka.h>
+#include <mytopic.h>
 
 // Define a delivery report callback (optional - see documentation for all available callbacks)
 void deliveryReportCallback(const corokafka::ProducerMetadata& metadata,
@@ -94,29 +147,6 @@ void logCallback(const corokafka::Metadata& metadata,
               << " text: " << message << std::endl;
 }
 
-// Define a key and payload serializer (mandatory - see documentation for mandatory callbacks)
-// We will send a message with a 'size_t' key and a 'std::string' payload. 
-// If using headers (optionally), a header serializer will also be needed.
-corokafka::ByteArray
-keySerializerCallback(const size_t& key)
-{
-    return {reinterpret_cast<const uint8_t*>(&key),
-            reinterpret_cast<const uint8_t*>(&key) + sizeof(size_t)};
-}
-
-// Optional
-corokafka::ByteArray
-headerSerializerCallback(const std::string& header)
-{
-    return {header.begin(), header.end()};
-}
-
-corokafka::ByteArray
-payloadSerializerCallback(const corokafka::HeaderPack&, const std::string& payload)
-{
-    return {payload.begin(), payload.end()};
-}
-
 // Create a topic configuration (optional)
 std::initializer_list<cppkafka::ConfigurationOption > topicOptions = {
     { "produce.offset.report",  true },
@@ -135,9 +165,8 @@ std::initializer_list<cppkafka::ConfigurationOption > configOptions = {
 corokafka::ProducerConfiguration config("my-topic", configOptions, topicOptions);
 
 // Add the callbacks
-config.setKeyCallback(keySerializerCallback);
-config.setHeaderCallback("Header1", headerSerializerCallback);
-config.setPayloadCallback(payloadSerializerCallback);
+config.setDeliveryReportCallback(deliveryReportCallback);
+config.setLogCallback(logCallback);
 
 // Create the connector config (optional)
 corokafka::ConnectorConfiguration connectorConfiguration;
@@ -153,13 +182,10 @@ corokafka::Connector connector(std::move(builder));
 // Produce 10 messages
 corokafka::ProducerManager& producer = connector.producer(); //get handle on producer
 
-// Create a header pack (optional - only if using headers)
-corokafka::HeaderPack headers{{"Header1", "This is my header"}}; //add a header
-
 // Produce 10 messages. 'i' represents the 'key'
 for (size_t i = 0; i < 10; ++i) { 
     //produce a message synchronously (async production also available)
-    producer.send("my-topic", i, "Hello world", headers);
+    producer.send(myTopic, 0, i, std::string("Hello world"), std::string("This is some header"));
 }
 
 ```
@@ -171,7 +197,7 @@ In the following example we will be consuming messages with a key of type `size_
 //==========================================================================
 //                 Message worker queue and processor
 //==========================================================================
-#include <corokafka/corokafka.h>
+#include <mytopic.h>
 
 std::mutex messageMutex;
 std::deque<corokafka::ReceivedMessage<size_t, std::string>> messages;
@@ -184,25 +210,26 @@ void messageProcessor()
             std::lock_guard<std::mutex> lock(messageMutex);
             corokafka::ReceivedMessage<size_t, std::string> message = std::move(messages.front());
             messages.pop_front();
-           
+                       
             //get the headers
-            corokafka::HeaderPack headers = std::move(message).getHeaders();
+            const ckf::HeaderPack &headers = message.getHeaders();
             std::string headerName;
             std::string headerValue;
             if (headers) {
                 headerName = headers.getAt<std::string>(0).name();
+                //get header value (type unsafe)
                 headerValue = headers.getAt<std::string>(0).value();
+                //get header value (type-safe)
+                //headerValue = message.getHeader<0>();
             }
-            
-            //print the message
             std::ostringstream oss;
             oss << "Received message from topic: " << message.getTopic()
-                      << " partition: " << message.getPartition()
-                      << " offset: " << message.getOffset()
-                      << " key: " << message.getKey()
-                      << " header: " << headerName << " :: " << headerValue
-                      << " payload: " << message.getPayload()
-                      << std::endl;
+                << " partition: " << message.getPartition()
+                << " offset: " << message.getOffset()
+                << " key: " << message.getKey()
+                << " header: " << headerName << " :: " << headerValue
+                << " payload: " << message.getPayload()
+                << std::endl;
             std::cout << oss.str() << std::endl;
             
             //commit the message. This can also be done automatically (see consumer configuration).
@@ -215,9 +242,8 @@ void messageProcessor()
 }
 
 //==========================================================================
-//                             cppkafka::Consumer setup
+//                         Consumer setup
 //==========================================================================
-#include <quantum/quantum.h>
 #include <corokafka/corokafka.h>
 
 // Define a log callback (optional - see documentation for all available callbacks)
@@ -231,28 +257,8 @@ void logCallback(const corokafka::Metadata& metadata,
               << " text: " << message << std::endl;
 }
 
-// Define deserializers (mandatory for key and payload)
-size_t
-keyDeserializerCallback(const cppkafka::Buffer& key)
-{
-    return *static_cast<const size_t*>((void*)key.get_data());
-}
-
-// Optional header deserializer
-std::string
-headerDeserializerCallback(const cppkafka::Buffer& header)
-{
-    return {header.begin(), header.end()};
-}
-
-std::string
-payloadDeserializerCallback(const corokafka::HeaderPack&, const cppkafka::Buffer& payload)
-{
-    return {payload.begin(), payload.end()};
-}
-
 // Define a receiver callback (mandatory)
-void receiverCallback(corokafka::ReceivedMessage<size_t, std::string> message)
+void receiverCallback(MyTopic::receivedMessage message)
 {
     if (!message) return; //invalid message
      
@@ -287,14 +293,12 @@ std::initializer_list<cppkafka::ConfigurationOption > configOptions = {
     { "partition.assignment.strategy", "roundrobin" },
     { "internal.consumer.pause.on.start", false }
 };
-corokafka::ConsumerConfiguration config("my-topic", configOptions, {});
+
+//create the consumer configuration
+corokafka::ConsumerConfiguration config(myTopic, configOptions, {}, receiverCallback);
 
 //add the callbacks
 config.setLogCallback(logCallback);
-config.setKeyCallback(keyDeserializerCallback);
-config.setHeaderCallback("Header1", headerDeserializerCallback);
-config.setPayloadCallback(payloadDeserializerCallback);
-config.setReceiverCallback(receiverCallback);
 
 // Optionally set initial partition assignment (4 partitions per topic)
 config.assignInitialPartitions(corokafka::PartitionStrategy::Dynamic,

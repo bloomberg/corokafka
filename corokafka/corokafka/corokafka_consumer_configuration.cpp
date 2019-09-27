@@ -60,14 +60,6 @@ ConsumerConfiguration::ConsumerConfiguration(const std::string& topic,
 
 }
 
-ConsumerConfiguration::ConsumerConfiguration(const std::string& topic,
-                                             std::initializer_list<cppkafka::ConfigurationOption> options,
-                                             std::initializer_list<cppkafka::ConfigurationOption> topicOptions) :
-    Configuration(KafkaType::Consumer, topic, std::move(options), std::move(topicOptions))
-{
-
-}
-
 PartitionStrategy ConsumerConfiguration::getPartitionStrategy() const
 {
     return _strategy;
@@ -118,37 +110,14 @@ const Callbacks::PreprocessorCallback& ConsumerConfiguration::getPreprocessorCal
     return _preprocessorCallback;
 }
 
-const Receiver& ConsumerConfiguration::getReceiver() const
+const TypeErasedDeserializer& ConsumerConfiguration::getTypeErasedDeserializer() const
 {
-    if (!_receiver) {
-        throw std::runtime_error("Receiver not set");
-    }
+    return _typeErasedDeserializer;
+}
+
+const Receiver& ConsumerConfiguration::getTypeErasedReceiver() const
+{
     return *_receiver;
-}
-
-const Deserializer& ConsumerConfiguration::getKeyDeserializer() const
-{
-    if (!_keyDeserializer) {
-        throw std::runtime_error("Key deserializer not set");
-    }
-    return *_keyDeserializer;
-}
-
-const Deserializer& ConsumerConfiguration::getPayloadDeserializer() const
-{
-    if (!_payloadDeserializer) {
-        throw std::runtime_error("Payload deserializer not set");
-    }
-    return *_payloadDeserializer;
-}
-
-const Deserializer& ConsumerConfiguration::getHeaderDeserializer(const std::string& name) const
-{
-    auto it = _headerDeserializers.find(name);
-    if (it == _headerDeserializers.end()) {
-        throw std::runtime_error("Header deserializer not set for " + name);
-    }
-    return *it->second;
 }
 
 }

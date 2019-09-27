@@ -19,6 +19,7 @@
 #include <corokafka/corokafka_callbacks.h>
 #include <corokafka/corokafka_utils.h>
 #include <corokafka/corokafka_configuration.h>
+#include <corokafka/corokafka_type_erased_deserializer.h>
 
 namespace Bloomberg {
 namespace corokafka {
@@ -31,34 +32,39 @@ namespace corokafka {
  *        configuration information for a specific topic. This configuration consists
  *        of both RdKafka and CoroKafka configuration options as per documentation
  *        (see CONFIGURATION.md in the respective projects).
- *        At a minimum, the user should supply a 'metadata.broker.list' in the constructor 'options'
- *        as well as a key, a payload and a receiver de-serializer callback.
+ *        At a minimum, the user should supply a 'metadata.broker.list' in the constructor 'options'.
  */
 class ConsumerConfiguration : public Configuration
 {
     friend class Configuration;
+    friend class ConsumerManagerImpl;
 public:
     /**
      * @brief Create a consumer configuration.
-     * @param topic The topic to which this configuration applies.
+     * @tparam TOPIC Type Topic<KEY,PAYLOAD,HEADERS> which represents this consumer.
+     * @param topic The topic object to which this configuration applies.
      * @param options The producer configuration options (for both RdKafka and CoroKafka).
      * @param topicOptions The topic configuration options (for both RdKafka and CoroKafka).
+     * @param receiver The receiver function on which all messages are delivered.
+     * @note 'metadata.broker.list' must be supplied in 'options'.
+     */
+    template <typename TOPIC>
+    ConsumerConfiguration(const TOPIC& topic,
+                          Options options,
+                          Options topicOptions,
+                          Callbacks::ReceiverCallback<TOPIC> receiver);
+    
+    /**
+     * @brief Create a consumer configuration.
+     * @param topic The topic name to which this configuration applies.
+     * @param options The producer configuration options (for both RdKafka and CoroKafka).
+     * @param topicOptions The topic configuration options (for both RdKafka and CoroKafka).
+     * @note When using this constructor, the application must call 'setReceiverCallback()' below.
      * @note 'metadata.broker.list' must be supplied in 'options'.
      */
     ConsumerConfiguration(const std::string& topic,
                           Options options,
-                          Options topicOptions = {});
-    
-    /**
-     * @brief Create a consumer configuration.
-     * @param topic The topic to which this configuration applies.
-     * @param options The producer configuration options (for both RdKafka and CoroKafka).
-     * @param topicOptions The topic configuration options (for both RdKafka and CoroKafka).
-     * @note 'metadata.broker.list' must be supplied in 'options'.
-     */
-    ConsumerConfiguration(const std::string& topic,
-                          std::initializer_list<cppkafka::ConfigurationOption> options,
-                          std::initializer_list<cppkafka::ConfigurationOption> topicOptions = {});
+                          Options topicOptions);
     
     /**
      * @brief Assign partitions and offsets on startup for this consumer.
@@ -125,99 +131,30 @@ public:
     const Callbacks::PreprocessorCallback& getPreprocessorCallback() const;
     
     /**
-     * @brief Set the receiver callback.
-     * @tparam FUNC The callback of type Callbacks::ReceiverCallback<KEY,PAYLOAD>
-     * @tparam P The Payload type.
-     * @param callback The callback.
+     * @brief Set the receiver function.
+     * @tparam TOPIC Type Topic<KEY,PAYLOAD,HEADERS> which represents this consumer.
+     * @param callback The receiver function on which all messages are delivered.
      * @remark Setting a receiver callback is mandatory.
      */
-    template <typename FUNC>
-    void setReceiverCallback(FUNC&& callback);
-    
-    /**
-     * @brief Set the key deserializer callback.
-     * @tparam FUNC The callback of type Callbacks::KeyDeserializerCallback<T>.
-     * @param callback The callback.
-     * @remark Setting a key deserializer callback is mandatory.
-     */
-    template <typename FUNC>
-    void setKeyCallback(FUNC&& callback);
-    
-    /**
-     * @brief Set the payload deserializer callback.
-     * @tparam FUNC The callback of type Callbacks::PayloadDeserializerCallback<T>.
-     * @param callback The callback.
-     * @remark Setting a payload deserializer callback is mandatory.
-     */
-    template <typename FUNC>
-    void setPayloadCallback(FUNC&& callback);
-    
-    /**
-     * @brief Set the payload deserializer callback.
-     * @tparam FUNC The callback of type Callbacks::HeaderDeserializerCallback<T>.
-     * @param name The header name.
-     * @param callback The callback.
-     * @remark Setting a payload deserializer callback is mandatory.
-     */
-    template <typename FUNC>
-    void setHeaderCallback(const std::string& name, FUNC&& callback);
+    template <typename TOPIC>
+    void setReceiverCallback(const TOPIC& topic, Callbacks::ReceiverCallback<TOPIC> receiver);
     
     /**
      * @brief Get the receiver callback.
-     * @tparam K The Key type.
-     * @tparam P The Payload type.
+     * @tparam TOPIC Type Topic<KEY,PAYLOAD,HEADERS>
      * @return The callback.
      */
-    template <typename K, typename P>
-    const Callbacks::ReceiverCallback<K,P>& getReceiverCallback() const;
-    
-    /**
-     * @brief Get the key deserializer callback.
-     * @tparam T The Key type.
-     * @return The callback.
-     */
-    template <typename T>
-    const Callbacks::KeyDeserializerCallback<T>& getKeyCallback() const;
-    
-    /**
-     * @brief Get the payload deserializer callback.
-     * @tparam T The Key type.
-     * @return The callback.
-     */
-    template <typename T>
-    const Callbacks::PayloadDeserializerCallback<T>& getPayloadCallback() const;
-    
-    /**
-     * @brief Get the specific header deserializer callback.
-     * @tparam T The Header type.
-     * @return The callback.
-     */
-    template <typename T>
-    const Callbacks::HeaderDeserializerCallback<T>& getHeaderCallback(const std::string& name) const;
-    
-    /**
-     * @brief Get the Receiver functor.
-     * @return The Receiver.
-     */
-    const Receiver& getReceiver() const;
-    
-    /**
-     * @brief Get the Deserializer functors.
-     * @return The functor.
-     */
-    const Deserializer& getKeyDeserializer() const;
-    const Deserializer& getPayloadDeserializer() const;
-    const Deserializer& getHeaderDeserializer(const std::string& name) const;
+    template <typename TOPIC>
+    const Callbacks::ReceiverCallback<TOPIC>& getReceiverCallback() const;
     
 private:
-    using DeserializerPtr = std::shared_ptr<Deserializer>;
+    const TypeErasedDeserializer& getTypeErasedDeserializer() const;
+    const Receiver& getTypeErasedReceiver() const;
     
     Callbacks::OffsetCommitCallback         _offsetCommitCallback;
     Callbacks::RebalanceCallback            _rebalanceCallback;
     Callbacks::PreprocessorCallback         _preprocessorCallback;
-    DeserializerPtr                         _keyDeserializer;
-    DeserializerPtr                         _payloadDeserializer;
-    std::map<std::string, DeserializerPtr>  _headerDeserializers;
+    TypeErasedDeserializer                  _typeErasedDeserializer;
     std::shared_ptr<Receiver>               _receiver;
     cppkafka::TopicPartitionList            _initialPartitionList;
     PartitionStrategy                       _strategy{PartitionStrategy::Dynamic};

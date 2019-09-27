@@ -40,7 +40,7 @@ public:
     
 private:
     using ConfigMap = ConfigurationBuilder::ConfigMap<ProducerConfiguration>;
-    using BuilderTuple = std::tuple<ProducerTopicEntry*, std::unique_ptr<cppkafka::ConcreteMessageBuilder<ByteArray>>>;
+    using BuilderTuple = std::tuple<ProducerTopicEntry*, ProducerMessageBuilder<ByteArray>>;
     using MessageFuture = quantum::ThreadContextPtr<BuilderTuple>;
     using Producers = std::unordered_map<std::string,
                                          ProducerTopicEntry,
@@ -61,28 +61,20 @@ private:
     
     std::vector<std::string> getTopics() const;
 
-    template <typename K, typename P>
-    size_t send(const std::string& topic,
+    template <typename TOPIC, typename K, typename P, typename ...H>
+    size_t send(const TOPIC& topic,
+                void* opaque,
                 const K& key,
                 const P& payload,
-                const HeaderPack& headers,
-                void* opaque);
+                const H&... headers);
     
-    template <typename K, typename P>
+    template <typename TOPIC, typename K, typename P, typename ...H>
     quantum::GenericFuture<DeliveryReport>
-    post(const std::string& topic,
+    post(const TOPIC& topic,
+         void* opaque,
          K&& key,
          P&& payload,
-         const HeaderPack& headers,
-         void* opaque);
-    
-    template <typename K, typename P>
-    quantum::GenericFuture<DeliveryReport>
-    post(const std::string& topic,
-         K&& key,
-         P&& payload,
-         HeaderPack&& headers,
-         void* opaque);
+         H&&... headers);
     
     void waitForAcks(const std::string& topic,
                      std::chrono::milliseconds timeout);
@@ -92,14 +84,6 @@ private:
     void poll();
     
     void post();
-    
-    template <typename K, typename P, typename HEADERS>
-    quantum::GenericFuture<DeliveryReport>
-    postImpl(const std::string& topic,
-             K&& key,
-             P&& payload,
-             HEADERS&& message,
-             void* opaque);
     
     void resetQueueFullTrigger(const std::string& topic);
     
@@ -157,25 +141,28 @@ private:
     // Coroutines and async IO
     static int pollTask(ProducerTopicEntry& entry);
     static int produceTask(ProducerTopicEntry& entry,
-                           cppkafka::ConcreteMessageBuilder<ByteArray>&& builder);
+                           ProducerMessageBuilder<ByteArray>&& builder);
     static int produceTaskSync(ProducerTopicEntry& entry,
-                               const cppkafka::ConcreteMessageBuilder<ByteArray>& builder);
-    template <typename K, typename P, typename HEADERS>
+                               const ProducerMessageBuilder<ByteArray>& builder);
+    template <typename TOPIC, typename K, typename P, typename ...H>
     static BuilderTuple serializeCoro(quantum::VoidContextPtr ctx,
+                             const TOPIC& topic,
                              ProducerTopicEntry& entry,
+                             PackedOpaque* opaque,
                              K&& key,
                              P&& payload,
-                             HEADERS&& headers,
-                             PackedOpaque* opaque);
-    static cppkafka::ConcreteMessageBuilder<ByteArray>
-    serializeMessage(ProducerTopicEntry& entry,
-                     const void* key,
-                     const void* payload,
-                     const HeaderPack* headers,
-                     void* opaque);
+                             H&& ...headers);
+    template <typename TOPIC, typename K, typename P, typename ...H>
+    static ProducerMessageBuilder<ByteArray>
+    serializeMessage(const TOPIC& topic,
+                     ProducerTopicEntry& entry,
+                     void* opaque,
+                     const K& key,
+                     const P& payload,
+                     const H&... headers);
     
     static void produceMessage(const ProducerTopicEntry& topicEntry,
-                               const cppkafka::ConcreteMessageBuilder<ByteArray>& builder);
+                               const ProducerMessageBuilder<ByteArray>& builder);
     static void flush(const ProducerTopicEntry& topicEntry);
     
     // Misc methods
@@ -216,41 +203,106 @@ ByteArray makeBuffer<ByteArray>(ByteArray& buffer)
 //=============================================================================
 //                          Implementations
 //=============================================================================
-template <typename K, typename P, typename HEADERS>
-ProducerManagerImpl::BuilderTuple
-ProducerManagerImpl::serializeCoro(quantum::VoidContextPtr ctx,
-                                   ProducerTopicEntry& entry,
-                                   K&& key,
-                                   P&& payload,
-                                   HEADERS&& headers,
-                                   PackedOpaque* opaque)
-{
-    cppkafka::ConcreteMessageBuilder<ByteArray> builder = serializeMessage(entry, &key, &payload, &headers, opaque->first);
-    if (builder.topic().empty()) {
-        //Serializing failed
-        throw std::runtime_error("Serialization failed");
-    }
-    builder.user_data(opaque);
-    return {&entry, std::unique_ptr<cppkafka::ConcreteMessageBuilder<ByteArray>>(new cppkafka::ConcreteMessageBuilder<ByteArray>(std::move(builder)))};
+template <typename TOPIC>
+void serializeHeaders(const TOPIC&, size_t, ProducerMessageBuilder<ByteArray>&)
+{}
+template <typename TOPIC, typename H, typename ... Hs>
+void serializeHeaders(const TOPIC& topic, size_t i, ProducerMessageBuilder<ByteArray>& builder, const H& h, const Hs&...hs) {
+    builder.header(cppkafka::Header<ByteArray>{topic.headers().names()[i], serialize(h)});
+    serializeHeaders(topic, ++i, builder, hs...);
 }
 
-template <typename K, typename P>
-size_t ProducerManagerImpl::send(const std::string& topic,
+template <typename TOPIC, typename K, typename P, typename ...H>
+ProducerMessageBuilder<ByteArray>
+ProducerManagerImpl::serializeMessage(const TOPIC& topic,
+                                      ProducerTopicEntry& entry,
+                                      void* opaque,
+                                      const K& key,
+                                      const P& payload,
+                                      const H&... headers)
+{
+    ProducerMessageBuilder<ByteArray> builder(entry._configuration.getTopic());
+    try {
+        builder.key(serialize(key));
+    }
+    catch (const std::exception& ex) {
+        report(entry, cppkafka::LogLevel::LogErr, RD_KAFKA_RESP_ERR__KEY_SERIALIZATION, "Failed to serialize key", opaque);
+    }
+    try {
+        builder.payload(serialize(payload));
+    }
+    catch (const std::exception& ex) {
+        report(entry, cppkafka::LogLevel::LogErr, RD_KAFKA_RESP_ERR__VALUE_SERIALIZATION, "Failed to serialize payload", opaque);
+    }
+    try {
+        serializeHeaders(topic, 0, builder, headers...);
+    }
+    catch (const std::exception& ex) {
+        report(entry, cppkafka::LogLevel::LogErr, RD_KAFKA_RESP_ERR__VALUE_SERIALIZATION, "Failed to serialize a header", opaque);
+    }
+    // Add timestamp
+    builder.timestamp(std::chrono::high_resolution_clock::now());
+    return builder;
+}
+
+template <typename TOPIC, typename K, typename P, typename ...H>
+ProducerManagerImpl::BuilderTuple
+ProducerManagerImpl::serializeCoro(quantum::VoidContextPtr ctx,
+                                 const TOPIC& topic,
+                                 ProducerTopicEntry& entry,
+                                 PackedOpaque* opaque,
+                                 K&& key,
+                                 P&& payload,
+                                 H&& ...headers)
+{
+    using Builder = ProducerMessageBuilder<ByteArray>;
+    ProducerManagerImpl::BuilderTuple builderTuple =
+        {&entry, Builder(entry._configuration.getTopic())};
+    Builder& builder = std::get<1>(builderTuple);
+    try {
+        builder.key(serialize(key));
+    }
+    catch (const std::exception& ex) {
+        report(entry, cppkafka::LogLevel::LogErr, RD_KAFKA_RESP_ERR__KEY_SERIALIZATION, "Failed to serialize key", opaque);
+        throw std::runtime_error("Key serialization failed");
+    }
+    try {
+        builder.payload(serialize(payload));
+    }
+    catch (const std::exception& ex) {
+        report(entry, cppkafka::LogLevel::LogErr, RD_KAFKA_RESP_ERR__VALUE_SERIALIZATION, "Failed to serialize payload", opaque);
+        throw std::runtime_error("Payload serialization failed");
+    }
+    try {
+        serializeHeaders(topic, 0, builder, headers...);
+    }
+    catch (const std::exception& ex) {
+        report(entry, cppkafka::LogLevel::LogErr, RD_KAFKA_RESP_ERR__VALUE_SERIALIZATION, "Failed to serialize a header", opaque);
+        throw std::runtime_error("Header serialization failed");
+    }
+    // Add timestamp
+    builder.timestamp(std::chrono::high_resolution_clock::now());
+    builder.user_data(opaque);
+    return builderTuple;
+}
+
+template <typename TOPIC, typename K, typename P, typename ...H>
+size_t ProducerManagerImpl::send(const TOPIC& topic,
+                                 void* opaque,
                                  const K& key,
                                  const P& payload,
-                                 const HeaderPack& headers,
-                                 void* opaque)
+                                 const H&... headers)
 {
     auto ctx = quantum::local::context();
     if (ctx) {
-        return post(topic, key, payload, headers, opaque).get().getNumBytesWritten();
+        return post(topic, opaque, key, payload, headers...).get().getNumBytesWritten();
     }
-    auto it = _producers.find(topic);
+    auto it = _producers.find(topic.topic());
     if (it == _producers.end()) {
         throw std::runtime_error("Invalid topic");
     }
     ProducerTopicEntry& topicEntry = it->second;
-    cppkafka::ConcreteMessageBuilder<ByteArray> builder = serializeMessage(topicEntry, &key, &payload, &headers, opaque);
+    ProducerMessageBuilder<ByteArray> builder = serializeMessage(topic, topicEntry, opaque, key, payload, headers...);
     if (builder.topic().empty()) {
         //Serializing failed
         return 0;
@@ -262,15 +314,15 @@ size_t ProducerManagerImpl::send(const std::string& topic,
     return builder.payload().size();
 }
 
-template <typename K, typename P, typename HEADERS>
+template <typename TOPIC, typename K, typename P, typename ...H>
 quantum::GenericFuture<DeliveryReport>
-ProducerManagerImpl::postImpl(const std::string& topic,
-                              K&& key,
-                              P&& payload,
-                              HEADERS&& headers,
-                              void* opaque)
+ProducerManagerImpl::post(const TOPIC& topic,
+                          void* opaque,
+                          K&& key,
+                          P&& payload,
+                          H&&...headers)
 {
-    auto it = _producers.find(topic);
+    auto it = _producers.find(topic.topic());
     if (it == _producers.end()) {
         throw std::runtime_error("Invalid topic");
     }
@@ -294,37 +346,16 @@ ProducerManagerImpl::postImpl(const std::string& topic,
     {
         std::unique_lock<std::mutex> lock(_messageQueueMutex);
         _messageQueue.emplace_back(_dispatcher.post(
-                serializeCoro<K,P,HEADERS>,
+                serializeCoro<TOPIC,K,P,H...>,
+                topic,
                 topicEntry,
+                new PackedOpaque(opaque, std::move(deliveryPromise)),
                 std::forward<K>(key),
                 std::forward<P>(payload),
-                std::forward<HEADERS>(headers),
-                new PackedOpaque(opaque, std::move(deliveryPromise))));
+                std::forward<H>(headers)...));
     }
     _emptyCondition.notify_one();
     return deliveryFuture;
-}
-
-template <typename K, typename P>
-quantum::GenericFuture<DeliveryReport>
-ProducerManagerImpl::post(const std::string& topic,
-                          K&& key,
-                          P&& payload,
-                          const HeaderPack& headers,
-                          void* opaque)
-{
-    return postImpl(topic, std::forward<K>(key), std::forward<P>(payload), headers, opaque);
-}
-
-template <typename K, typename P>
-quantum::GenericFuture<DeliveryReport>
-ProducerManagerImpl::post(const std::string& topic,
-                          K&& key,
-                          P&& payload,
-                          HeaderPack&& headers,
-                          void* opaque)
-{
-    return postImpl(topic, std::forward<K>(key), std::forward<P>(payload), std::move(headers), opaque);
 }
  
 }}

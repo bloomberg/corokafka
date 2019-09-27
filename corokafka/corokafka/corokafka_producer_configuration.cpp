@@ -34,7 +34,6 @@ const Configuration::OptionSet ProducerConfiguration::s_internalOptions = {
     "internal.producer.flush.wait.for.acks",
     "internal.producer.flush.wait.for.acks.timeout.ms",
     "internal.producer.log.level",
-    "internal.producer.skip.unknown.headers",
     "internal.producer.auto.throttle",
     "internal.producer.auto.throttle.multiplier",
     "internal.producer.queue.full.notification"
@@ -42,20 +41,11 @@ const Configuration::OptionSet ProducerConfiguration::s_internalOptions = {
 
 const Configuration::OptionSet ProducerConfiguration::s_internalTopicOptions;
 
-ProducerConfiguration::ProducerConfiguration(const std::string& topic,
+ProducerConfiguration::ProducerConfiguration(const std::string& topicName,
                                              Options options,
                                              Options topicOptions) :
-    Configuration(KafkaType::Producer, topic, std::move(options), std::move(topicOptions))
+    Configuration(KafkaType::Producer, topicName, std::move(options), std::move(topicOptions))
 {
-
-}
-
-ProducerConfiguration::ProducerConfiguration(const std::string& topic,
-                                             std::initializer_list<cppkafka::ConfigurationOption> options,
-                                             std::initializer_list<cppkafka::ConfigurationOption> topicOptions) :
-    Configuration(KafkaType::Producer, topic, std::move(options), std::move(topicOptions))
-{
-
 }
 
 void ProducerConfiguration::setDeliveryReportCallback(Callbacks::DeliveryReportCallback callback)
@@ -86,31 +76,6 @@ void ProducerConfiguration::setQueueFullCallback(Callbacks::QueueFullCallback ca
 const Callbacks::QueueFullCallback& ProducerConfiguration::getQueueFullCallback() const
 {
     return _queueFullCallback;
-}
-
-const Serializer& ProducerConfiguration::getKeySerializer() const
-{
-    if (!_keySerializer) {
-        throw std::runtime_error("Key serializer not set");
-    }
-    return *_keySerializer;
-}
-
-const Serializer& ProducerConfiguration::getPayloadSerializer() const
-{
-    if (!_payloadSerializer) {
-        throw std::runtime_error("Payload serializer not set");
-    }
-    return *_payloadSerializer;
-}
-
-const Serializer& ProducerConfiguration::getHeaderSerializer(const std::string& name) const
-{
-    auto it = _headerSerializers.find(name);
-    if (it == _headerSerializers.end()) {
-        throw std::runtime_error("Header serializer not set for " + name);
-    }
-    return *it->second;
 }
 
 }

@@ -30,6 +30,7 @@
 #include <corokafka/corokafka_deserializer.h>
 #include <corokafka/corokafka_header_pack.h>
 #include <corokafka/corokafka_header_ref.h>
+#include <corokafka/corokafka_headers.h>
 #include <corokafka/corokafka_message.h>
 #include <corokafka/corokafka_metadata.h>
 #include <corokafka/corokafka_offset_map.h>
@@ -41,8 +42,9 @@
 #include <corokafka/corokafka_received_message.h>
 #include <corokafka/corokafka_receiver.h>
 #include <corokafka/corokafka_sent_message.h>
-#include <corokafka/corokafka_serializer.h>
 #include <corokafka/corokafka_throttle_control.h>
+#include <corokafka/corokafka_topic.h>
+#include <corokafka/corokafka_type_erased_deserializer.h>
 #include <corokafka/corokafka_utils.h>
 #include <corokafka/detail/corokafka_macros.h>
 

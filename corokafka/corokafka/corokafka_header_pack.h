@@ -45,31 +45,13 @@ public:
     /**
      * @brief Creates an empty header pack.
      */
-    HeaderPack() = default;
+    HeaderPack(size_t numElements = 0);
     
     /**
      * @brief Initialize the HeaderPack with a list of headers.
      * @param list The initializer list
      */
     HeaderPack(std::initializer_list<HeaderNode> list);
-    
-    /**
-     * @brief Add a header to the front of the pack.
-     * @param name The header name.
-     * @param header The header.
-     * @return
-     */
-    template <typename H>
-    HeaderPack& push_front(const std::string& name, H&& header);
-    
-    /**
-     * @brief Add a header to the back of the pack.
-     * @param name The header name.
-     * @param header The header.
-     * @return
-     */
-    template <typename H>
-    HeaderPack& push_back(const std::string& name, H&& header);
     
     /**
      * @brief Remove a header from the front of the pack.
@@ -182,14 +164,37 @@ public:
     template <typename H>
     HeaderRef<H&&> getAt(int index) &&;
     
+    /**
+     * @brief Returns the number of valid headers (i.e. non-empty)
+     * @return The size.
+     */
+    size_t numValidHeaders() const;
+    
+    /**
+     * @brief Checks if the header at position 'index' is valid (i.e. non-empty)
+     * @return True if the header is valid
+     */
+    bool isValidAt(int index) const;
+    
+    /**
+     * @brief Checks if the header with specified name and index is valid.
+     * @param name The header name
+     * @param nameIndex (optional) The index of the header name if not unique. If not specified (i.e. == -1) the first
+     *                  header matching this name is returned.
+     * @return True if the header is valid
+     */
+    bool isValid(const std::string& name, int nameIndex = -1) const;
+    
 private:
-    HeaderPack& push_front(const std::string& name, boost::any&& header);
-    
+    template <typename H>
+    HeaderPack& push_front(const std::string& name, H&& header);
+    template <typename H>
+    HeaderPack& push_back(const std::string& name, H&& header);
     HeaderPack& push_back(const std::string& name, boost::any&& header);
-    
+    HeaderPack& push_front(const std::string& name, boost::any&& header);
     ListType::const_iterator getImpl(const std::string& name, int nameIndex) const;
-    
     ListType::iterator getImpl(const std::string& name, int nameIndex);
+    HeaderNode& operator[](size_t index);
     
     // Members
     ListType    _headers;

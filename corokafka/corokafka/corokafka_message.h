@@ -20,7 +20,6 @@
 #include <tuple>
 #include <corokafka/corokafka_utils.h>
 #include <corokafka/corokafka_offset_map.h>
-#include <corokafka/corokafka_deserializer.h>
 #include <boost/optional.hpp>
 
 namespace Bloomberg {

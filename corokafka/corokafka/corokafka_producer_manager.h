@@ -40,12 +40,13 @@ public:
     /**
      * @brief Synchronous send. When this function returns, the message has been ack-ed by N broker replicas based on
      *        the broker settings for this topic and the final ack response has been received by this library.
+     * @tparam TOPIC Type Topic<Key,Payload,Headers> which represents this producer.
      * @tparam K The Key type used in selecting the partition where this message will be sent.
      * @tparam P The Payload type for this message.
      * @param topic The topic to publish to.
      * @param key The message key.
      * @param payload The message payload.
-     * @param headers The header pack for this message.
+     * @param headers The header pack for this message in order of definition in the TopicTraits.
      * @param opaque An opaque data pointer which will be returned inside the delivery callback.
      * @return The number of bytes sent.
      * @remark If the application uses *only* synchronous sends, better performance can be achieved by setting
@@ -54,16 +55,17 @@ public:
      * @remark To guarantee strict message ordering, set 'internal.producer.preserve.message.order = true' which will
      *         also set the rdkafka option 'max.in.flight = 1' as it may cause re-ordering or packets.
      */
-    template <typename K, typename P>
-    int send(const std::string& topic,
+    template <typename TOPIC, typename K, typename P, typename ...H>
+    int send(const TOPIC& topic,
+             void* opaque,
              const K& key,
              const P& payload,
-             const HeaderPack& headers,
-             void* opaque = nullptr);
+             const H&...headers);
     
     /**
      * @brief Asynchronous send. No message delivery guarantee is made and messages are sent in batches unless
      *        strict ordering is needed.
+     * @tparam TOPIC Type Topic<Key,Payload,Headers> which represents this producer.
      * @tparam K The Key type used in selecting the partition where this message will be sent.
      * @tparam P The Payload type for this message.
      * @param topic The topic to publish to.
@@ -78,21 +80,13 @@ public:
      * @return A future containing a message delivery report.
      * @warning This method will make an extra copy of the message.
      */
-    template <typename K, typename P>
+    template <typename TOPIC, typename K, typename P, typename ...H>
     quantum::GenericFuture<DeliveryReport>
-    post(const std::string& topic,
+    post(const TOPIC& topic,
+         void* opaque,
          K&& key,
          P&& payload,
-         const HeaderPack& headers,
-         void* opaque = nullptr);
-    
-    template <typename K, typename P>
-    quantum::GenericFuture<DeliveryReport>
-    post(const std::string& topic,
-         K&& key,
-         P&& payload,
-         HeaderPack&& headers,
-         void* opaque = nullptr);
+         H&&...headers);
     
     /**
      * @brief Wait for all pending 'posted' messages to be ack-ed by the broker.
@@ -167,34 +161,35 @@ private:
 };
 
 // Implementations
-template <typename K, typename P>
+template <typename TOPIC, typename K, typename P, typename ...H>
 int
-ProducerManager::send(const std::string& topic,
+ProducerManager::send(const TOPIC& topic,
+                      void* opaque,
                       const K& key,
                       const P& payload,
-                      const HeaderPack& headers,
-                      void* opaque) {
-    return _impl->template send<K,P>(topic, key, payload, headers, opaque);
+                      const H&... headers) {
+    static_assert(std::is_same<typename TOPIC::KeyType, std::decay_t<K>>::value, "Invalid key type");
+    static_assert(std::is_same<typename TOPIC::PayloadType, std::decay_t<P>>::value, "Invalid payload type");
+    static_assert(std::is_same<typename TOPIC::HeadersType, Headers<std::decay_t<H>...>>::value, "Invalid header types");
+    return _impl->template send<TOPIC,K,P,H...>(topic, opaque, key, payload, headers...);
 }
 
-template <typename K, typename P>
+template <typename TOPIC, typename K, typename P, typename ...H>
 quantum::GenericFuture<DeliveryReport>
-ProducerManager::post(const std::string& topic,
+ProducerManager::post(const TOPIC& topic,
+                      void* opaque,
                       K&& key,
                       P&& payload,
-                       const HeaderPack& headers,
-                     void* opaque) {
-    return _impl->template post<K,P>(topic, std::forward<K>(key), std::forward<P>(payload), headers, opaque);
-}
-
-template <typename K, typename P>
-quantum::GenericFuture<DeliveryReport>
-ProducerManager::post(const std::string& topic,
-                      K&& key,
-                      P&& payload,
-                      HeaderPack&& headers,
-                      void* opaque) {
-    return _impl->template post<K,P>(topic, std::forward<K>(key), std::forward<P>(payload), std::move(headers), opaque);
+                      H&&...headers) {
+    static_assert(std::is_same<typename TOPIC::KeyType, std::decay_t<K>>::value, "Invalid key type");
+    static_assert(std::is_same<typename TOPIC::PayloadType, std::decay_t<P>>::value, "Invalid payload type");
+    static_assert(std::is_same<typename TOPIC::HeadersType, Headers<std::decay_t<H>...>>::value, "Invalid header types");
+    return _impl->template post<TOPIC,K,P,H...>(
+        topic,
+        opaque,
+        std::forward<K>(key),
+        std::forward<P>(payload),
+        std::forward<H>(headers)...);
 }
 
 }}

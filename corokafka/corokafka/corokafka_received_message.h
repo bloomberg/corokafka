@@ -18,6 +18,7 @@
 
 #include <corokafka/corokafka_message.h>
 #include <corokafka/corokafka_header_pack.h>
+#include <corokafka/corokafka_topic.h>
 #include <boost/any.hpp>
 
 namespace Bloomberg {
@@ -33,19 +34,25 @@ struct OffsetPersistSettings {
     ExecMode                _autoCommitExec;
 };
 
-template <typename K, typename P>
+template <typename TOPIC>
 class ConcreteReceiver;
 
 /**
  * @brief class ReceivedMessage.
- * @tparam K Header type
- * @tparam P Payload type
+ * @tparam KEY Header type
+ * @tparam PAYLOAD Payload type
+ * @tparam HEADERS Headers type i.e. Headers<...>
  */
-template <typename K, typename P>
+template <typename KEY, typename PAYLOAD, typename HEADERS>
 class ReceivedMessage : public IMessage
 {
-    friend class ConcreteReceiver<K,P>;
+    friend class ConcreteReceiver<Topic<KEY,PAYLOAD,HEADERS>>;
 public:
+    using KeyType = KEY;
+    using PayloadType = PAYLOAD;
+    using HeadersType = HEADERS;
+    using HeaderTypes = typename HEADERS::HeaderTypes;
+    
     /**
      * Copy ctor's and assignment operators
      */
@@ -69,7 +76,7 @@ public:
     /**
      * @sa IMessage::getHeaderList
      * @note This functions returns a const reference to the Kafka raw headers.
-     *       To get or modify the deserialized headers, use the getHeaders() API.
+     *       To get or modify the de-serialized headers, use the getHeaders() API.
      */
     const HeaderListType& getHeaderList() const final;
     /**
@@ -146,42 +153,57 @@ public:
      * @brief Get the key object reference
      * @return The reference
      */
-    const K& getKey() const &;
-    K& getKey() &;
-    K&& getKey() &&;
+    const KeyType& getKey() const &;
+    KeyType& getKey() &;
+    KeyType&& getKey() &&;
     /**
      * @brief Get the payload object reference
      * @return The reference
      */
-    const P& getPayload() const &;
-    P& getPayload() &;
-    P&& getPayload() &&;
+    const PayloadType& getPayload() const &;
+    PayloadType& getPayload() &;
+    PayloadType&& getPayload() &&;
+    /**
+     * @brief Get the header at the specified position (type-safe)
+     * @return The header
+     * @note The position specified should match the type in the HEADERS template argument.
+     */
+    template <size_t I>
+    const typename std::tuple_element<I,HeaderTypes>::type& getHeader() const &;
+    template <size_t I>
+    typename std::tuple_element<I,HeaderTypes>::type& getHeader() &;
+    template <size_t I>
+    typename std::tuple_element<I,HeaderTypes>::type&& getHeader() &&;
     /**
      * @brief Get the header pack
      * @return The reference to the pack
+     * @warning Accessing headers via the HeaderPack is not type-safe. Casting to incorrect type may
+     *          to undefined behavior or 'std::bad_cast' being thrown.
      */
     const HeaderPack& getHeaders() const &;
     HeaderPack& getHeaders() &;
     HeaderPack&& getHeaders() &&;
+    
 private:
     ReceivedMessage(cppkafka::BackoffCommitter& committer,
                     OffsetMap& offsets,
                     cppkafka::Message&& kafkaMessage,
-                    K&& key,
-                    P&& payload,
+                    boost::any&& key,
+                    boost::any&& payload,
                     HeaderPack&& headers,
                     DeserializerError&& error,
                     const OffsetPersistSettings& offsetSettings);
+    void validateMessageError() const;
     void validateKeyError() const;
     void validatePayloadError() const;
     void validateHeadersError() const;
     cppkafka::Error doCommit();
     
-    cppkafka::BackoffCommitter&           _committer;
+    cppkafka::BackoffCommitter&  _committer;
     OffsetMap&                  _offsets;
     cppkafka::Message           _message;
-    K                           _key;
-    P                           _payload;
+    boost::any                  _key;
+    boost::any                  _payload;
     HeaderPack                  _headers;
     DeserializerError           _error;
     const void*                 _opaque{nullptr};
