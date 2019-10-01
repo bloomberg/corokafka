@@ -273,8 +273,7 @@ constexpr bool forAll()
 {
     bool values[sizeof...(Bs)]{Bs...};
     for (auto b : values)
-        if (!b)
-            return false;
+        if (!b) return false;
     return true;
 }
 
@@ -295,14 +294,12 @@ struct IsSerializable : decltype(checkSerialize<T>((T*)0))
 //                                               Traits
 //======================================================================================================================
 template <typename FUNC>
-auto returnType(FUNC &&func) -> typename quantum::FunctionArguments<decltype(quantum::Callable::ref(func))>::RetType;
+auto returnType(FUNC &&func) ->
+    typename quantum::FunctionArguments<decltype(quantum::Callable::ref(func))>::RetType;
 
 template <size_t N, typename FUNC>
-auto argType(FUNC &&func) -> typename quantum::FunctionArguments<decltype(quantum::Callable::ref(func))>::template ArgType<
-    N>;
-
-template <typename KEY, typename PAYLOAD, typename HEADERS>
-class ReceivedMessage;
+auto argType(FUNC &&func) ->
+    typename quantum::FunctionArguments<decltype(quantum::Callable::ref(func))>::template ArgType<N>;
 
 template <typename T, typename... U>
 struct Includes : std::disjunction<std::is_same<T, U>...>
@@ -316,6 +313,23 @@ template <typename T, typename...U>
 struct TupleIncludes<T, std::tuple<U...>> : Includes<T, U...>
 {
 };
+
+struct NullHeader{};
+
+template <typename Tup1, typename Tup2, size_t ... I>
+constexpr bool matchAllTypes(std::index_sequence<I...>)
+{
+    return forAll<std::is_same<std::tuple_element_t<I,Tup1>, std::tuple_element_t<I,Tup2>>::value ||
+                  std::is_same<NullHeader, std::tuple_element_t<I,Tup2>>::value...>();
+}
+
+template <typename Tup, typename ... T>
+constexpr bool matchAllTypes()
+{
+    using Tup2 = std::tuple<T...>;
+    if (std::tuple_size<Tup>::value != sizeof...(T)) return false;
+    return matchAllTypes<Tup,Tup2>(std::make_index_sequence<sizeof...(T)>{});
+}
 
 //Wrapper for ProducerMessageBuilder<T> to allow for default construction needed in futures
 template <typename T>

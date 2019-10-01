@@ -27,11 +27,13 @@ ConsumerConfiguration::ConsumerConfiguration(
     _typeErasedDeserializer(topic),
     _receiver(new ConcreteReceiver<TOPIC>(std::move(receiver)))
 {
+    static_assert(TOPIC::isSerializable(), "Topic contains types which are not serializable");
 }
 
 template <typename TOPIC>
 void ConsumerConfiguration::setReceiverCallback(const TOPIC& topic, Callbacks::ReceiverCallback<TOPIC> receiver)
 {
+    static_assert(TOPIC::isSerializable(), "Topic contains types which are not serializable");
     if (_receiver) {
         throw std::runtime_error("Receiver already set");
     }

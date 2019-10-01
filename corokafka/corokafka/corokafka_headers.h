@@ -16,7 +16,8 @@ template <typename T>
 struct Header
 {
     using HeaderType = T;
-    static_assert(IsSerializable<T>::value, "Header is not serializable");
+    
+    static constexpr bool isSerializable() { return IsSerializable<T>::value; }
     
     /**
      * @brief Builds a header
@@ -29,8 +30,7 @@ struct Header
      * @brief Get the name of this header
      * @return The name
      */
-    const std::string &name() const
-    { return _name; }
+    const std::string &name() const { return _name; }
 
 private:
     std::string _name;
@@ -47,21 +47,22 @@ struct Headers
     template <size_t I>
     using HeaderType = typename std::tuple_element<I, Headers>::type;
     static constexpr size_t NumHeaders = sizeof...(T);
-    static_assert(forAll<IsSerializable<T>::value...>(), "Headers are not serializable");
+    
+    static constexpr bool isSerializable() { return forAll<IsSerializable<T>::value...>(); }
     
     /**
      * @brief Builds this object using a variable list of 'Header' objects.
      * @param headers The headers comprising this collection.
      */
-    Headers(Header<T>...headers) : _names{std::move(headers.name())...}
+    Headers(Header<T>...headers) :
+        _names{std::move(headers.name())...}
     {}
     
     /**
      * @brief Get all the header names
      * @return The names
      */
-    const std::vector<std::string> &names() const
-    { return _names; }
+    const std::vector<std::string> &names() const { return _names; }
 
 private:
     std::vector<std::string> _names;

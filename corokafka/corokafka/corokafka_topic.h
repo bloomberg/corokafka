@@ -6,6 +6,9 @@
 namespace Bloomberg {
 namespace corokafka {
 
+template <typename KEY, typename PAYLOAD, typename HEADERS>
+class ReceivedMessage;
+
 /**
  * @brief This class represents a kafka topic.
  * @tparam KEY The key type.
@@ -22,8 +25,11 @@ struct Topic {
     using PackedType = ByteArray;
     using ReceivedMessageType = ReceivedMessage<KeyType, PayloadType, HeadersType>;
     
-    static_assert(IsSerializable<KeyType>::value, "Key is not serializable");
-    static_assert(IsSerializable<PayloadType>::value, "Payload is not serializable");
+    static constexpr bool isSerializable() {
+        return IsSerializable<KeyType>::value &&
+               IsSerializable<PayloadType>::value &&
+               HeadersType::isSerializable();
+    }
     
     /**
      * @brief Construct a Topic with a variable list of Header<> types

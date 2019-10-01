@@ -168,9 +168,10 @@ ProducerManager::send(const TOPIC& topic,
                       const K& key,
                       const P& payload,
                       const H&... headers) {
+    static_assert(TOPIC::isSerializable(), "Topic contains types which are not serializable");
     static_assert(std::is_same<typename TOPIC::KeyType, std::decay_t<K>>::value, "Invalid key type");
     static_assert(std::is_same<typename TOPIC::PayloadType, std::decay_t<P>>::value, "Invalid payload type");
-    static_assert(std::is_same<typename TOPIC::HeadersType, Headers<std::decay_t<H>...>>::value, "Invalid header types");
+    static_assert(matchAllTypes<typename TOPIC::HeadersType::HeaderTypes, std::decay_t<H>...>(), "Invalid header types");
     return _impl->template send<TOPIC,K,P,H...>(topic, opaque, key, payload, headers...);
 }
 
@@ -181,9 +182,10 @@ ProducerManager::post(const TOPIC& topic,
                       K&& key,
                       P&& payload,
                       H&&...headers) {
+    static_assert(TOPIC::isSerializable(), "Topic contains types which are not serializable");
     static_assert(std::is_same<typename TOPIC::KeyType, std::decay_t<K>>::value, "Invalid key type");
     static_assert(std::is_same<typename TOPIC::PayloadType, std::decay_t<P>>::value, "Invalid payload type");
-    static_assert(std::is_same<typename TOPIC::HeadersType, Headers<std::decay_t<H>...>>::value, "Invalid header types");
+    static_assert(matchAllTypes<typename TOPIC::HeadersType::HeaderTypes, std::decay_t<H>...>(), "Invalid header types");
     return _impl->template post<TOPIC,K,P,H...>(
         topic,
         opaque,

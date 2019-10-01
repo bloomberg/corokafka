@@ -211,6 +211,10 @@ void serializeHeaders(const TOPIC& topic, size_t i, ProducerMessageBuilder<ByteA
     builder.header(cppkafka::Header<ByteArray>{topic.headers().names()[i], serialize(h)});
     serializeHeaders(topic, ++i, builder, hs...);
 }
+template <typename TOPIC, typename ... Hs>
+void serializeHeaders(const TOPIC& topic, size_t i, ProducerMessageBuilder<ByteArray>& builder, const NullHeader& h, const Hs&...hs) {
+    serializeHeaders(topic, ++i, builder, hs...);
+}
 
 template <typename TOPIC, typename K, typename P, typename ...H>
 ProducerMessageBuilder<ByteArray>

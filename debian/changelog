@@ -1,3 +1,12 @@
+corokafka (0.2.0.45) unstable; urgency=low
+
+  * 9194d42 Merge pull request #36 from adamian/concepts
+  * 94ca697 Added NullHeader type to allow producers to skip a header if needed.
+  * b3b720a Updated README.md and added compiler flag to enable declaring the Serializable concept
+  * 8ab7143 Added type-safe refactoring for the producer and the consumer to eliminate serializing or deserializing errors.
+
+ -- Alexander Damian <adamian@bloomberg.net>  Wed, 2 Oct 2019 16:31:18 +0100
+
 corokafka (0.2.0.44) unstable; urgency=low
 
   * 5508853 Merge pull request #35 from adamian/concepts
