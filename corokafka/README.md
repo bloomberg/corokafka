@@ -43,6 +43,9 @@ Various **CMake** options can be used to configure the output:
 * `COROKAFKA_EXPORT_PKGCONFIG` : Generate `corokafka.pc` file. Default `ON`.
 * `COROKAFKA_CMAKE_CONFIG_DIR` : Install location of the package config file and exports. Default is `share/cmake/CoroKafka`.
 * `COROKAFKA_EXPORT_CMAKE_CONFIG` : Generate CMake config, target and version files. Default `ON`.
+* `COROKAFKA_DECLARE_SERIALIZABLE_CONCEPT` : Allow to declare serializers and deserializer functions _after_ including `corokafka.h`.
+                                             Function declarations must be decorated with `template <>` to indicate full specialization. 
+                                             Default `OFF`.
 
 Note: options must be preceded with `-D` when passed as arguments to CMake.
 
@@ -53,51 +56,58 @@ used directly. Additional configuration options specific to `corokafka` are also
 * [Producer configuration](https://bbgithub.dev.bloomberg.com/eor/corokafka/blob/master/corokafka/CONFIGURATION.md#producer-configuration)
 * [Consumer configuration](https://bbgithub.dev.bloomberg.com/eor/corokafka/blob/master/corokafka/CONFIGURATION.md#consumer-configuration)
 
-## Producer example
-In the following example we will be producing some messages with a key of type `size_t`, a payload of type
-`std::string` and a simple header called _Header1_. For full producer API see [here](https://bbgithub.dev.bloomberg.com/eor/corokafka/blob/master/corokafka/corokafka/corokafka_producer_manager.h#L34).
-```
+## Code example
+First step is to define the topic and serializer/deserializer functions.
+```c++
 //==========================================================================
 //                       Serializers/Deserializers
 //==========================================================================
 //------------------------ serializers.h -----------------------------------
-// This serializer is used for the key
-std::vector<uint8_t> serialize(const size_t&);
+// Declare functions inside corokafka namespace...
 
-// This serializer is used for the headers and the payload
-std::vector<uint8_t> serialize(const std::string&);
-
-// This is the deserializer for the key
-size_t deserialize(const cppkafka::TopicPartition&, const cppkafka::Buffer&, size_t*)
-
-// This is the deserializer for the header and payload
-std::string deserialize(const cppkafka::TopicPartition&, const cppkafka::Buffer&, std::string*);
+namespace Bloomberg { namespace corokafka {
+    // This serializer is used for the key
+    std::vector<uint8_t> serialize(const size_t&);
+    
+    // This serializer is used for the headers and the payload
+    std::vector<uint8_t> serialize(const std::string&);
+    
+    // This is the deserializer for the key
+    size_t deserialize(const cppkafka::TopicPartition&, const cppkafka::Buffer&, size_t*)
+    
+    // This is the deserializer for the header and payload
+    std::string deserialize(const cppkafka::TopicPartition&, const cppkafka::Buffer&, std::string*);
+}} //namespace Bloomberg::corokafka
 
 //------------------------ serializers.cpp -----------------------------------
-std::vector<uint8_t> serialize(const size_t& key)
-{
-    return {reinterpret_cast<const uint8_t*>(&key),
-            reinterpret_cast<const uint8_t*>(&key) + sizeof(size_t)};
-}
+#include <serializers.h>
 
-std::vector<uint8_t> serialize(const std::string& header)
-{
-    return {header.begin(), header.end()};
-}
-
-size_t deserialize(const cppkafka::TopicPartition&, 
-                   const cppkafka::Buffer& key, 
-                   size_t* /*unused*/)
-{
-    return *static_cast<const size_t*>((void*)key.get_data());
-}
-
-std::string deserialize(const cppkafka::TopicPartition&, 
-                        const cppkafka::Buffer& headerOrPayload, 
-                        std::string* /*unused*/)
-{
-    return {headerOrPayload.begin(), headerOrPayload.end()};
-}
+namespace Bloomberg { namespace corokafka {
+    std::vector<uint8_t> serialize(const size_t& key)
+    {
+        return {reinterpret_cast<const uint8_t*>(&key),
+                reinterpret_cast<const uint8_t*>(&key) + sizeof(size_t)};
+    }
+    
+    std::vector<uint8_t> serialize(const std::string& header)
+    {
+        return {header.begin(), header.end()};
+    }
+    
+    size_t deserialize(const cppkafka::TopicPartition&, 
+                       const cppkafka::Buffer& key, 
+                       size_t* /*unused*/)
+    {
+        return *static_cast<const size_t*>((void*)key.get_data());
+    }
+    
+    std::string deserialize(const cppkafka::TopicPartition&, 
+                            const cppkafka::Buffer& headerOrPayload, 
+                            std::string* /*unused*/)
+    {
+        return {headerOrPayload.begin(), headerOrPayload.end()};
+    }
+}} //namespace Bloomberg::corokafka
 
 //==========================================================================
 //                                Topic
@@ -110,7 +120,12 @@ using MyTopic = corokafka::Topic<size_t, std::string, coroakafka::Headers<std::s
 
 // Create a topic which will be shared between producer and consumer.
 static MyTopic myTopic("my-topic", corokafka::Header<std::string>("Header1");
+```
 
+## Producer example
+In the following example we will be producing some messages with a key of type `size_t`, a payload of type
+`std::string` and a simple header called _Header1_. For full producer API see [here](https://bbgithub.dev.bloomberg.com/eor/corokafka/blob/master/corokafka/corokafka/corokafka_producer_manager.h#L34).
+```c++
 //==========================================================================
 //                          Producer setup
 //==========================================================================

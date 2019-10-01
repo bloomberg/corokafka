@@ -46,6 +46,7 @@ option(COROKAFKA_BOOST_USE_MULTITHREADED "Use Boost multithreaded libraries." ON
 option(COROKAFKA_BOOST_USE_VALGRIND "Use valgrind headers for Boost." OFF)
 option(COROKAFKA_EXPORT_PKGCONFIG "Generate 'quantum.pc' file" ON)
 option(COROKAFKA_EXPORT_CMAKE_CONFIG "Generate CMake config, target and version files." ON)
+option(COROKAFKA_DECLARE_SERIALIZABLE_CONCEPT "Allow declaration of serializers and deserializers after corokafka.h." OFF)
 
 if (COROKAFKA_INSTALL_ROOT)
     set(CMAKE_INSTALL_PREFIX ${COROKAFKA_INSTALL_ROOT})
@@ -106,6 +107,10 @@ add_definitions(
     -D_POSIX_PTHREAD_SEMANTICS
     -D__FUNCTION__=__FILE__
 )
+
+if (COROKAFKA_DECLARE_SERIALIZABLE_CONCEPT)
+    add_definitions(-D__COROKAFKA_DECLARE_SERIALIZABLE_CONCEPT)
+endif()
 
 if(COROKAFKA_BUILD_SHARED)
     message(STATUS "Build will generate a shared library. "

@@ -250,6 +250,15 @@ std::ostream &operator<<(std::ostream &stream, const cppkafka::MessageBuilder &b
 //    serialize(t)->ByteArray;
 //    deserialize(partition, ba, &t)->T;
 //}
+#ifdef __COROKAFKA_DECLARE_SERIALIZABLE_CONCEPT
+    //Do not force application to declare serializers & deserializers before corokafka.h is included.
+    //This will be a link-time error instead of compile-time error.
+    template <typename T>
+    ByteArray serialize(const T&);
+    template <typename T>
+    T deserialize(const cppkafka::TopicPartition&, const cppkafka::Buffer&, T*);
+#endif
+
 template <bool B = false>
 struct CheckBoolean : std::false_type
 {
