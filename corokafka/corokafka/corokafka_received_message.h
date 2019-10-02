@@ -169,11 +169,20 @@ public:
      * @note The position specified should match the type in the HEADERS template argument.
      */
     template <size_t I>
-    const typename std::tuple_element<I,HeaderTypes>::type& getHeader() const &;
+    const typename std::tuple_element<I,HeaderTypes>::type& getHeaderAt() const &;
     template <size_t I>
-    typename std::tuple_element<I,HeaderTypes>::type& getHeader() &;
+    typename std::tuple_element<I,HeaderTypes>::type& getHeaderAt() &;
     template <size_t I>
-    typename std::tuple_element<I,HeaderTypes>::type&& getHeader() &&;
+    typename std::tuple_element<I,HeaderTypes>::type&& getHeaderAt() &&;
+    
+    /**
+     * @brief Determine if the header at the specified positionthe of is valid
+     * @tparam I The position of the header
+     * @return True if it's valid.
+     */
+    template <size_t I>
+    bool isHeaderValidAt() const;
+    
     /**
      * @brief Get the header pack
      * @return The reference to the pack

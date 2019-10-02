@@ -1,3 +1,18 @@
+corokafka (0.2.0.47) unstable; urgency=low
+
+  * 0c717a0 Merge pull request #38 from adamian/master
+  * 001f197 Merge branch 'master' into master
+  * 89f020e Added isHeaderValidAt() method for compile-time check
+
+ -- Alexander Damian <adamian@bloomberg.net>  Wed, 2 Oct 2019 21:02:06 +0100
+
+corokafka (0.2.0.46) unstable; urgency=low
+
+  * ff71c33 Merge pull request #37 from adamian/master
+  * 5df03c1 Added isHeaderValidAt() method for compile-time check
+
+ -- Alexander Damian <adamian@bloomberg.net>  Wed, 2 Oct 2019 17:49:12 +0100
+
 corokafka (0.2.0.45) unstable; urgency=low
 
   * 9194d42 Merge pull request #36 from adamian/concepts

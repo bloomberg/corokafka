@@ -15,7 +15,7 @@ class ReceivedMessage;
  * @tparam PAYLOAD The payload type
  * @tparam HEADERS A Headers<...> type
  */
-template <typename KEY, typename PAYLOAD, typename HEADERS>
+template <typename KEY, typename PAYLOAD, typename HEADERS = Headers<>>
 struct Topic {
     using KeyType = KEY;
     using PayloadType = PAYLOAD;

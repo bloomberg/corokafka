@@ -203,7 +203,7 @@ PAYLOAD&& ReceivedMessage<KEY,PAYLOAD,HEADERS>::getPayload() &&
 template <typename KEY, typename PAYLOAD, typename HEADERS>
 template <size_t I>
 const typename std::tuple_element<I,typename HEADERS::HeaderTypes>::type&
-ReceivedMessage<KEY,PAYLOAD,HEADERS>::getHeader() const &
+ReceivedMessage<KEY,PAYLOAD,HEADERS>::getHeaderAt() const &
 {
     using Header = typename std::tuple_element<I,typename HEADERS::HeaderTypes>::type;
     validateHeadersError();
@@ -216,7 +216,7 @@ ReceivedMessage<KEY,PAYLOAD,HEADERS>::getHeader() const &
 template <typename KEY, typename PAYLOAD, typename HEADERS>
 template <size_t I>
 typename std::tuple_element<I,typename HEADERS::HeaderTypes>::type&
-ReceivedMessage<KEY,PAYLOAD,HEADERS>::getHeader() &
+ReceivedMessage<KEY,PAYLOAD,HEADERS>::getHeaderAt() &
 {
     using Header = typename std::tuple_element<I,typename HEADERS::HeaderTypes>::type;
     validateHeadersError();
@@ -229,7 +229,7 @@ ReceivedMessage<KEY,PAYLOAD,HEADERS>::getHeader() &
 template <typename KEY, typename PAYLOAD, typename HEADERS>
 template <size_t I>
 typename std::tuple_element<I,typename HEADERS::HeaderTypes>::type&&
-ReceivedMessage<KEY,PAYLOAD,HEADERS>::getHeader() &&
+ReceivedMessage<KEY,PAYLOAD,HEADERS>::getHeaderAt() &&
 {
     using Header = typename std::tuple_element<I,typename HEADERS::HeaderTypes>::type;
     validateHeadersError();
@@ -237,6 +237,13 @@ ReceivedMessage<KEY,PAYLOAD,HEADERS>::getHeader() &&
         throw std::runtime_error("Header is invalid (empty)");
     }
     return _headers.getAt<Header>(I).value();
+}
+
+template <typename KEY, typename PAYLOAD, typename HEADERS>
+template <size_t I>
+bool ReceivedMessage<KEY,PAYLOAD,HEADERS>::isHeaderValidAt() const
+{
+    return _headers.isValidAt(I);
 }
 
 template <typename KEY, typename PAYLOAD, typename HEADERS>

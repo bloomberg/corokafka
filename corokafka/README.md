@@ -235,7 +235,7 @@ void messageProcessor()
                 //get header value (type unsafe)
                 headerValue = headers.getAt<std::string>(0).value();
                 //get header value (type-safe)
-                //headerValue = message.getHeader<0>();
+                //headerValue = message.getHeaderAt<0>();
             }
             std::ostringstream oss;
             oss << "Received message from topic: " << message.getTopic()
