@@ -1,3 +1,10 @@
+corokafka (0.2.0.49) unstable; urgency=low
+
+  * e9fbdd2 Fail properly when serializing fails
+  * 50b962f Refactored consumer/producer map search
+
+ -- Alexander Damian <adamian@bloomberg.net>  Wed, 2 Oct 2019 17:57:41 -0400
+
 corokafka (0.2.0.48) unstable; urgency=low
 
   * cff5450 Fixed typo
