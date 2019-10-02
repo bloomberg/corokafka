@@ -228,24 +228,31 @@ ProducerManagerImpl::serializeMessage(const TOPIC& topic,
                                       const P& payload,
                                       const H&... headers)
 {
+    bool failed = false;
     ProducerMessageBuilder<ByteArray> builder(entry._configuration.getTopic());
     try {
         builder.key(serialize(key));
     }
     catch (const std::exception& ex) {
+        failed = true;
         report(entry, cppkafka::LogLevel::LogErr, RD_KAFKA_RESP_ERR__KEY_SERIALIZATION, "Failed to serialize key", opaque);
     }
     try {
         builder.payload(serialize(payload));
     }
     catch (const std::exception& ex) {
+        failed = true;
         report(entry, cppkafka::LogLevel::LogErr, RD_KAFKA_RESP_ERR__VALUE_SERIALIZATION, "Failed to serialize payload", opaque);
     }
     try {
         serializeHeaders(topic, 0, builder, headers...);
     }
     catch (const std::exception& ex) {
+        failed = true;
         report(entry, cppkafka::LogLevel::LogErr, RD_KAFKA_RESP_ERR__VALUE_SERIALIZATION, "Failed to serialize a header", opaque);
+    }
+    if (failed) {
+        return {};
     }
     // Add timestamp
     builder.timestamp(std::chrono::high_resolution_clock::now());
@@ -312,7 +319,7 @@ size_t ProducerManagerImpl::send(const TOPIC& topic,
     }
     builder.user_data(new PackedOpaque(opaque, quantum::Promise<DeliveryReport>()));
     if (!builder.payload().empty()) {
-        produceMessage(topicEntry, builder);
+        produceMessage(topicEntry, builder); //blocks until delivery report is received
     }
     return builder.payload().size();
 }
