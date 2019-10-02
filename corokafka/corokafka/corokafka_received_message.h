@@ -176,7 +176,7 @@ public:
     typename std::tuple_element<I,HeaderTypes>::type&& getHeaderAt() &&;
     
     /**
-     * @brief Determine if the header at the specified positionthe of is valid
+     * @brief Determine if the header at the specified position is valid
      * @tparam I The position of the header
      * @return True if it's valid.
      */
