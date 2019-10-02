@@ -1,3 +1,13 @@
+corokafka (0.2.0.48) unstable; urgency=low
+
+  * cff5450 Fixed typo
+  * 8b88483 Added isHeaderValidAt() method for compile-time check
+  * f0a61b2 Added NullHeader type to allow producers to skip a header if needed.
+  * 0d45f70 Updated README.md and added compiler flag to enable declaring the Serializable concept
+  * 38177e2 Added type-safe refactoring for the producer and the consumer to eliminate serializing or deserializing errors.
+
+ -- Alexander Damian <adamian@bloomberg.net>  Wed, 2 Oct 2019 16:25:58 -0400
+
 corokafka (0.2.0.47) unstable; urgency=low
 
   * 0c717a0 Merge pull request #38 from adamian/master
