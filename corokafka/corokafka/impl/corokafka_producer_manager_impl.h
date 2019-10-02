@@ -174,6 +174,9 @@ private:
     static void* setPackedOpaqueFuture(const cppkafka::Message& kafkaMessage);
     static void* setPackedOpaqueFuture(const cppkafka::MessageBuilder& builder, cppkafka::Error error);
     
+    Producers::iterator findProducer(const std::string& topic);
+    Producers::const_iterator findProducer(const std::string& topic) const;
+    
     // Members
     quantum::Dispatcher&        _dispatcher;
     Producers                   _producers;
@@ -301,11 +304,7 @@ size_t ProducerManagerImpl::send(const TOPIC& topic,
     if (ctx) {
         return post(topic, opaque, key, payload, headers...).get().getNumBytesWritten();
     }
-    auto it = _producers.find(topic.topic());
-    if (it == _producers.end()) {
-        throw std::runtime_error("Invalid topic");
-    }
-    ProducerTopicEntry& topicEntry = it->second;
+    ProducerTopicEntry& topicEntry = findProducer(topic.topic())->second;
     ProducerMessageBuilder<ByteArray> builder = serializeMessage(topic, topicEntry, opaque, key, payload, headers...);
     if (builder.topic().empty()) {
         //Serializing failed
@@ -326,11 +325,7 @@ ProducerManagerImpl::post(const TOPIC& topic,
                           P&& payload,
                           H&&...headers)
 {
-    auto it = _producers.find(topic.topic());
-    if (it == _producers.end()) {
-        throw std::runtime_error("Invalid topic");
-    }
-    ProducerTopicEntry& topicEntry = it->second;
+    ProducerTopicEntry& topicEntry = findProducer(topic.topic())->second;
     if (topicEntry._payloadPolicy == cppkafka::Producer::PayloadPolicy::PASSTHROUGH_PAYLOAD) {
         throw std::runtime_error("Invalid async operation for pass-through payload policy - use send() instead.");
     }

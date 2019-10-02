@@ -298,19 +298,13 @@ void ProducerManagerImpl::setup(const std::string& topic, ProducerTopicEntry& to
 
 ProducerMetadata ProducerManagerImpl::getMetadata(const std::string& topic)
 {
-    auto it = _producers.find(topic);
-    if (it == _producers.end()) {
-        throw std::runtime_error("Invalid topic");
-    }
+    auto it = findProducer(topic);
     return makeMetadata(it->second);
 }
 
 const ProducerConfiguration& ProducerManagerImpl::getConfiguration(const std::string& topic) const
 {
-    auto it = _producers.find(topic);
-    if (it == _producers.end()) {
-        throw std::runtime_error("Invalid topic");
-    }
+    auto it = findProducer(topic);
     return it->second._configuration;
 }
 
@@ -327,10 +321,7 @@ std::vector<std::string> ProducerManagerImpl::getTopics() const
 void ProducerManagerImpl::waitForAcks(const std::string& topic,
                                       std::chrono::milliseconds timeout)
 {
-    auto it = _producers.find(topic);
-    if (it == _producers.end()) {
-        throw std::runtime_error("Invalid topic");
-    }
+    auto it = findProducer(topic);
     if (timeout.count() <= 0) {
         it->second._producer->wait_for_acks();
     }
@@ -409,10 +400,7 @@ void ProducerManagerImpl::post()
 
 void ProducerManagerImpl::resetQueueFullTrigger(const std::string& topic)
 {
-    auto it = _producers.find(topic);
-    if (it == _producers.end()) {
-        throw std::runtime_error("Invalid topic");
-    }
+    auto it = findProducer(topic);
     it->second._queueFullTrigger = true;
 }
 
@@ -673,6 +661,26 @@ void* ProducerManagerImpl::setPackedOpaqueFuture(const cppkafka::MessageBuilder&
                                                   error,
                                                   packedOpaque->first));
     return packedOpaque->first;
+}
+
+ProducerManagerImpl::Producers::iterator
+ProducerManagerImpl::findProducer(const std::string& topic)
+{
+    auto it = _producers.find(topic);
+    if (it == _producers.end()) {
+        throw std::runtime_error("Invalid topic");
+    }
+    return it;
+}
+
+ProducerManagerImpl::Producers::const_iterator
+ProducerManagerImpl::findProducer(const std::string& topic) const
+{
+    auto it = _producers.find(topic);
+    if (it == _producers.end()) {
+        throw std::runtime_error("Invalid topic");
+    }
+    return it;
 }
 
 }

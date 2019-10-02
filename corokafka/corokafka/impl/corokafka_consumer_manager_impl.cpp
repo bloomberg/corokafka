@@ -393,10 +393,7 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
 
 ConsumerMetadata ConsumerManagerImpl::getMetadata(const std::string& topic)
 {
-    auto it = _consumers.find(topic);
-    if (it == _consumers.end()) {
-        throw std::runtime_error("Invalid topic");
-    }
+    auto it = findConsumer(topic);
     return makeMetadata(it->second);
 }
 
@@ -408,10 +405,7 @@ void ConsumerManagerImpl::preprocess(bool enable, const std::string& topic)
         }
     }
     else {
-        auto it = _consumers.find(topic);
-        if (it == _consumers.end()) {
-            throw std::runtime_error("Invalid topic");
-        }
+        auto it = findConsumer(topic);
         it->second._preprocess = enable;
     }
 }
@@ -425,11 +419,7 @@ void ConsumerManagerImpl::pause(const std::string& topic)
         }
     }
     else {
-        auto it = _consumers.find(topic);
-        if (it == _consumers.end()) {
-            throw std::runtime_error("Invalid topic");
-        }
-        ConsumerTopicEntry& consumerTopicEntry = it->second;
+        ConsumerTopicEntry& consumerTopicEntry = findConsumer(topic)->second;
         consumerTopicEntry._consumer->pause();
         consumerTopicEntry._isPaused = true;
     }
@@ -448,7 +438,7 @@ void ConsumerManagerImpl::resume(const std::string& topic)
         if (it == _consumers.end()) {
             throw std::runtime_error("Invalid topic");
         }
-        ConsumerTopicEntry& consumerTopicEntry = it->second;
+        ConsumerTopicEntry& consumerTopicEntry = findConsumer(topic)->second;
         consumerTopicEntry._consumer->resume();
         consumerTopicEntry._isPaused = false;
     }
@@ -457,11 +447,7 @@ void ConsumerManagerImpl::resume(const std::string& topic)
 void ConsumerManagerImpl::subscribe(const std::string& topic,
                                     cppkafka::TopicPartitionList partitionList)
 {
-    auto it = _consumers.find(topic);
-    if (it == _consumers.end()) {
-        throw std::runtime_error("Invalid topic");
-    }
-    ConsumerTopicEntry& topicEntry = it->second;
+    ConsumerTopicEntry& topicEntry = findConsumer(topic)->second;
     if (topicEntry._isSubscribed) {
         throw std::runtime_error("Already subscribed");
     }
@@ -501,11 +487,7 @@ void ConsumerManagerImpl::unsubscribe(const std::string& topic)
         }
     }
     else {
-        auto it = _consumers.find(topic);
-        if (it == _consumers.end()) {
-            throw std::runtime_error("Invalid topic");
-        }
-        ConsumerTopicEntry& consumerTopicEntry = it->second;
+        ConsumerTopicEntry& consumerTopicEntry = findConsumer(topic)->second;
         if (consumerTopicEntry._isSubscribed) {
             if (consumerTopicEntry._configuration.getPartitionStrategy() == PartitionStrategy::Static) {
                 consumerTopicEntry._consumer->unassign();
@@ -598,10 +580,7 @@ cppkafka::Error ConsumerManagerImpl::commitImpl(ConsumerTopicEntry& entry,
 
 const ConsumerConfiguration& ConsumerManagerImpl::getConfiguration(const std::string& topic) const
 {
-    auto it = _consumers.find(topic);
-    if (it == _consumers.end()) {
-        throw std::runtime_error("Invalid topic");
-    }
+    auto it = findConsumer(topic);
     return it->second._configuration;
 }
 
@@ -1386,6 +1365,26 @@ OffsetPersistSettings ConsumerManagerImpl::makeOffsetPersistSettings(const Consu
             topicEntry._autoOffsetPersistOnException,
             topicEntry._autoOffsetPersistStrategy,
             topicEntry._autoCommitExec};
+}
+
+ConsumerManagerImpl::Consumers::iterator
+ConsumerManagerImpl::findConsumer(const std::string& topic)
+{
+    auto it = _consumers.find(topic);
+    if (it == _consumers.end()) {
+        throw std::runtime_error("Invalid topic");
+    }
+    return it;
+}
+
+ConsumerManagerImpl::Consumers::const_iterator
+ConsumerManagerImpl::findConsumer(const std::string& topic) const
+{
+    auto it = _consumers.find(topic);
+    if (it == _consumers.end()) {
+        throw std::runtime_error("Invalid topic");
+    }
+    return it;
 }
 
 }

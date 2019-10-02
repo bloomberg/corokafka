@@ -198,6 +198,10 @@ private:
                                          ConsumerTopicEntry,
                                          std::hash<std::string>,
                                          StringEqualCompare>; //index by topic
+                                         
+    Consumers::iterator findConsumer(const std::string& topic);
+    Consumers::const_iterator findConsumer(const std::string& topic) const;
+    
     // Members
     quantum::Dispatcher&        _dispatcher;
     Consumers                   _consumers;
