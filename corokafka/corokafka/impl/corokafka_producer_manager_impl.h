@@ -211,7 +211,9 @@ void serializeHeaders(const TOPIC&, size_t, ProducerMessageBuilder<ByteArray>&)
 {}
 template <typename TOPIC, typename H, typename ... Hs>
 void serializeHeaders(const TOPIC& topic, size_t i, ProducerMessageBuilder<ByteArray>& builder, const H& h, const Hs&...hs) {
-    builder.header(cppkafka::Header<ByteArray>{topic.headers().names()[i], serialize(h)});
+    ByteArray b = serialize(h);
+    if (b.empty()) { throw std::exception{}; }
+    builder.header(cppkafka::Header<ByteArray>{topic.headers().names()[i], std::move(b)});
     serializeHeaders(topic, ++i, builder, hs...);
 }
 template <typename TOPIC, typename ... Hs>
@@ -231,14 +233,18 @@ ProducerManagerImpl::serializeMessage(const TOPIC& topic,
     bool failed = false;
     ProducerMessageBuilder<ByteArray> builder(entry._configuration.getTopic());
     try {
-        builder.key(serialize(key));
+        ByteArray b = serilize(key);
+        if (b.empty()) { throw std::exception{}; }
+        builder.key(std::move(b));
     }
     catch (const std::exception& ex) {
         failed = true;
         report(entry, cppkafka::LogLevel::LogErr, RD_KAFKA_RESP_ERR__KEY_SERIALIZATION, "Failed to serialize key", opaque);
     }
     try {
-        builder.payload(serialize(payload));
+        ByteArray b = serilize(payload);
+        if (b.empty()) { throw std::exception{}; }
+        builder.payload(std::move(b));
     }
     catch (const std::exception& ex) {
         failed = true;
