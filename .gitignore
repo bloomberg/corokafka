@@ -1,11 +1,9 @@
-# Prerequisites
-*.d
-
 # Compiled Object files
 *.slo
 *.lo
 *.o
 *.obj
+*.mk
 
 # Precompiled Headers
 *.gch
@@ -31,5 +29,6 @@
 *.out
 *.app
 
-.idea
-cmake-build-debug        
+.idea/*
+cmake-build-debug/*
+.nfs*
