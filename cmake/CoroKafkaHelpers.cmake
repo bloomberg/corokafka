@@ -3,7 +3,8 @@ function(make_header)
     set(MAIN_HEADER ${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_TARGET_NAME}.h)
     file(GLOB INCLUDE_HEADERS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
             "*.h"
-            "detail/*.h")
+            "detail/*.h"
+            "utils/*.h")
     SET(PROJECT_INCLUDE_HEADERS  "${INCLUDE_HEADERS}" CACHE INTERNAL "${PROJECT_NAME} include headers")
     list(SORT INCLUDE_HEADERS)
     foreach(header ${INCLUDE_HEADERS})

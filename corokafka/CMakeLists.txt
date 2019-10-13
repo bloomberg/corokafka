@@ -8,6 +8,7 @@ file(GLOB SOURCE_FILES
     *.cpp
     detail/*.cpp
     impl/*.cpp
+    utils/*.cpp
 )
 
 set(PKG_DIR             "${CMAKE_BINARY_DIR}/package")

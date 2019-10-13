@@ -47,5 +47,7 @@
 #include <corokafka/corokafka_type_erased_deserializer.h>
 #include <corokafka/corokafka_utils.h>
 #include <corokafka/detail/corokafka_macros.h>
+#include <corokafka/utils/corokafka_interval_set.h>
+#include <corokafka/utils/corokafka_offset_manager.h>
 
 #endif //BLOOMBERG_COROKAFKA_H
