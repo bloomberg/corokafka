@@ -52,10 +52,21 @@ The following code snippet shows how to setup a basic consumer and producer.
 
 ### Serializers and De-serializers
 
-First step is to define the topic and serializer/deserializer functions.
+In **CoroKafka** applications must define serializers and de-serializer for each key, payload and header(s) they wish to send and receive. 
+
+The _serializer_ is a concept (akin to C++20 Concepts) which **must** have the following signature: 
+
+`std::vector<uint8_t> serialize(const T&)`. 
+
+Similarly the _de-serializer_ functions **must** have the following signature:
+
+`T deserialize(const cppkafka::TopicPartition&, const cppkafka::Buffer&, T*)`
+
+Note that the last parameter `T*` in the de-serializer is unused and necessary for ADL to work. The first parameter indicates the partition on which this message arrived and it can be used if needed for logging, stats, anti-poison message prevention, etc.
+
 ```c++
 //==========================================================================
-//                       Serializers/Deserializers
+//                       Serializers/De-serializers
 //==========================================================================
 //------------------------ serializers.h -----------------------------------
 // Declare functions inside corokafka namespace...
