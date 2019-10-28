@@ -233,7 +233,8 @@ ProducerManagerImpl::serializeMessage(const TOPIC& topic,
     bool failed = false;
     ProducerMessageBuilder<ByteArray> builder(entry._configuration.getTopic());
     try {
-        ByteArray b = serilize(key);
+        //Serialize key
+        ByteArray b = serialize(key);
         if (b.empty()) { throw std::exception{}; }
         builder.key(std::move(b));
     }
@@ -242,7 +243,8 @@ ProducerManagerImpl::serializeMessage(const TOPIC& topic,
         report(entry, cppkafka::LogLevel::LogErr, RD_KAFKA_RESP_ERR__KEY_SERIALIZATION, "Failed to serialize key", opaque);
     }
     try {
-        ByteArray b = serilize(payload);
+        //Serialize payload
+        ByteArray b = serialize(payload);
         if (b.empty()) { throw std::exception{}; }
         builder.payload(std::move(b));
     }
@@ -251,6 +253,7 @@ ProducerManagerImpl::serializeMessage(const TOPIC& topic,
         report(entry, cppkafka::LogLevel::LogErr, RD_KAFKA_RESP_ERR__VALUE_SERIALIZATION, "Failed to serialize payload", opaque);
     }
     try {
+        //Serialize all headers (if any)
         serializeHeaders(topic, 0, builder, headers...);
     }
     catch (const std::exception& ex) {
