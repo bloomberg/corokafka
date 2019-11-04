@@ -207,18 +207,23 @@ ByteArray makeBuffer<ByteArray>(ByteArray& buffer)
 //                          Implementations
 //=============================================================================
 template <typename TOPIC>
-void serializeHeaders(const TOPIC&, size_t, ProducerMessageBuilder<ByteArray>&)
-{}
+bool serializeHeaders(const TOPIC&, size_t, ProducerMessageBuilder<ByteArray>&)
+{
+    return true; //nothing to serialize
+}
 template <typename TOPIC, typename H, typename ... Hs>
-void serializeHeaders(const TOPIC& topic, size_t i, ProducerMessageBuilder<ByteArray>& builder, const H& h, const Hs&...hs) {
-    ByteArray b = serialize(h);
-    if (b.empty()) { throw std::exception{}; }
+bool serializeHeaders(const TOPIC& topic, size_t i, ProducerMessageBuilder<ByteArray>& builder, const H& h, const Hs&...hs) {
+    ByteArray b = Serialize<H>{}(h);
+    if (b.empty()) {
+        return false;
+    }
     builder.header(cppkafka::Header<ByteArray>{topic.headers().names()[i], std::move(b)});
-    serializeHeaders(topic, ++i, builder, hs...);
+    //Serialize next header in the list
+    return serializeHeaders(topic, ++i, builder, hs...);
 }
 template <typename TOPIC, typename ... Hs>
-void serializeHeaders(const TOPIC& topic, size_t i, ProducerMessageBuilder<ByteArray>& builder, const NullHeader& h, const Hs&...hs) {
-    serializeHeaders(topic, ++i, builder, hs...);
+bool serializeHeaders(const TOPIC& topic, size_t i, ProducerMessageBuilder<ByteArray>& builder, const NullHeader& h, const Hs&...hs) {
+    return serializeHeaders(topic, ++i, builder, hs...);
 }
 
 template <typename TOPIC, typename K, typename P, typename ...H>
@@ -234,79 +239,65 @@ ProducerManagerImpl::serializeMessage(const TOPIC& topic,
     ProducerMessageBuilder<ByteArray> builder(entry._configuration.getTopic());
     try {
         //Serialize key
-        ByteArray b = serialize(key);
-        if (b.empty()) { throw std::exception{}; }
+        ByteArray b = Serialize<K>{}(key);
+        if (b.empty()) {
+            failed = true;
+            report(entry, cppkafka::LogLevel::LogErr, RD_KAFKA_RESP_ERR__KEY_SERIALIZATION, "Failed to serialize key", opaque);
+        }
         builder.key(std::move(b));
     }
     catch (const std::exception& ex) {
         failed = true;
-        report(entry, cppkafka::LogLevel::LogErr, RD_KAFKA_RESP_ERR__KEY_SERIALIZATION, "Failed to serialize key", opaque);
+        report(entry, cppkafka::LogLevel::LogErr, RD_KAFKA_RESP_ERR__KEY_SERIALIZATION,
+            std::string("Failed to serialize key with error: ") + ex.what(), opaque);
     }
     try {
         //Serialize payload
-        ByteArray b = serialize(payload);
-        if (b.empty()) { throw std::exception{}; }
+        ByteArray b = Serialize<P>{}(payload);
+        if (b.empty()) {
+            failed = true;
+            report(entry, cppkafka::LogLevel::LogErr, RD_KAFKA_RESP_ERR__VALUE_SERIALIZATION, "Failed to serialize payload", opaque);
+        }
         builder.payload(std::move(b));
     }
     catch (const std::exception& ex) {
         failed = true;
-        report(entry, cppkafka::LogLevel::LogErr, RD_KAFKA_RESP_ERR__VALUE_SERIALIZATION, "Failed to serialize payload", opaque);
+        report(entry, cppkafka::LogLevel::LogErr, RD_KAFKA_RESP_ERR__VALUE_SERIALIZATION,
+            std::string("Failed to serialize payload with error: ") + ex.what(), opaque);
     }
     try {
         //Serialize all headers (if any)
-        serializeHeaders(topic, 0, builder, headers...);
+        if (!serializeHeaders(topic, 0, builder, headers...)) {
+            failed = true;
+            report(entry, cppkafka::LogLevel::LogErr, RD_KAFKA_RESP_ERR__VALUE_SERIALIZATION, "Failed to serialize a header", opaque);
+        }
     }
     catch (const std::exception& ex) {
         failed = true;
-        report(entry, cppkafka::LogLevel::LogErr, RD_KAFKA_RESP_ERR__VALUE_SERIALIZATION, "Failed to serialize a header", opaque);
+        report(entry, cppkafka::LogLevel::LogErr, RD_KAFKA_RESP_ERR__VALUE_SERIALIZATION,
+            std::string("Failed to serialize a header with error: ") + ex.what() , opaque);
     }
     if (failed) {
-        return {};
+        return {}; //Topic will be empty
     }
     // Add timestamp
     builder.timestamp(std::chrono::high_resolution_clock::now());
+    // Add user data
+    builder.user_data(opaque);
     return builder;
 }
 
 template <typename TOPIC, typename K, typename P, typename ...H>
 ProducerManagerImpl::BuilderTuple
 ProducerManagerImpl::serializeCoro(quantum::VoidContextPtr ctx,
-                                 const TOPIC& topic,
-                                 ProducerTopicEntry& entry,
-                                 PackedOpaque* opaque,
-                                 K&& key,
-                                 P&& payload,
-                                 H&& ...headers)
+                                   const TOPIC& topic,
+                                   ProducerTopicEntry& entry,
+                                   PackedOpaque* opaque,
+                                   K&& key,
+                                   P&& payload,
+                                   H&& ...headers)
 {
-    using Builder = ProducerMessageBuilder<ByteArray>;
-    ProducerManagerImpl::BuilderTuple builderTuple =
-        {&entry, Builder(entry._configuration.getTopic())};
-    Builder& builder = std::get<1>(builderTuple);
-    try {
-        builder.key(serialize(key));
-    }
-    catch (const std::exception& ex) {
-        report(entry, cppkafka::LogLevel::LogErr, RD_KAFKA_RESP_ERR__KEY_SERIALIZATION, "Failed to serialize key", opaque);
-        throw std::runtime_error("Key serialization failed");
-    }
-    try {
-        builder.payload(serialize(payload));
-    }
-    catch (const std::exception& ex) {
-        report(entry, cppkafka::LogLevel::LogErr, RD_KAFKA_RESP_ERR__VALUE_SERIALIZATION, "Failed to serialize payload", opaque);
-        throw std::runtime_error("Payload serialization failed");
-    }
-    try {
-        serializeHeaders(topic, 0, builder, headers...);
-    }
-    catch (const std::exception& ex) {
-        report(entry, cppkafka::LogLevel::LogErr, RD_KAFKA_RESP_ERR__VALUE_SERIALIZATION, "Failed to serialize a header", opaque);
-        throw std::runtime_error("Header serialization failed");
-    }
-    // Add timestamp
-    builder.timestamp(std::chrono::high_resolution_clock::now());
-    builder.user_data(opaque);
-    return builderTuple;
+    return {&entry, serializeMessage(topic, entry, opaque, key, payload, headers...) };
 }
 
 template <typename TOPIC, typename K, typename P, typename ...H>

@@ -244,25 +244,11 @@ std::ostream &operator<<(std::ostream &stream, const cppkafka::MessageBuilder &b
 //======================================================================================================================
 //                                               Serializable Concept
 //======================================================================================================================
-// A type implementing the serializable concept
-//template<typename T>
-//concept Serializable = requires(const T& t, const ByteArray& ba, const cppkafka::TopicPartition& partition) {
-//    serialize(t)->ByteArray;
-//    deserialize(partition, ba, &t)->T;
-//}
-#ifdef __COROKAFKA_DECLARE_SERIALIZABLE_CONCEPT
-    //Do not force application to declare serializers & deserializers before corokafka.h is included.
-    //This will be a link-time error instead of compile-time error.
-    template <typename T>
-    ByteArray serialize(const T&);
-    template <typename T>
-    T deserialize(const cppkafka::TopicPartition&, const cppkafka::Buffer&, T*);
-#endif
-
 template <bool B = false>
 struct CheckBoolean : std::false_type
 {
 };
+
 template <>
 struct CheckBoolean<true> : std::true_type
 {
@@ -277,10 +263,21 @@ constexpr bool forAll()
     return true;
 }
 
+// Generic implementations
+template<typename T>
+struct Serialize {
+    ByteArray operator()(const T&);
+};
+
+template <typename T>
+struct Deserialize {
+    T operator()(const cppkafka::TopicPartition&, const cppkafka::Buffer&);
+};
+
 template <class T>
 static auto checkSerialize(T*)
--> CheckBoolean<std::is_same<decltype(serialize(std::declval<T>())), ByteArray>::value &&
-                std::is_same<decltype(deserialize(cppkafka::TopicPartition{}, cppkafka::Buffer{}, (T*)nullptr)),T>::value>;
+-> CheckBoolean<std::is_same<decltype(Serialize<T>{}(std::declval<T>())), ByteArray>::value &&
+                std::is_same<decltype(Deserialize<T>{}(cppkafka::TopicPartition{}, cppkafka::Buffer{})), T>::value>;
 
 template <class>
 static auto checkSerialize(...) -> std::false_type;
