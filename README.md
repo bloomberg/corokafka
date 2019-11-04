@@ -52,67 +52,71 @@ The following code snippet shows how to setup a basic consumer and producer.
 
 ### Serializers and De-serializers
 
-In **CoroKafka** applications must define serializers and de-serializer for each key, payload and header(s) they wish to send and receive. 
+In **CoroKafka** applications must define serializers and de-serializer for each key, payload and header(s) they wish to send and receive. These specializations must be defined in either the global namespace or the `corokafka` namespace.
 
-The _serializer_ is a concept (akin to C++20 Concepts) which **must** have the following signature: 
+The _serializer_ **must** have the following signature: 
 
-`std::vector<uint8_t> serialize(const T&)`. 
+```c++
+template <typename T>
+struct Serialize
+{
+    std::vector<uint8_t> operator()(const T&);
+}
+```
+Similarly the _de-serializer_ **must** have the following signature:
 
-Similarly the _de-serializer_ functions **must** have the following signature:
-
-`T deserialize(const cppkafka::TopicPartition&, const cppkafka::Buffer&, T*)`
-
-Note that the last parameter `T*` in the de-serializer is unused and necessary for ADL to work. The first parameter indicates the partition on which this message arrived and it can be used if needed for logging, stats, anti-poison message prevention, etc.
+```c++
+template <typename T>
+struct Deserialize
+{
+    T operator()(const cppkafka::TopicPartition&, const cppkafka::Buffer&);
+}
+```
+The first parameter indicates the partition on which this message arrived and can be used for logging, stats, anti-poison message prevention, etc.
 
 ```c++
 //==========================================================================
 //                       Serializers/De-serializers
 //==========================================================================
 //------------------------ serializers.h -----------------------------------
-// Declare functions inside corokafka namespace...
+#include <corokafka/corokafka.h>
 
+// Declare functions inside corokafka namespace...
 namespace Bloomberg { namespace corokafka {
     // This serializer is used for the key
-    std::vector<uint8_t> serialize(const size_t&);
+    template <>
+    struct Serialize<size_t> {
+        std::vector<uint8_t> operator()(const size_t& value) {
+            return {reinterpret_cast<const uint8_t*>(&value),
+                    reinterpret_cast<const uint8_t*>(&value) + sizeof(size_t)};
+        }
+    };
     
     // This serializer is used for the headers and the payload
-    std::vector<uint8_t> serialize(const std::string&);
+    template <>
+    struct Serialize<std::string> {
+        std::vector<uint8_t> operator()(const std::string& value) {
+            return {value.begin(), value.end()};
+        }
+    };
     
     // This is the deserializer for the key
-    size_t deserialize(const cppkafka::TopicPartition&, const cppkafka::Buffer&, size_t*)
+    template <>
+    struct Deserialize<size_t> {
+        size_t operator()(const cppkafka::TopicPartition&, 
+                          const cppkafka::Buffer& buffer) {
+            return *static_cast<const size_t*>((void*)buffer.get_data());
+        }
+    };
     
     // This is the deserializer for the header and payload
-    std::string deserialize(const cppkafka::TopicPartition&, const cppkafka::Buffer&, std::string*);
-}} //namespace Bloomberg::corokafka
-
-//------------------------ serializers.cpp -----------------------------------
-#include <serializers.h>
-
-namespace Bloomberg { namespace corokafka {
-    std::vector<uint8_t> serialize(const size_t& key)
-    {
-        return {reinterpret_cast<const uint8_t*>(&key),
-                reinterpret_cast<const uint8_t*>(&key) + sizeof(size_t)};
-    }
-    
-    std::vector<uint8_t> serialize(const std::string& header)
-    {
-        return {header.begin(), header.end()};
-    }
-    
-    size_t deserialize(const cppkafka::TopicPartition&, 
-                       const cppkafka::Buffer& key, 
-                       size_t* /*unused*/)
-    {
-        return *static_cast<const size_t*>((void*)key.get_data());
-    }
-    
-    std::string deserialize(const cppkafka::TopicPartition&, 
-                            const cppkafka::Buffer& headerOrPayload, 
-                            std::string* /*unused*/)
-    {
-        return {headerOrPayload.begin(), headerOrPayload.end()};
-    }
+    template <>
+    struct Deserialize<std::string> {
+        std::string operator()(const cppkafka::TopicPartition&, 
+                               const cppkafka::Buffer& buffer) {
+            return {buffer.begin(), buffer.end()};
+        }
+    };
 }} //namespace Bloomberg::corokafka
 
 //==========================================================================
@@ -120,7 +124,6 @@ namespace Bloomberg { namespace corokafka {
 //==========================================================================
 //------------------------------ mytopic.h ---------------------------------
 #include <serializers.h>
-#include <corokafka/corokafka.h>
 
 using MyTopic = corokafka::Topic<size_t, std::string, coroakafka::Headers<std::string>>;
 
@@ -372,9 +375,6 @@ Various **CMake** options can be used to configure the output:
 * `COROKAFKA_EXPORT_PKGCONFIG` : Generate `corokafka.pc` file. Default `ON`.
 * `COROKAFKA_CMAKE_CONFIG_DIR` : Install location of the package config file and exports. Default is `share/cmake/CoroKafka`.
 * `COROKAFKA_EXPORT_CMAKE_CONFIG` : Generate **CMake** config, target and version files. Default `ON`.
-* `COROKAFKA_DECLARE_SERIALIZABLE_CONCEPT` : Allow to declare serializers and deserializer functions _after_ including `corokafka.h`.
-                                             Function declarations must be decorated with `template <>` to indicate full specialization. 
-                                             Default `OFF`.
 
 Note: options must be preceded with `-D` when passed as arguments to **CMake**.
 

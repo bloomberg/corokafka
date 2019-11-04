@@ -379,14 +379,22 @@ void ProducerManagerImpl::post()
     int numIoThreads = _dispatcher.getNumIoThreads();
     for (auto&& future : tempQueue) {
         try {
-            BuilderTuple builderTuple(future->get()); //may throw FutureException if deserialization failed
+            BuilderTuple builderTuple(future->get()); //may throw FutureException if serialization failed
             ProducerTopicEntry& topicEntry = *std::get<0>(builderTuple);
+            ProducerMessageBuilder<ByteArray>& builder = std::get<1>(builderTuple);
+            if (builder.topic().empty()) {
+                //Failed to serialize
+                continue; // Skip this message
+            }
             if (_messageFanout) {
                 if (topicEntry._topicHash == 0) {
                     topicEntry._topicHash = std::hash<std::string>()(topicEntry._configuration.getTopic());
                 }
                 _dispatcher.postAsyncIo((int)topicEntry._topicHash % numIoThreads,
-                                        false, produceTask, topicEntry, std::move(std::get<1>(builderTuple)));
+                                        false,
+                                        produceTask,
+                                        topicEntry,
+                                        std::move(builder));
             }
             else {
                 produceTaskSync(topicEntry, std::get<1>(builderTuple));

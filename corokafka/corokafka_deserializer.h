@@ -63,7 +63,7 @@ public:
     
     ResultType operator()(const cppkafka::TopicPartition& toppar,
                           const cppkafka::Buffer& buffer) const final {
-        return deserialize(toppar, buffer, (T*)0);
+        return Deserialize<T>{}(toppar, buffer);
     }
 };
 
