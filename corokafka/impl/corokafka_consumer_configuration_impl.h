@@ -35,7 +35,7 @@ void ConsumerConfiguration::setReceiverCallback(const TOPIC& topic, Callbacks::R
 {
     static_assert(TOPIC::isSerializable(), "Topic contains types which are not serializable");
     if (_receiver) {
-        throw std::runtime_error("Receiver already set");
+        throw std::runtime_error(std::string("Receiver already set for topic " + getTopic()));
     }
     _typeErasedDeserializer = {topic};
     _receiver.reset(new ConcreteReceiver<TOPIC>(std::move(receiver)));

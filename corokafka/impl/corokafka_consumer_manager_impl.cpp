@@ -78,6 +78,9 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
         throw std::runtime_error(std::string("Consumer broker list not found. Please set 'metadata.broker.list' for topic ") + topic);
     }
     
+    //Check if the receiver is set (will throw if not set)
+    topicEntry._configuration.getTypeErasedReceiver();
+    
     //Set the rdkafka configuration options
     cppkafka::Configuration kafkaConfig(rdKafkaOptions);
     kafkaConfig.set_default_topic_configuration(cppkafka::TopicConfiguration(rdKafkaTopicOptions));
@@ -1045,9 +1048,9 @@ ConsumerManagerImpl::deserializeBatchCoro(quantum::VoidContextPtr ctx,
     size_t batchIndex = 0;
     
     // Post unto all the coroutine threads.
-    for (int i = entry._coroQueueIdRangeForAny.first; i <= entry._coroQueueIdRangeForAny.second; ++i) {
+    for (int h = 0, i = entry._coroQueueIdRangeForAny.first; i <= entry._coroQueueIdRangeForAny.second; ++i, ++h) {
         //get the begin and end iterators for each batch
-        size_t batchSize = (i < remainder) ? numPerBatch + 1 : numPerBatch;
+        size_t batchSize = (h < remainder) ? numPerBatch + 1 : numPerBatch;
         if (batchSize == 0) {
             break; //nothing to do
         }
