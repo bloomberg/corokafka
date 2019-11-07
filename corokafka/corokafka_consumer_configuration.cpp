@@ -117,6 +117,9 @@ const TypeErasedDeserializer& ConsumerConfiguration::getTypeErasedDeserializer()
 
 const Receiver& ConsumerConfiguration::getTypeErasedReceiver() const
 {
+    if (!_receiver) {
+        throw std::runtime_error(std::string("Receiver callback not set for topic ") + getTopic());
+    }
     return *_receiver;
 }
 
