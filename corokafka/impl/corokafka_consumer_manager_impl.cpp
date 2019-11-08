@@ -1187,7 +1187,7 @@ void ConsumerManagerImpl::processMessageBatchOnIoThreads(quantum::VoidContextPtr
             }
         }
         // wait until all the batches are processed
-        for (auto c: ioFutures) {
+        for (auto&& c: ioFutures) {
             c->get(ctx);
         }
     }
@@ -1228,14 +1228,17 @@ int ConsumerManagerImpl::pollBatchCoro(quantum::VoidContextPtr ctx,
                                    messageBatchReceiveTask,
                                    entry)->get(ctx);
         }
-
-        std::vector<DeserializedMessage> deserializedMessages = ctx->post(deserializeBatchCoro, entry, raw)->get(ctx);
         
-        if (entry._receiveOnIoThread) {
-            processMessageBatchOnIoThreads(ctx, entry, std::move(raw), std::move(deserializedMessages));
-        }
-        else {
-            invokeSingleBatchReceiver(entry, std::move(raw), std::move(deserializedMessages));
+        if (!raw.empty()) {
+            std::vector<DeserializedMessage> deserializedMessages = ctx->post(deserializeBatchCoro, entry, raw)
+                                                                       ->get(ctx);
+    
+            if (entry._receiveOnIoThread) {
+                processMessageBatchOnIoThreads(ctx, entry, std::move(raw), std::move(deserializedMessages));
+            }
+            else {
+                invokeSingleBatchReceiver(entry, std::move(raw), std::move(deserializedMessages));
+            }
         }
         return 0;
     }
