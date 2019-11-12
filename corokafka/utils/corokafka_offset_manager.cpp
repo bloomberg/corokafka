@@ -52,7 +52,14 @@ cppkafka::Error OffsetManager::saveOffset(const cppkafka::TopicPartition& offset
         Range<int64_t> range = insertOffset(ranges, offset.get_offset());
         //Commit range
         if (range.second != -1) {
-            return commit(offset, ranges._syncCommit || forceSync);
+            if (offset.get_offset() == range.second) {
+                return commit(offset, ranges._syncCommit || forceSync);
+            }
+            else {
+                //End of the range is greater than the committed offset
+                return commit(cppkafka::TopicPartition{offset.get_topic(), offset.get_partition(), range.second},
+                              ranges._syncCommit || forceSync);
+            }
         }
         return {};
     }
