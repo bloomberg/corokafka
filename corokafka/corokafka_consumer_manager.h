@@ -82,8 +82,8 @@ public:
      *          should be made via the ReceivedMessage::commit() API.
      */
     cppkafka::Error commit(const cppkafka::TopicPartition& topicPartition,
-                 const void* opaque = nullptr,
-                 bool forceSync = false);
+                           const void* opaque = nullptr,
+                           bool forceSync = false);
     
     /**
      * @brief Similar to the above commit() but supporting a list of partitions.
@@ -94,8 +94,8 @@ public:
      * @return Error object. If the number of retries reach 0, error contains RD_KAFKA_RESP_ERR__FAIL.
      */
     cppkafka::Error commit(const cppkafka::TopicPartitionList& topicPartitions,
-                 const void* opaque = nullptr,
-                 bool forceSync = false);
+                           const void* opaque = nullptr,
+                           bool forceSync = false);
     
     /**
      * @brief Gracefully shut down all consumers and unsubscribe from all topics.
