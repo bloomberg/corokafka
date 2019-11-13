@@ -1002,8 +1002,8 @@ std::vector<bool> ConsumerManagerImpl::executePreprocessorCallbacks(
         {
             for (size_t j = batchIndex; j < (batchIndex + batchSize) && entry._preprocess; ++j, ++inputIt) {
                 skipMessages[j] = entry._preprocessorCallback(cppkafka::TopicPartition(inputIt->get_topic(),
-                                                                             inputIt->get_partition(),
-                                                                             inputIt->get_offset()));
+                                                              inputIt->get_partition(),
+                                                              inputIt->get_offset()));
             }
             return 0;
         }));
