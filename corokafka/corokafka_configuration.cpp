@@ -89,6 +89,25 @@ const std::string& Configuration::getJsonSchema()
                 "additionalProperties": false,
                 "required": []
             },
+            "partitionConfig": {
+                "title": "Partition assignment configuration for a topic.",
+                "type": "object",
+                "properties": {
+                    "strategy": {
+                        "description":"Only applies to consumer topic configurations",
+                        "type":"string",
+                        "enum":["static","dynamic"],
+                        "default":"dynamic"
+                    },
+                    "partitions": {
+                        "description":"Only applies to consumer topic configurations",
+                        "type":"array",
+                        "items": { "$ref" : "#/definitions/partition" }
+                    }
+                },
+                "additionalProperties": false,
+                "required": []
+            },
             "topicConfig": {
                 "title": "Consumer or producer topic configuration",
                 "type": "object",
@@ -108,17 +127,6 @@ const std::string& Configuration::getJsonSchema()
                     "topicOptions": {
                         "description": "The rdkafka and corokafka topic options for this consumer/producer",
                         "$ref" : "#/definitions/option"
-                    },
-                    "partitionStrategy": {
-                        "description":"Only applies to consumer topic configurations",
-                        "type":"string",
-                        "enum":["static","dynamic"],
-                        "default":"dynamic"
-                    },
-                    "partitionAssignment": {
-                        "description":"Only applies to consumer topic configurations",
-                        "type":"array",
-                        "items": { "$ref" : "#/definitions/partition" }
                     }
                 },
                 "additionalProperties": false,
@@ -135,6 +143,10 @@ const std::string& Configuration::getJsonSchema()
                     "config": {
                         "description": "The config for this topic",
                         "type":"string"
+                    },
+                    "assignment": {
+                        "description": "The partition strategy and assignment (consumers only)",
+                        "$ref" : "#/definitions/partitionConfig"
                     }
                 },
                 "additionalProperties": false,
