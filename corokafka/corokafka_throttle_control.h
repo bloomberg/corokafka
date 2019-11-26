@@ -21,10 +21,11 @@ namespace corokafka {
             
 struct ThrottleControl
 {
-    struct Status
+    enum class Status : char
     {
-        bool    _on{false};
-        bool    _off{false};
+        On = 0, //throttle was off and it's turned on
+        Off,    //throttle was on and it's turned off
+        Ongoing //throttle is still ongoing
     };
     
     Status handleThrottleCallback(std::chrono::milliseconds throttleDuration)
@@ -32,7 +33,15 @@ struct ThrottleControl
         Status status;
         if (_autoThrottle) {
             quantum::Mutex::Guard guard(_throttleMutex);
-            status = {isThrottleOn(throttleDuration), isThrottleOff(throttleDuration)};
+            if (isThrottleOn(throttleDuration)) {
+                status = Status::On;
+            }
+            else if (isThrottleOff(throttleDuration)) {
+                status = Status::Off;
+            }
+            else {
+                status = Status::Ongoing;
+            }
             _throttleDuration = throttleDuration * _throttleMultiplier;
             _throttleTime = std::chrono::steady_clock::now();
         }

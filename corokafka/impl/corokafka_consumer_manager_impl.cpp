@@ -417,14 +417,18 @@ void ConsumerManagerImpl::pause(const std::string& topic)
 {
     if (topic.empty()) {
         for (auto&& consumer : _consumers) {
-            consumer.second._consumer->pause();
-            consumer.second._isPaused = true;
+            bool paused = false;
+            if (consumer.second._isPaused.compare_exchange_strong(paused, !paused)) {
+                consumer.second._consumer->pause();
+            }
         }
     }
     else {
+        bool paused = false;
         ConsumerTopicEntry& consumerTopicEntry = findConsumer(topic)->second;
-        consumerTopicEntry._consumer->pause();
-        consumerTopicEntry._isPaused = true;
+        if (consumerTopicEntry._isPaused.compare_exchange_strong(paused, !paused)) {
+            consumerTopicEntry._consumer->pause();
+        }
     }
 }
 
@@ -432,8 +436,10 @@ void ConsumerManagerImpl::resume(const std::string& topic)
 {
     if (topic.empty()) {
         for (auto&& consumer : _consumers) {
-            consumer.second._consumer->resume();
-            consumer.second._isPaused = false;
+            bool paused = true;
+            if (consumer.second._isPaused.compare_exchange_strong(paused, !paused)) {
+                consumer.second._consumer->resume();
+            }
         }
     }
     else {
@@ -441,9 +447,11 @@ void ConsumerManagerImpl::resume(const std::string& topic)
         if (it == _consumers.end()) {
             throw std::runtime_error("Invalid topic");
         }
+        bool paused = true;
         ConsumerTopicEntry& consumerTopicEntry = findConsumer(topic)->second;
-        consumerTopicEntry._consumer->resume();
-        consumerTopicEntry._isPaused = false;
+        if (consumerTopicEntry._isPaused.compare_exchange_strong(paused, !paused)) {
+            consumerTopicEntry._consumer->resume();
+        }
     }
 }
 
@@ -660,13 +668,14 @@ void ConsumerManagerImpl::throttleCallback(
                         std::chrono::milliseconds throttleDuration)
 {
     if (!topicEntry._isPaused) {
-        //calculate throttle periods
+        //consumer is not explicitly paused by the application.
         cppkafka::Consumer& consumer = static_cast<cppkafka::Consumer&>(handle);
+        //calculate throttling status
         ThrottleControl::Status status = topicEntry._throttleControl.handleThrottleCallback(throttleDuration);
-        if (status._on) {
+        if (status == ThrottleControl::Status::On) {
             consumer.pause();
         }
-        else if (status._off) {
+        else if (status == ThrottleControl::Status::Off) {
             consumer.resume();
         }
     }
