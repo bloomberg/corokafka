@@ -458,13 +458,13 @@ void ProducerManagerImpl::throttleCallback(
                         std::chrono::milliseconds throttleDuration)
 {
     if (topicEntry._throttleControl.autoThrottle()) {
-        //calculate throttle periods
+        //calculate throttle status
         ThrottleControl::Status status = topicEntry._throttleControl.handleThrottleCallback(throttleDuration);
-        if (status._on) {
+        if (status == ThrottleControl::Status::On) {
             //Get partition metadata
             handle.pause(topicEntry._configuration.getTopic());
         }
-        else if (status._off) {
+        else if (status == ThrottleControl::Status::Off) {
             handle.resume(topicEntry._configuration.getTopic());
             topicEntry._forceSyncFlush = true;
         }

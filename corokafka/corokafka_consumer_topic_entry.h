@@ -18,6 +18,7 @@
 
 #include <memory>
 #include <chrono>
+#include <atomic>
 #include <corokafka/corokafka_utils.h>
 #include <corokafka/corokafka_message.h>
 #include <corokafka/corokafka_consumer_configuration.h>
@@ -72,7 +73,7 @@ struct ConsumerTopicEntry : TopicEntry {
     CommitterPtr                    _committer;
     PollingStrategyPtr              _roundRobin;
     mutable OffsetMap               _offsets;
-    bool                            _isPaused{false};
+    std::atomic<bool>               _isPaused{false};
     bool                            _setOffsetsOnStart{true};
     bool                            _pauseOnStart{false};
     bool                            _isSubscribed{true};
