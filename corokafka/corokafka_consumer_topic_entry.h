@@ -75,7 +75,6 @@ struct ConsumerTopicEntry : TopicEntry {
     mutable OffsetMap               _offsets;
     std::atomic<bool>               _isPaused{false};
     bool                            _setOffsetsOnStart{true};
-    bool                            _pauseOnStart{false};
     bool                            _isSubscribed{true};
     bool                            _skipUnknownHeaders{true};
     quantum::ThreadContext<int>::Ptr _pollFuture{nullptr};

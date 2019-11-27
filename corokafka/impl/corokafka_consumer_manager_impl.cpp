@@ -206,12 +206,6 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
     topicEntry._committer->set_error_callback(offsetCommitErrorFunc);
     
     //Set internal config options
-    const cppkafka::ConfigurationOption* pauseOnStart =
-        Configuration::findOption("internal.consumer.pause.on.start", internalOptions);
-    if (pauseOnStart) {
-        topicEntry._pauseOnStart = StringEqualCompare()(pauseOnStart->get_value(), "true");
-    }
-    
     const cppkafka::ConfigurationOption* skipUnknownHeaders =
         Configuration::findOption("internal.consumer.skip.unknown.headers", internalOptions);
     if (skipUnknownHeaders) {
@@ -368,7 +362,10 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
         topicEntry._consumer->set_rebalance_error_callback(std::move(rebalanceErrorFunc));
     }
     
-    if (topicEntry._pauseOnStart) {
+    const cppkafka::ConfigurationOption* pauseOnStart =
+        Configuration::findOption("internal.consumer.pause.on.start", internalOptions);
+    if (pauseOnStart && StringEqualCompare()(pauseOnStart->get_value(), "true")) {
+        topicEntry._isPaused = true;
         topicEntry._consumer->pause(topic);
     }
     
