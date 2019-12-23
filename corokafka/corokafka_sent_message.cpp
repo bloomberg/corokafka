@@ -109,5 +109,15 @@ rd_kafka_msg_status_t SentMessage::getStatus() const
 }
 #endif
 
+#if RD_KAFKA_VERSION >= RD_KAFKA_MESSAGE_LATENCY_SUPPORT_VERSION
+std::chrono::microseconds SentMessage::getLatency() const
+{
+    if (!_message) {
+        throw std::runtime_error("Latency not available");
+    }
+    return _message->get_latency();
+}
+#endif
+
 }
 }
