@@ -80,6 +80,14 @@ public:
     rd_kafka_msg_status_t getStatus() const;
 #endif
 
+#if RD_KAFKA_VERSION >= RD_KAFKA_MESSAGE_LATENCY_SUPPORT_VERSION
+    /**
+     * @brief Gets the message latency in microseconds as measured from the produce() call.
+     * @return The latency in microseconds
+     */
+    std::chrono::microseconds getLatency() const;
+#endif
+
 private:
     SentMessage(const cppkafka::Message& kafkaMessage, void* opaque);
     SentMessage(const cppkafka::MessageBuilder& builder, cppkafka::Error error, void* opaque);
@@ -87,7 +95,7 @@ private:
     const cppkafka::Message*          _message;
     const cppkafka::MessageBuilder*   _builder;
     cppkafka::Error                   _error;
-    void*                   _opaque;
+    void*                             _opaque;
 };
 
 }}

@@ -208,7 +208,7 @@ private:
     void validateHeadersError() const;
     cppkafka::Error doCommit();
     
-    cppkafka::BackoffCommitter&  _committer;
+    cppkafka::BackoffCommitter& _committer;
     OffsetMap&                  _offsets;
     cppkafka::Message           _message;
     boost::any                  _key;
