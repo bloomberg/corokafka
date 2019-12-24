@@ -65,21 +65,6 @@ cppkafka::LogLevel logLevelFromString(const std::string& level)
     throw std::invalid_argument("Unknown log level");
 }
 
-std::ostream& operator<<(std::ostream& stream, const cppkafka::MessageBuilder& builder) {
-    ssize_t max_len = getMaxMessageBuilderOutputLength();
-    size_t payload_len = (max_len == -1) ? builder.payload().get_size() :
-                         std::min(builder.payload().get_size(), (size_t)max_len);
-    stream << "[topic:" << builder.topic() << "]"
-           << "[partition:" << builder.partition() << "]"
-           << "[key:" << (std::string)builder.key() << "]"
-           << "[length:" << builder.payload().get_size() << "]"
-           << "[payload:" << std::string((const char*)builder.payload().get_data(), payload_len) << "]";
-    if (builder.timestamp().count() > 0) {
-        stream << "[timestamp:" << builder.timestamp().count() << "]";
-    }
-    return stream;
-}
-
 void handleException(const std::exception& ex,
                      const Metadata& metadata,
                      const Configuration& config,

@@ -276,10 +276,7 @@ template<class T>
 std::ostream &
 operator<<(std::ostream &out, const Range<T>& r)
 {
-    if (r.first == r.second)
-        out << "{" << r.first << "}";
-    else
-        out << "{" << r.first << "-" << r.second << "}";
+    out << "{ \"begin\": " << r.first << ", \"end\": " << r.second << " }";
     return out;
 }
 
@@ -287,11 +284,12 @@ template<class T>
 std::ostream &
 operator<<(std::ostream &out, IntervalSet<T> const &is)
 {
-    out << "{";
+    out << "{ \"intervals\": [ ";
     for (typename IntervalSet<T>::ConstIterator it = is.begin(); it != is.end(); it++) {
+        if (it != is.begin()) out << ", ";
         out << Range<T>(*it);
     }
-    out << "}";
+    out << " ] }";
     return out;
 }
 
