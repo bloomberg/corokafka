@@ -196,27 +196,22 @@ std::unique_ptr<T, DT> unique_pointer_cast(VoidPtr &&base, DT &&d = DT())
 //======================================================================================================================
 //                                               Stream operators
 //======================================================================================================================
-// Users may override for specific BufferTypes
-template <typename T, typename C>
-std::ostream &operator<<(std::ostream &stream, const cppkafka::BasicMessageBuilder<T, C> &)
-{
-    return stream; //don't print anything by default
-}
-
 template <typename C>
 std::ostream &operator<<(std::ostream &stream, const cppkafka::BasicMessageBuilder<std::string, C> &builder)
 {
     ssize_t max_len = getMaxMessageBuilderOutputLength();
     size_t payload_len = (max_len == -1) ? builder.payload().size() :
                          std::min(builder.payload().size(), (size_t) max_len);
-    stream << "[topic:" << builder.topic() << "]"
-           << "[partition:" << builder.partition() << "]"
-           << "[key:" << builder.key() << "]"
-           << "[length:" << builder.payload().size() << "]"
-           << "[payload:" << builder.payload().substr(0, payload_len) << "]";
+    stream << "{ \"messageBuilder\": { "
+           << "\"topic\": \"" << builder.topic() << "\", "
+           << "\"partition\": " << builder.partition() << ", "
+           << "\"key\": \"" << builder.key() << "\", "
+           << "\"length\": " << builder.payload().size() << ", "
+           << "\"payload\": \"" << builder.payload().substr(0, payload_len) << "\"";
     if (builder.timestamp().count() > 0) {
-        stream << "[timestamp:" << builder.timestamp().count() << "]";
+        stream << ", \"timestamp\": \"" << builder.timestamp().count() << "\"";
     }
+    stream << " } }";
     return stream;
 }
 
@@ -227,19 +222,37 @@ std::ostream &operator<<(std::ostream &stream,
     ssize_t max_len = getMaxMessageBuilderOutputLength();
     size_t payload_len = (max_len == -1) ? builder.payload().size() :
                          std::min(builder.payload().size(), (size_t) max_len);
-    stream << "[topic:" << builder.topic() << "]"
-           << "[partition:" << builder.partition() << "]"
-           << "[key:" << std::string(builder.key().data(), builder.key().size()) << "]"
-           << "[length:" << builder.payload().size() << "]"
-           << "[payload:" << std::string(builder.payload().data(), payload_len) << "]";
+    stream << "{ \"messageBuilder\": { "
+           << "\"topic\": \"" << builder.topic() << "\", "
+           << "\"partition\": " << builder.partition() << ", "
+           << "\"key\": \"" << std::string(builder.key().data(), builder.key().size()) << "\", "
+           << "\"length\": " << std::string(builder.payload().data(), payload_len) << ", "
+           << "\"payload\": \"" << builder.payload().substr(0, payload_len) << "\"";
     if (builder.timestamp().count() > 0) {
-        stream << "[timestamp:" << builder.timestamp().count() << "]";
+        stream << ", \"timestamp\": \"" << builder.timestamp().count() << "\"";
     }
+    stream << " } }";
     return stream;
 }
 
-// Specialized for Buffer container
-std::ostream &operator<<(std::ostream &stream, const cppkafka::MessageBuilder &builder);
+template <typename C>
+std::ostream& operator<<(std::ostream& stream,
+                         const cppkafka::BasicMessageBuilder<cppkafka::Buffer, C> &builder) {
+    ssize_t max_len = getMaxMessageBuilderOutputLength();
+    size_t payload_len = (max_len == -1) ? builder.payload().get_size() :
+                         std::min(builder.payload().get_size(), (size_t)max_len);
+    stream << "{ \"messageBuilder\": { "
+           << "\"topic\": \"" << builder.topic() << "\", "
+           << "\"partition\": " << builder.partition() << ", "
+           << "\"key\": \"" << (std::string)builder.key() << "\", "
+           << "\"length\": " << builder.payload().get_size() << ", "
+           << "\"payload\": \"" << std::string((const char*)builder.payload().get_data(), payload_len) << "\"";
+    if (builder.timestamp().count() > 0) {
+        stream << ", \"timestamp\": \"" << builder.timestamp().count() << "\"";
+    }
+    stream << " } }";
+    return stream;
+}
 
 //======================================================================================================================
 //                                               Serializable Concept

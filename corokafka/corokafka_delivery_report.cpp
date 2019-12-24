@@ -54,16 +54,18 @@ void* DeliveryReport::getOpaque() const
 std::string DeliveryReport::toString() const
 {
     std::ostringstream oss;
-    oss << "Delivered to: " << _topicPartition;
+    oss << "{ \"deliveryReport\": { ";
+    oss << "{ \"destination\": \"" << _topicPartition << "\"";
     if (_error) {
-        oss << " error: " << _error;
+        oss << ", \"error\": \"" << _error << "\"";
     }
     else {
-        oss << " num bytes: " << _numBytes;
+        oss << ", \"numBytes\": " << _numBytes;
     }
     if (_opaque) {
-        oss << " opaque: " << std::hex << _opaque;
+        oss << ", \"opaque\": " << std::hex << _opaque;
     }
+    oss << "} }";
     return oss.str();
 }
 
