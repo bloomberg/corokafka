@@ -1,4 +1,4 @@
-# CoroKafka library
+# CoroKafka library [![Build Status](https://travis-ci.com/bloomberg/corokafka.svg?branch=master)](https://travis-ci.com/bloomberg/corokafka)
 
 Coroutine-based Kafka messaging library! **CoroKafka** is a scalable and simple to use C++ library built on top of [cppkafka](https://github.com/mfontanini/cppkafka) and [quantum](https://github.com/bloomberg/quantum), supporting any number of parallel producers and consumers.
 Producing and consuming of messages is simplified by allowing applications to use their own native message formats which are automatically serialized and de-serialized by the connector. Message processing spreads to optimal number of parallel coroutines and threads. Integrated support for **RdKafka** headers. Currently the library only supports static topics and admin API is not yet available. 
