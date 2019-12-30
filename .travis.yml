@@ -25,13 +25,13 @@ env:
   - CXXSTANDARD=17
 
 before_script:
-  - NUM_TOPICS=10
   - KAFKA_VERSION=2.12-2.4.0
   - RD_KAFKA_VERSION=v1.3.0
   - wget http://apache.cs.utah.edu/kafka/2.4.0/kafka_$KAFKA_VERSION.tgz && tar -xvzf kafka_$KAFKA_VERSION.tgz
   - ./kafka_$KAFKA_VERSION/bin/kafka-server-start.sh ./kafka_$KAFKA_VERSION/config/server.properties > /dev/null 2> /dev/null &
   - while ! echo "asd" | nc localhost 9092; do sleep 1; done
-  - n=1; while ((n<=$NUM_TOPICS)); do ./kafka_$KAFKA_VERSION/bin/kafka-topics.sh --create --zookeeper localhost:2181 --topic topic_$n --partitions 4 --replication-factor 1; n=$((n+1)); done
+  - ./kafka_$KAFKA_VERSION/bin/kafka-topics.sh --create --zookeeper localhost:2181 --topic topic_no_headers --partitions 4 --replication-factor 1
+  - ./kafka_$KAFKA_VERSION/bin/kafka-topics.sh --create --zookeeper localhost:2181 --topic topic_with_headers --partitions 4 --replication-factor 1
 
 script:
   - INSTALL_DIR=/home/travis/build/accelerated/corokafka/install
@@ -70,10 +70,10 @@ script:
         -DCMAKE_PREFIX_PATH=$INSTALL_DIR
         -DCOROKAFKA_CPPKAFKA_STATIC_LIB=ON
         -DCOROKAFKA_RDKAFKA_STATIC_LIB=ON
-        -DCOROKAFKA_BOOST_STATIC_LIBS=ON
+        -DCOROKAFKA_BOOST_STATIC_LIBS=OFF
         -DCOROKAFKA_ENABLE_PIC=ON
         -DCOROKAFKA_ENABLE_TESTS=ON
         -DCMAKE_BUILD_TYPE=Debug
         -G Ninja -S .
   - ninja CoroKafkaTests
-  - ./tests/CoroKafkaTests.Linux
+  - ./tests/CoroKafkaTests.Linux -b localhost:9092 -k producer -t topic_with_headers -n topic_no_headers

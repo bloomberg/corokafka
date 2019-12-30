@@ -17,17 +17,15 @@
 #include <gmock/gmock.h>
 #include <quantum/quantum.h>
 #include <corokafka/corokafka.h>
+#include <corokafka_tests_topics.h>
 
 //aliases
-namespace ckf = Bloomberg::corokafka;
-namespace qtm = Bloomberg::quantum;
+using namespace Bloomberg::corokafka::tests;
 
-//==============================================================================
-//                             TEST CASES
-//==============================================================================
-TEST(Connector, Constructor)
-{
-    ckf::ConfigurationBuilder builder;
-    ckf::Connector connector(builder);
+int main(int argc, char **argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+    programOptions() = ProgramOptions(argc, argv);
+    return RUN_ALL_TESTS();
 }
+
 

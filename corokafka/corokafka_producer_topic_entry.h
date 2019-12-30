@@ -33,6 +33,7 @@ using ProducerType = cppkafka::BufferedProducer<ByteArray>;
 using ProducerPtr = std::unique_ptr<ProducerType>;
 
 enum class QueueFullNotification {
+    None,
     OncePerMessage,
     EachOccurence,
     EdgeTriggered
