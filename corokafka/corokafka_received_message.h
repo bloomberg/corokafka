@@ -43,7 +43,7 @@ class ConcreteReceiver;
  * @tparam PAYLOAD Payload type
  * @tparam HEADERS Headers type i.e. Headers<...>
  */
-template <typename KEY, typename PAYLOAD, typename HEADERS>
+template <typename KEY, typename PAYLOAD, typename HEADERS = NoHeaders>
 class ReceivedMessage : public IMessage
 {
     friend class ConcreteReceiver<Topic<KEY,PAYLOAD,HEADERS>>;

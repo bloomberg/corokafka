@@ -8,15 +8,16 @@ set_target_properties(${TEST_TARGET}
     RUNTIME_OUTPUT_NAME "${TEST_TARGET}.${CMAKE_SYSTEM_NAME}"
 )
 
+# Find program options component
+find_package(Boost 1.61 REQUIRED COMPONENTS program_options)
+
 if (COROKAFKA_BUILD_TESTS_FROM_INSTALL_TREE)
     # Find CoroKafka
     find_package(CoroKafka REQUIRED)
-
     target_link_libraries(${TEST_TARGET}
         CoroKafka::corokafka
-        GTest::GTest
-        GTest::Main)
-
+        Boost::program_options
+        GTest::GTest)
 else()
     add_dependencies(${TEST_TARGET} ${PROJECT_TARGET_NAME})
     target_include_directories(${TEST_TARGET} BEFORE PRIVATE
@@ -33,9 +34,9 @@ else()
         ${PROJECT_TARGET_NAME}
         ${CPPKAFKA_LIBRARY}
         ${RDKAFKA_LIBRARY}
-        ${Boost_LIBRARIES}
+        Boost::context
+        Boost::program_options
         GTest::GTest
-        GTest::Main
         pthread
         rt
         ssl
