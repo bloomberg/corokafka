@@ -28,7 +28,7 @@ OffsetManager::OffsetManager(corokafka::ConsumerManager& consumerManager) :
         bool syncCommit = false;
         PartitionMap& partitionMap = _topicMap[topic];
         const cppkafka::ConfigurationOption* commitExec =
-            consumerManager.getConfiguration(topic).getOption("internal.consumer.commit.exec");
+            consumerManager.getConfiguration(topic).getOption(ConsumerConfiguration::Options::commitExec);
         if (commitExec && StringEqualCompare()(commitExec->get_value(), "sync")) {
             syncCommit = true;
         }

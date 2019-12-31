@@ -19,20 +19,15 @@
 #include <corokafka/corokafka_consumer_metadata.h>
 #include <corokafka/corokafka_producer_topic_entry.h>
 #include <corokafka/corokafka_consumer_topic_entry.h>
+#include <corokafka/corokafka_exception.h>
 
 namespace Bloomberg {
 namespace corokafka {
 
-ssize_t maxMessageBuilderOutputLength{100};
-
-ssize_t getMaxMessageBuilderOutputLength()
+ssize_t& maxMessageBuilderOutputLength()
 {
-    return maxMessageBuilderOutputLength;
-}
-
-void setMaxMessageBuilderOutputLength(ssize_t length)
-{
-    maxMessageBuilderOutputLength = length;
+    static ssize_t messageLen{100};
+    return messageLen;
 }
 
 cppkafka::LogLevel logLevelFromString(const std::string& level)
@@ -62,12 +57,12 @@ cppkafka::LogLevel logLevelFromString(const std::string& level)
     if (compare(level, "debug")) {
         return cppkafka::LogLevel::LogDebug;
     }
-    throw std::invalid_argument("Unknown log level");
+    throw InvalidArgumentException(0, "Unknown log level");
 }
 
 void handleException(const std::exception& ex,
                      const Metadata& metadata,
-                     const Configuration& config,
+                     const TopicConfiguration& config,
                      cppkafka::LogLevel level)
 {
     cppkafka::CallbackInvoker<Callbacks::ErrorCallback> error_cb("error", config.getErrorCallback(), nullptr);

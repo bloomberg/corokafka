@@ -1,6 +1,15 @@
 # Configuration
 
 The following configuration options are complementary to the RdKafka [options](https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md) and affect exclusively the functionality of this library.
+          
+## Connector configuration
+
+| Property | Range | Default | Description |
+| :------- | :---: | :-----: | :---------- |
+| internal.connector.poll.interval.ms | \>0 | 100 | Set the internal poll interval for consumers and producers. Polling of all registered consumers and producers is done in parallel at each interval. |
+| internal.connector.max.payload.output.length | \>=-1 | 100 | Sets the length (bytes) of the serialized message to be printed when an internal error occurs. -1 prints the entire message. | 
+
+---
 
 ## Consumer configuration
 
@@ -13,12 +22,12 @@ The following configuration options are complementary to the RdKafka [options](h
 | internal.consumer.auto.offset.persist.on.exception | true, false | false | Dictates if the offset persist should be aborted as a result of an exception. This could allow the application to reprocess a message following an exception. This is only valid if **internal.consumer.auto.offset.persist=true**. |
 | internal.consumer.offset.persist.strategy | commit, store | store | Determines if offsets are committed or stored locally. Some rdkafka settings will be changed according to **note 2** below. If **store** is chosen, **auto.commit.interval.ms > 0** must be set. |
 | internal.consumer.commit.exec | sync, async | async | Dictates if offset commits should be synchronous or asynchronous. |
-| internal.consumer.commit.num.retries | >= 0 | MAX_UINT | Sets the number of times to retry committing an offset before giving up. |
+| internal.consumer.commit.num.retries | \>= 0 | MAX_UINT | Sets the number of times to retry committing an offset before giving up. |
 | internal.consumer.commit.backoff.strategy | linear, exponential | linear | Back-off strategy when initial commit fails. |
-| internal.consumer.commit.backoff.interval.ms | > 0 | 50 | Time in ms between retries. |
-| internal.consumer.commit.max.backoff.ms | > 0 | 1000 | Maximum back-off time for retries. If set, this has higher precedence than **internal.consumer.commit.num.retries**. |
+| internal.consumer.commit.backoff.interval.ms | \> 0 | 50 | Time in ms between retries. |
+| internal.consumer.commit.max.backoff.ms | \> 0 | 1000 | Maximum back-off time for retries. If set, this has higher precedence than **internal.consumer.commit.num.retries**. |
 | internal.consumer.poll.strategy | batch, roundrobin | batch | Determines how messages are read from rdkafka queues. The **batch** strategy is to read the entire batch of messages from the main consumer queue and is more _performant_. If **roundrobin** strategy is selected, messages are read in round-robin fashion from each partition at a time.|
-| internal.consumer.read.size | > 0 | 100 | Number of messages to read on each poll interval. See `ConnectorConfiguration::setPollInterval()` for more details.|
+| internal.consumer.read.size | \> 0 | 100 | Number of messages to read on each poll interval. See `ConnectorConfiguration::setPollInterval()` for more details.|
 | internal.consumer.batch.prefetch | true, false | false | If **internal.consumer.poll.strategy=batch**, start pre-fetching the next batch while processing the current batch. This increases performance but may cause additional burden on the broker. |
 | internal.consumer.receive.callback.thread.range.low | [0, \<quantum_IO_threads\>) | 0 | Specifies the lowest thread id on which receive callbacks will be called. See **note 1** below for more details. |
 | internal.consumer.receive.callback.thread.range.high | [0, \<quantum_IO_threads\>) | \<quantum_IO_threads\> - 1 | Specifies the highest thread id on which receive callbacks will be called. See **note 1** below for more details. This setting is only valid if **internal.consumer.receive.invoke.thread=io**. |
@@ -27,7 +36,7 @@ The following configuration options are complementary to the RdKafka [options](h
 | internal.consumer.log.level | emergency, alert, critical, error, warning, notice, info, debug | info | Sets the log level for this consumer. Note that if the rdkafka **debug** property is set, **internal.producer.log.level** will be automatically adjusted to **debug**.|
 | internal.consumer.skip.unknown.headers | true, false | true | If unknown headers are encountered (i.e. for which there is no registered deserializer), they will be skipped. If set to **false**, an error will be thrown. |
 | internal.consumer.auto.throttle | true, false | false | When enabled, the consumers will be automatically paused/resumed when throttled by the broker.|
-| internal.consumer.auto.throttle.multiplier | >= 1 | 1 | Change this value to pause the consumer by **\<throttle time\> x multiplier** ms instead. This only works if **internal.consumer.auto.throttle=true**. |
+| internal.consumer.auto.throttle.multiplier | \>= 1 | 1 | Change this value to pause the consumer by **\<throttle time\> x multiplier** ms instead. This only works if **internal.consumer.auto.throttle=true**. |
 | internal.consumer.preprocess.messages | true, false | true | Enable the preprocessor callback if it has been registered. Otherwise it can be enabled/disabled via `ConsumerManager::preprocess()`. |
 | internal.consumer.preprocess.invoke.thread | io, coro | io | If **io**, run the preprocessor callback on an IO thread. If **coro**, run it directly on the same coroutine threads where the messages are deserialized. The advantage of invoking the preprocessor on an IO thread is that any blocking operation can be performed inside the callback. On the other hand, if no IO operations are needed (or if they are very fast), using coroutine threads will result in _increased performance_. |
 
@@ -48,7 +57,7 @@ The following configuration options are complementary to the RdKafka [options](h
 | internal.producer.flush.wait.for.acks.timeout.ms | \>= -1 | 0 | Set the maximum timeout for the producer to wait for broker acks when flushing the internal queue (see above). Set to **-1** for infinite timeout. |
 | internal.producer.log.level | emergency, alert, critical, error, warning, notice, info, debug | info | Sets the log level for this producer. Note that if the rdkafka **debug** property is set, **internal.producer.log.level** will be automatically adjusted to **debug**.|
 | internal.producer.auto.throttle | true, false | false | When enabled, the producers will be automatically paused/resumed when throttled by broker. |
-| internal.producer.auto.throttle.multiplier | >= 1 | 1 | Change this value to pause the producer by **\<throttle time\> x multiplier** ms instead. This only works if **internal.producer.auto.throttle=true**. |
+| internal.producer.auto.throttle.multiplier | \>= 1 | 1 | Change this value to pause the producer by **\<throttle time\> x multiplier** ms instead. This only works if **internal.producer.auto.throttle=true**. |
 | internal.producer.queue.full.notification | edgeTriggered, oncePerMessage, eachOccurence | oncePerMessage | When registering a `QueueFullCallback`, this setting determines when the callback will be raised. If set to **edgeTriggered**, the callback will be raised once after which the application must reset the edge via `ProducerManager::resetQueueFullTrigger()` in order to re-enable it again. |
 
 ---

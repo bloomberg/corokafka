@@ -14,15 +14,16 @@
 ** limitations under the License.
 */
 
+#include <corokafka/corokafka_exception.h>
+
 namespace Bloomberg {
 namespace corokafka {
 
 template <typename TOPIC>
-ConsumerConfiguration::ConsumerConfiguration(
-                          const TOPIC& topic,
-                          Options options,
-                          Options topicOptions,
-                          Callbacks::ReceiverCallback<TOPIC> receiver) :
+ConsumerConfiguration::ConsumerConfiguration(const TOPIC& topic,
+                                             Configuration::OptionList options,
+                                             Configuration::OptionList topicOptions,
+                                             Callbacks::ReceiverCallback<TOPIC> receiver) :
     Configuration(KafkaType::Consumer, topic.topic(), std::move(options), std::move(topicOptions)),
     _typeErasedDeserializer(topic),
     _receiver(new ConcreteReceiver<TOPIC>(std::move(receiver)))
@@ -31,11 +32,24 @@ ConsumerConfiguration::ConsumerConfiguration(
 }
 
 template <typename TOPIC>
-void ConsumerConfiguration::setReceiverCallback(const TOPIC& topic, Callbacks::ReceiverCallback<TOPIC> receiver)
+ConsumerConfiguration::ConsumerConfiguration(const TOPIC& topic,
+                                             std::initializer_list<cppkafka::ConfigurationOption> options,
+                                             std::initializer_list<cppkafka::ConfigurationOption> topicOptions,
+                                             Callbacks::ReceiverCallback<TOPIC> receiver) :
+    Configuration(KafkaType::Consumer, topic.topic(), std::move(options), std::move(topicOptions)),
+    _typeErasedDeserializer(topic),
+    _receiver(new ConcreteReceiver<TOPIC>(std::move(receiver)))
+{
+    static_assert(TOPIC::isSerializable(), "Topic contains types which are not serializable");
+}
+
+template <typename TOPIC>
+void ConsumerConfiguration::setReceiverCallback(const TOPIC& topic,
+                                                Callbacks::ReceiverCallback<TOPIC> receiver)
 {
     static_assert(TOPIC::isSerializable(), "Topic contains types which are not serializable");
     if (_receiver) {
-        throw std::runtime_error(std::string("Receiver already set for topic " + getTopic()));
+        throw ConfigurationException(getTopic(), "Receiver callback is already set");
     }
     _typeErasedDeserializer = {topic};
     _receiver.reset(new ConcreteReceiver<TOPIC>(std::move(receiver)));

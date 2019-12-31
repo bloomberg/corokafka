@@ -44,6 +44,7 @@
 #include <corokafka/corokafka_sent_message.h>
 #include <corokafka/corokafka_throttle_control.h>
 #include <corokafka/corokafka_topic.h>
+#include <corokafka/corokafka_topic_configuration.h>
 #include <corokafka/corokafka_type_erased_deserializer.h>
 #include <corokafka/corokafka_utils.h>
 #include <corokafka/detail/corokafka_macros.h>

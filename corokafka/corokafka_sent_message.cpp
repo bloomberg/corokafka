@@ -14,6 +14,7 @@
 ** limitations under the License.
 */
 #include <corokafka/corokafka_sent_message.h>
+#include <corokafka/corokafka_exception.h>
 
 namespace Bloomberg {
 namespace corokafka {
@@ -21,7 +22,8 @@ namespace corokafka {
 //====================================================================================
 //                               SENT MESSAGE
 //====================================================================================
-SentMessage::SentMessage(const cppkafka::Message& kafkaMessage, void* opaque) :
+SentMessage::SentMessage(const cppkafka::Message& kafkaMessage,
+                         void* opaque) :
     _message(&kafkaMessage),
     _builder(nullptr),
     _error(kafkaMessage.get_error()),
@@ -29,7 +31,9 @@ SentMessage::SentMessage(const cppkafka::Message& kafkaMessage, void* opaque) :
 {
 }
 
-SentMessage::SentMessage(const cppkafka::MessageBuilder& builder, cppkafka::Error error, void* opaque) :
+SentMessage::SentMessage(const cppkafka::MessageBuilder& builder,
+                         cppkafka::Error error,
+                         void* opaque) :
     _message(nullptr),
     _builder(&builder),
     _error(error),
@@ -82,7 +86,7 @@ std::chrono::milliseconds SentMessage::getTimestamp() const
     if (_message) {
         boost::optional<cppkafka::MessageTimestamp> timestamp = _message->get_timestamp();
         if (!timestamp) {
-            throw std::runtime_error("Timestamp not set");
+            throw MessageException("Timestamp not set");
         }
         return timestamp.get().get_timestamp();
     }
@@ -103,7 +107,7 @@ void* SentMessage::getOpaque() const
 rd_kafka_msg_status_t SentMessage::getStatus() const
 {
     if (!_message) {
-        throw std::runtime_error("Status not available");
+        throw MessageException("Status not available");
     }
     return _message->get_status();
 }
@@ -113,7 +117,7 @@ rd_kafka_msg_status_t SentMessage::getStatus() const
 std::chrono::microseconds SentMessage::getLatency() const
 {
     if (!_message) {
-        throw std::runtime_error("Latency not available");
+        throw MessageException("Latency not available");
     }
     return _message->get_latency();
 }
