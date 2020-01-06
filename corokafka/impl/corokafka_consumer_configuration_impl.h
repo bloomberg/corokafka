@@ -24,7 +24,7 @@ ConsumerConfiguration::ConsumerConfiguration(const TOPIC& topic,
                                              Configuration::OptionList options,
                                              Configuration::OptionList topicOptions,
                                              Callbacks::ReceiverCallback<TOPIC> receiver) :
-    Configuration(KafkaType::Consumer, topic.topic(), std::move(options), std::move(topicOptions)),
+    TopicConfiguration(KafkaType::Consumer, topic.topic(), std::move(options), std::move(topicOptions)),
     _typeErasedDeserializer(topic),
     _receiver(new ConcreteReceiver<TOPIC>(std::move(receiver)))
 {
@@ -36,7 +36,7 @@ ConsumerConfiguration::ConsumerConfiguration(const TOPIC& topic,
                                              std::initializer_list<cppkafka::ConfigurationOption> options,
                                              std::initializer_list<cppkafka::ConfigurationOption> topicOptions,
                                              Callbacks::ReceiverCallback<TOPIC> receiver) :
-    Configuration(KafkaType::Consumer, topic.topic(), std::move(options), std::move(topicOptions)),
+    TopicConfiguration(KafkaType::Consumer, topic.topic(), std::move(options), std::move(topicOptions)),
     _typeErasedDeserializer(topic),
     _receiver(new ConcreteReceiver<TOPIC>(std::move(receiver)))
 {

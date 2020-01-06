@@ -29,25 +29,6 @@ const std::string& Configuration::getJsonSchema()
         "$schema" : "http://json-schema.org/draft-04/schema#",
         "$id" : "bloomberg:corokafka.json",
         "definitions": {
-            "connector": {
-                "title": "CoroKafka configuration",
-                "type": "object",
-                "properties": {
-                    "pollIntervalMs": {
-                        "type":"number",
-                        "default":100
-                    },
-                    "maxMessagePayloadOutputLength": {
-                        "type":"number",
-                        "default":100
-                    },
-                    "quantum": {
-                        "$ref": "bloomberg:quantum.json"
-                    },
-                },
-                "additionalProperties": false,
-                "required": []
-            },
             "option": {
                 "title": "Internal options for corokafka, cppkafka and rdkafka",
                 "type": "object",
@@ -61,6 +42,21 @@ const std::string& Configuration::getJsonSchema()
                         "examples": ["metadata.broker.list", "internal.producer.payload.policy"]
                     }
                 }
+            },
+            "connector": {
+                "title": "CoroKafka connector configuration",
+                "type": "object",
+                "properties": {
+                    "options": {
+                        "description": "The options for this connector",
+                        "$ref" : "#/definitions/option"
+                    },
+                    "quantum": {
+                        "$ref": "bloomberg:quantum.json"
+                    },
+                },
+                "additionalProperties": false,
+                "required": []
             },
             "partition": {
                 "title": "A kafka partition",
@@ -244,6 +240,40 @@ void Configuration::parseOptions(const std::string& optionsPrefix,
         rdKafka.assign(std::make_move_iterator(config.begin()),
                        std::make_move_iterator(config.end()));
     }
+}
+
+bool Configuration::extractBooleanValue(const std::string& topic,
+                                        const char* optionName,
+                                        const cppkafka::ConfigurationOption& option)
+{
+    if (StringEqualCompare()(option.get_value(), "true")) {
+        return true;
+    }
+    else if (StringEqualCompare()(option.get_value(), "false")) {
+        return false;
+    }
+    else {
+        if (topic.empty()) {
+            throw InvalidOptionException(optionName, option.get_value());
+        }
+        throw InvalidOptionException(topic, optionName, option.get_value());
+    }
+}
+
+ssize_t Configuration::extractCounterValue(const std::string& topic,
+                                           const char* optionName,
+                                           const cppkafka::ConfigurationOption& option,
+                                           ssize_t minAllowed,
+                                           ssize_t maxAllowed)
+{
+    ssize_t value = std::stoll(option.get_value());
+    if ((value < minAllowed) || (value > maxAllowed)) {
+        if (topic.empty()) {
+            throw InvalidOptionException(optionName, option.get_value());
+        }
+        throw InvalidOptionException(topic, optionName, option.get_value());
+    }
+    return value;
 }
 
 }

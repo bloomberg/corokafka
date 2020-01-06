@@ -6,7 +6,7 @@ The following configuration options are complementary to the RdKafka [options](h
 
 | Property | Range | Default | Description |
 | :------- | :---: | :-----: | :---------- |
-| internal.connector.poll.interval.ms | \>0 | 100 | Set the internal poll interval for consumers and producers. Polling of all registered consumers and producers is done in parallel at each interval. |
+| internal.connector.poll.interval.ms | \> 0 | 100 | Set the internal poll interval for consumers and producers. Polling of all registered consumers and producers is done in parallel at each interval. |
 | internal.connector.max.payload.output.length | \>=-1 | 100 | Sets the length (bytes) of the serialized message to be printed when an internal error occurs. -1 prints the entire message. | 
 
 ---
@@ -16,8 +16,8 @@ The following configuration options are complementary to the RdKafka [options](h
 | Property | Range | Default | Description |
 | :------- | :---: | :-----: | :---------- |
 | internal.consumer.pause.on.start | true, false | false | Start the consumer in paused state. User needs to call `resume()` to consume. |
-| internal.consumer.timeout.ms | \> 0 | 1000 | Sets the timeout on any operations requiring a timeout such as poll, query offsets, etc. |
-| internal.consumer.poll.timeout.ms | \>= -1 | 0 | Override the 'internal.consumer.timeout.ms' default setting for polling only. Set to `-1` to disable, in which case **internal.consumer.timeout.ms** will be used. Note that in the case where **internal.consumer.poll.strategy=roundrobin**, the actual timeout per message will be **internal.consumer.poll.timeout.ms/internal.consumer.read.size**. When value is `0`, there is no timeout. |
+| internal.consumer.timeout.ms | \>= -1 | 1000 | Sets the timeout on any operations requiring a timeout such as poll, query offsets, etc. Set to **-1** for infinite timeout. |
+| internal.consumer.poll.timeout.ms | \>= -1 | N/A | If set, overrides the 'internal.consumer.timeout.ms' default setting for polling only. Note that in the case where **internal.consumer.poll.strategy=roundrobin**, the actual timeout per message will be **internal.consumer.poll.timeout.ms/internal.consumer.read.size**. Set to **-1** for infinite timeout. |
 | internal.consumer.auto.offset.persist | true, false | false | Enables auto-commit/auto-store inside the `ReceivedMessage` destructor. |
 | internal.consumer.auto.offset.persist.on.exception | true, false | false | Dictates if the offset persist should be aborted as a result of an exception. This could allow the application to reprocess a message following an exception. This is only valid if **internal.consumer.auto.offset.persist=true**. |
 | internal.consumer.offset.persist.strategy | commit, store | store | Determines if offsets are committed or stored locally. Some rdkafka settings will be changed according to **note 2** below. If **store** is chosen, **auto.commit.interval.ms > 0** must be set. |
@@ -25,7 +25,7 @@ The following configuration options are complementary to the RdKafka [options](h
 | internal.consumer.commit.num.retries | \>= 0 | MAX_UINT | Sets the number of times to retry committing an offset before giving up. |
 | internal.consumer.commit.backoff.strategy | linear, exponential | linear | Back-off strategy when initial commit fails. |
 | internal.consumer.commit.backoff.interval.ms | \> 0 | 50 | Time in ms between retries. |
-| internal.consumer.commit.max.backoff.ms | \> 0 | 1000 | Maximum back-off time for retries. If set, this has higher precedence than **internal.consumer.commit.num.retries**. |
+| internal.consumer.commit.max.backoff.ms | \>= **internal.consumer.commit.backoff.interval.ms** | 1000 | Maximum back-off time for retries. If set, this has higher precedence than **internal.consumer.commit.num.retries**. |
 | internal.consumer.poll.strategy | batch, roundrobin | batch | Determines how messages are read from rdkafka queues. The **batch** strategy is to read the entire batch of messages from the main consumer queue and is more _performant_. If **roundrobin** strategy is selected, messages are read in round-robin fashion from each partition at a time.|
 | internal.consumer.read.size | \> 0 | 100 | Number of messages to read on each poll interval. See `ConnectorConfiguration::setPollInterval()` for more details.|
 | internal.consumer.batch.prefetch | true, false | false | If **internal.consumer.poll.strategy=batch**, start pre-fetching the next batch while processing the current batch. This increases performance but may cause additional burden on the broker. |
@@ -46,15 +46,13 @@ The following configuration options are complementary to the RdKafka [options](h
 
 | Property | Range | Default | Description |
 | :------- | :---: | :-----: | :---------- |
-| internal.producer.timeout.ms | \>= 0 | 1000 | Sets the timeout on poll and flush operations. |
-| internal.producer.retries | \> 0 | 0 | Sets the number of times to retry sending a message from the internal queue before giving up. Note that this setting is independent of the rdkafka setting **message.send.max.retries**. This setting applies to each individual message and not to entire batches of messages like **message.send.max.retries** does. |
+| internal.producer.timeout.ms | \>= -1 | 1000 | Sets the timeout on poll and flush operations. Set to **-1** for infinite timeout. |
+| internal.producer.retries | \>= 0 | 0 | Sets the number of times to retry sending a message from the internal queue before giving up. Note that this setting is independent of the rdkafka setting **message.send.max.retries**. This setting applies to each individual message and not to entire batches of messages like **message.send.max.retries** does. |
 | internal.producer.payload.policy | passthrough, copy | copy | Sets the payload policy on the producer. For sync producers, use **passthrough** for maximum performance. |
 | internal.producer.preserve.message.order | true, false | false | Set to **true** if strict message order must be preserved. When setting this, rdkafka option **max.in.flight** will be set to **1** to avoid possible reordering of packets. Messages will be buffered and sent sequentially, waiting for broker acks before the next one is processed. This ensures delivery guarantee at the cost of performance. The internal buffer queue size can be checked via `ProducerMetadata::getInternalQueueLength()`. An intermediate, solution with better performance would be to set this setting to **false** and set **max.in.flight=1** which will skip internal buffering altogether. This will guarantee ordering but not delivery. |
 | internal.producer.max.queue.length | \> 0 | 10000 | Maximum size of the internal queue when producing asynchronously with strict order preservation. |
-| internal.producer.wait.for.acks | true, false | false | If set to **true**, then the producer will wait up to the timeout specified when producing a message via `send()` or `post()`. |
-| internal.producer.wait.for.acks.timeout.ms | \>= -1 | 0 | Set the maximum timeout for the producer to wait for broker acks when producing a message via `send()` or `post()`. Set to **-1** for infinite timeout. |
-| internal.producer.flush.wait.for.acks | true, false | false | If set to true, then the producer will wait up to the timeout specified when flushing the internal queue. |
-| internal.producer.flush.wait.for.acks.timeout.ms | \>= -1 | 0 | Set the maximum timeout for the producer to wait for broker acks when flushing the internal queue (see above). Set to **-1** for infinite timeout. |
+| internal.producer.wait.for.acks.timeout.ms | \>= -1 | 0 | If set, then the producer will wait up to the timeout specified when producing a message via `send()` or `post()`. Set to **-1** for infinite timeout. |
+| internal.producer.flush.wait.for.acks.timeout.ms | \>= -1 | 0 | If set, then the producer will wait up to the timeout specified when flushing the internal queue. Set to **-1** for infinite timeout. |
 | internal.producer.log.level | emergency, alert, critical, error, warning, notice, info, debug | info | Sets the log level for this producer. Note that if the rdkafka **debug** property is set, **internal.producer.log.level** will be automatically adjusted to **debug**.|
 | internal.producer.auto.throttle | true, false | false | When enabled, the producers will be automatically paused/resumed when throttled by broker. |
 | internal.producer.auto.throttle.multiplier | \>= 1 | 1 | Change this value to pause the producer by **\<throttle time\> x multiplier** ms instead. This only works if **internal.producer.auto.throttle=true**. |

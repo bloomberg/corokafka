@@ -79,11 +79,11 @@ struct ConsumerTopicEntry : TopicEntry {
     bool                            _skipUnknownHeaders{true};
     quantum::ThreadContext<int>::Ptr _pollFuture{nullptr};
     size_t                          _batchSize{100};
-    std::chrono::milliseconds       _pollTimeout{0};
+    std::chrono::milliseconds       _pollTimeout{(int)TimerValues::Disabled};
     std::pair<int,int>              _coroQueueIdRangeForAny;
     std::pair<int,int>              _receiveCallbackThreadRange;
     ExecMode                        _receiveCallbackExec{ExecMode::Async};
-    bool                            _receiveOnIoThread{true};
+    ThreadType                      _receiverThread{ThreadType::IO};
     bool                            _autoOffsetPersist{true};
     bool                            _autoOffsetPersistOnException{false};
     OffsetPersistStrategy           _autoOffsetPersistStrategy{OffsetPersistStrategy::Store};
@@ -93,7 +93,7 @@ struct ConsumerTopicEntry : TopicEntry {
     quantum::ICoroFuture<std::vector<cppkafka::Message>>::Ptr _messagePrefetchFuture;
     Callbacks::PreprocessorCallback _preprocessorCallback;
     bool                            _preprocess{true};
-    bool                            _preprocessOnIoThread{true};
+    ThreadType                      _preprocessorThread{ThreadType::IO};
     ThrottleControl                 _throttleControl;
 };
 

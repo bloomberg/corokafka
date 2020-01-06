@@ -334,10 +334,10 @@ ProducerManagerImpl::post(const TOPIC& topic,
 {
     ProducerTopicEntry& topicEntry = findProducer(topic.topic())->second;
     if (topicEntry._payloadPolicy == cppkafka::Producer::PayloadPolicy::PASSTHROUGH_PAYLOAD) {
-        throw ProducerException(topic, "Invalid async operation for pass-through payload policy - use send() instead.");
+        throw ProducerException(topic.topic(), "Invalid async operation for pass-through payload policy - use send() instead.");
     }
     if (topicEntry._preserveMessageOrder && (topicEntry._producer->get_buffer_size() > topicEntry._maxQueueLength)) {
-        throw ProducerException(topic, "Internal queue full");
+        throw ProducerException(topic.topic(), "Internal queue full");
     }
     quantum::Promise<DeliveryReport> deliveryPromise;
     quantum::GenericFuture<DeliveryReport> deliveryFuture;

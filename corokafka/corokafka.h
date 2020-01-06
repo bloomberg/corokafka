@@ -28,6 +28,7 @@
 #include <corokafka/corokafka_consumer_topic_entry.h>
 #include <corokafka/corokafka_delivery_report.h>
 #include <corokafka/corokafka_deserializer.h>
+#include <corokafka/corokafka_exception.h>
 #include <corokafka/corokafka_header_pack.h>
 #include <corokafka/corokafka_header_ref.h>
 #include <corokafka/corokafka_headers.h>
@@ -49,6 +50,7 @@
 #include <corokafka/corokafka_utils.h>
 #include <corokafka/detail/corokafka_macros.h>
 #include <corokafka/utils/corokafka_interval_set.h>
+#include <corokafka/utils/corokafka_json_builder.h>
 #include <corokafka/utils/corokafka_offset_manager.h>
 
 #endif //BLOOMBERG_COROKAFKA_H

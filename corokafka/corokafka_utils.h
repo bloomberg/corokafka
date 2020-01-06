@@ -53,23 +53,34 @@ class Metadata;
 
 enum class KafkaType : char
 {
-    Consumer, Producer
+    Consumer,
+    Producer
 };
 enum class PartitionStrategy : char
 {
-    Static,     ///< Manually assigned partitions
-    Dynamic
-};  ///< Partitions are assigned by Kafka
+    Static,  ///< Manually assigned partitions
+    Dynamic  ///< Partitions are assigned by Kafka
+};
 enum class ExecMode : char
 {
     Sync,    ///< Execute synchronously
-    Async
-}; ///< Execute asynchronously
+    Async    ///< Execute asynchronously
+};
 enum class OffsetPersistStrategy : char
 {
     Commit,  ///< Commits the offset to the broker
-    Store
-}; ///< Stores locally in rdkafka
+    Store    ///< Stores locally in rdkafka
+};
+enum class ThreadType : char
+{
+    Coro,  ///< Thread used to run coroutines
+    IO     ///< Thread for IO completion
+};
+enum class TimerValues : char
+{
+    Disabled = -2,  ///< Not taking effect
+    Unlimited = -1  ///< Blocks indefinitely
+};
 
 cppkafka::LogLevel logLevelFromString(const std::string &level);
 
@@ -350,9 +361,6 @@ struct ProducerMessageBuilder : public cppkafka::ConcreteMessageBuilder<T>
     ProducerMessageBuilder() : cppkafka::ConcreteMessageBuilder<T>("") {}
     using cppkafka::ConcreteMessageBuilder<T>::ConcreteMessageBuilder;
 };
-
-//JSON macros
-#define J_START(name) "\""#name"\": {"
 
 } //namespace corokafka
 } //namespace Bloomberg

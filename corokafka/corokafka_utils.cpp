@@ -65,20 +65,30 @@ void handleException(const std::exception& ex,
                      const TopicConfiguration& config,
                      cppkafka::LogLevel level)
 {
-    cppkafka::CallbackInvoker<Callbacks::ErrorCallback> error_cb("error", config.getErrorCallback(), nullptr);
-    const cppkafka::HandleException* hex = dynamic_cast<const cppkafka::HandleException*>(&ex);
-    if (error_cb) {
-        if (hex) {
-            error_cb(metadata, hex->get_error(), hex->what(), nullptr);
+    cppkafka::CallbackInvoker<Callbacks::ErrorCallback> errorCallback("error", config.getErrorCallback(), nullptr);
+    if (errorCallback) {
+        if (const cppkafka::HandleException* except = dynamic_cast<const cppkafka::HandleException*>(&ex)) {
+            errorCallback(metadata, except->get_error(), except->what(), nullptr);
         }
-        else {
-            error_cb(metadata, RD_KAFKA_RESP_ERR_UNKNOWN, ex.what(), nullptr);
+        else if (metadata.getType() == KafkaType::Consumer) {
+            if (const cppkafka::ConsumerException *except = dynamic_cast<const cppkafka::ConsumerException *>(&ex)) {
+                errorCallback(metadata, except->get_error(), except->what(), nullptr);
+            }
+            else if (const cppkafka::QueueException *except = dynamic_cast<const cppkafka::QueueException *>(&ex)) {
+                errorCallback(metadata, except->get_error(), except->what(), nullptr);
+            }
+            else {
+                errorCallback(metadata, RD_KAFKA_RESP_ERR_UNKNOWN, ex.what(), nullptr);
+            }
+        }
+        else { //KafkaType == Producer
+            errorCallback(metadata, RD_KAFKA_RESP_ERR_UNKNOWN, ex.what(), nullptr);
         }
     }
     if (level >= cppkafka::LogLevel::LogErr) {
-        cppkafka::CallbackInvoker<Callbacks::LogCallback> logger_cb("log", config.getLogCallback(), nullptr);
-        if (logger_cb) {
-            logger_cb(metadata, cppkafka::LogLevel::LogErr, "corokafka", ex.what());
+        cppkafka::CallbackInvoker<Callbacks::LogCallback> logCallback("log", config.getLogCallback(), nullptr);
+        if (logCallback) {
+            logCallback(metadata, cppkafka::LogLevel::LogErr, "corokafka", ex.what());
         }
     }
 }

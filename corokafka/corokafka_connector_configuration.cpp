@@ -48,21 +48,14 @@ void ConnectorConfiguration::init()
     
     const cppkafka::ConfigurationOption* pollInterval = Configuration::getOption(Options::pollIntervalMs);
     if (pollInterval) {
-        int value = std::stoi(pollInterval->get_value());
-        if (value <= 0) {
-            throw ConfigurationException("Poll interval must be greater than 0");
-        }
-        _pollInterval = std::chrono::milliseconds(value);
+        _pollInterval = std::chrono::milliseconds(
+            Configuration::extractCounterValue({}, Options::pollIntervalMs, *pollInterval, 1));
     }
     
-    const cppkafka::ConfigurationOption* maxPayloadLength =
-        Configuration::getOption(Options::maxPayloadOutputLength);
+    const cppkafka::ConfigurationOption* maxPayloadLength = Configuration::getOption(Options::maxPayloadOutputLength);
     if (maxPayloadLength) {
-        int value = std::stoi(maxPayloadLength->get_value());
-        if (value < -1) {
-            throw ConfigurationException("Max payload length value must be >= -1");
-        }
-        _maxMessagePayloadLength = value;
+        _maxMessagePayloadLength =
+            Configuration::extractCounterValue({}, Options::maxPayloadOutputLength, *maxPayloadLength, -1);
     }
 }
 

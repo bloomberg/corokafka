@@ -20,6 +20,7 @@
 #include <corokafka/corokafka_utils.h>
 #include <set>
 #include <initializer_list>
+#include <limits>
 
 namespace Bloomberg {
 namespace corokafka {
@@ -87,6 +88,15 @@ protected:
     static void parseOptions(const std::string& optionsPrefix,
                              const OptionSet& allowed,
                              OptionList(&optionList)[3]);
+    
+    static bool extractBooleanValue(const std::string& topic,
+                                    const char* optionName,
+                                    const cppkafka::ConfigurationOption& option);
+    static ssize_t extractCounterValue(const std::string& topic,
+                                       const char* optionName,
+                                       const cppkafka::ConfigurationOption& option,
+                                       ssize_t minAllowed = 0,
+                                       ssize_t maxAllowed = std::numeric_limits<ssize_t>::max());
     // Members
     OptionList  _options[3];
 };

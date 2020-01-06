@@ -16,6 +16,9 @@ public:
         _ostream << std::boolalpha << "{ ";
     }
     JsonBuilder& startMember(const char* name) {
+        if (!_firstMember) {
+            _ostream << ", ";
+        }
         _ostream << "\"" << name << "\": { ";
         return *this;
     }
@@ -50,6 +53,7 @@ public:
     }
     JsonBuilder& endMember() {
         _firstField = true; //reset flag
+        _firstMember = false;
         end();
         return *this;
     }
@@ -67,6 +71,7 @@ private:
     }
     std::ostream&   _ostream;
     bool            _firstField{true};
+    bool            _firstMember{true};
 };
 
 }
