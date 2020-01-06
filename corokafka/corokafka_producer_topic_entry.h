@@ -65,10 +65,8 @@ struct ProducerTopicEntry : TopicEntry {
     ProducerPtr                         _producer;
     size_t                              _topicHash{0};
     quantum::ThreadFuturePtr<int>       _pollFuture{nullptr};
-    bool                                _waitForAcks{false};
-    bool                                _flushWaitForAcks{rd_kafka_version() >= RD_KAFKA_ZERO_TIMEOUT_FLUSH_FIX ? false : true};
-    std::chrono::milliseconds           _waitForAcksTimeout{0};
-    std::chrono::milliseconds           _flushWaitForAcksTimeout{rd_kafka_version() >= RD_KAFKA_ZERO_TIMEOUT_FLUSH_FIX ? 0 : 100};
+    std::chrono::milliseconds           _waitForAcksTimeout{(int)TimerValues::Disabled};
+    std::chrono::milliseconds           _flushWaitForAcksTimeout{rd_kafka_version() >= RD_KAFKA_ZERO_TIMEOUT_FLUSH_FIX ? (int)TimerValues::Disabled : 100};
     bool                                _forceSyncFlush{false};
     bool                                _preserveMessageOrder{false};
     cppkafka::Producer::PayloadPolicy   _payloadPolicy{cppkafka::Producer::PayloadPolicy::COPY_PAYLOAD};

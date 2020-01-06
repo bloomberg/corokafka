@@ -16,6 +16,7 @@
 #ifndef BLOOMBERG_COROKAFKA_UTILS_H
 #define BLOOMBERG_COROKAFKA_UTILS_H
 
+#include <corokafka/utils/corokafka_json_builder.h>
 #include <cppkafka/cppkafka.h>
 #include <quantum/quantum.h>
 #include <functional>
@@ -46,29 +47,40 @@ namespace std
 namespace Bloomberg {
 namespace corokafka {
 
-class Configuration;
-
+// Forward types
+class TopicConfiguration;
 class Metadata;
 
 enum class KafkaType : char
 {
-    Consumer, Producer
+    Consumer,
+    Producer
 };
 enum class PartitionStrategy : char
 {
-    Static,     ///< Manually assigned partitions
-    Dynamic
-};  ///< Partitions are assigned by Kafka
+    Static,  ///< Manually assigned partitions
+    Dynamic  ///< Partitions are assigned by Kafka
+};
 enum class ExecMode : char
 {
     Sync,    ///< Execute synchronously
-    Async
-}; ///< Execute asynchronously
+    Async    ///< Execute asynchronously
+};
 enum class OffsetPersistStrategy : char
 {
     Commit,  ///< Commits the offset to the broker
-    Store
-}; ///< Stores locally in rdkafka
+    Store    ///< Stores locally in rdkafka
+};
+enum class ThreadType : char
+{
+    Coro,  ///< Thread used to run coroutines
+    IO     ///< Thread for IO completion
+};
+enum class TimerValues : char
+{
+    Disabled = -2,  ///< Not taking effect
+    Unlimited = -1  ///< Blocks indefinitely
+};
 
 cppkafka::LogLevel logLevelFromString(const std::string &level);
 
@@ -88,9 +100,7 @@ struct is_empty<Empty>
     constexpr static bool value{true};
 };
 
-ssize_t getMaxMessageBuilderOutputLength();
-
-void setMaxMessageBuilderOutputLength(ssize_t length);
+ssize_t& maxMessageBuilderOutputLength();
 
 struct TopicEntry
 {
@@ -98,7 +108,7 @@ struct TopicEntry
 
 void handleException(const std::exception &ex,
                      const Metadata &metadata,
-                     const Configuration &config,
+                     const TopicConfiguration &config,
                      cppkafka::LogLevel level);
 
 using ByteArray = std::vector<uint8_t>;
@@ -199,19 +209,20 @@ std::unique_ptr<T, DT> unique_pointer_cast(VoidPtr &&base, DT &&d = DT())
 template <typename C>
 std::ostream &operator<<(std::ostream &stream, const cppkafka::BasicMessageBuilder<std::string, C> &builder)
 {
-    ssize_t max_len = getMaxMessageBuilderOutputLength();
+    ssize_t max_len = maxMessageBuilderOutputLength();
     size_t payload_len = (max_len == -1) ? builder.payload().size() :
                          std::min(builder.payload().size(), (size_t) max_len);
-    stream << "{ \"messageBuilder\": { "
-           << "\"topic\": \"" << builder.topic() << "\", "
-           << "\"partition\": " << builder.partition() << ", "
-           << "\"key\": \"" << builder.key() << "\", "
-           << "\"length\": " << builder.payload().size() << ", "
-           << "\"payload\": \"" << builder.payload().substr(0, payload_len) << "\"";
+    JsonBuilder json(stream);
+    json.startMember("messageBuilder").
+        tag("topic", builder.topic()).
+        tag("partition", builder.partition()).
+        tag("key", builder.key()).
+        tag("length", builder.payload().size()).
+        tag("payload", builder.payload().substr(0, payload_len));
     if (builder.timestamp().count() > 0) {
-        stream << ", \"timestamp\": \"" << builder.timestamp().count() << "\"";
+        json.tag("timestamp", builder.timestamp().count());
     }
-    stream << " } }";
+    json.endMember().end();
     return stream;
 }
 
@@ -219,38 +230,40 @@ template <typename C>
 std::ostream &operator<<(std::ostream &stream,
                          const cppkafka::BasicMessageBuilder<std::vector<unsigned char>, C> &builder)
 {
-    ssize_t max_len = getMaxMessageBuilderOutputLength();
+    ssize_t max_len = maxMessageBuilderOutputLength();
     size_t payload_len = (max_len == -1) ? builder.payload().size() :
                          std::min(builder.payload().size(), (size_t) max_len);
-    stream << "{ \"messageBuilder\": { "
-           << "\"topic\": \"" << builder.topic() << "\", "
-           << "\"partition\": " << builder.partition() << ", "
-           << "\"key\": \"" << std::string(builder.key().data(), builder.key().size()) << "\", "
-           << "\"length\": " << std::string(builder.payload().data(), payload_len) << ", "
-           << "\"payload\": \"" << builder.payload().substr(0, payload_len) << "\"";
+    JsonBuilder json(stream);
+    json.startMember("messageBuilder").
+        tag("topic", builder.topic()).
+        tag("partition", builder.partition()).
+        tag("key", std::string(builder.key().data(), builder.key().size())).
+        tag("length", std::string(builder.payload().data(), payload_len)).
+        tag("payload", builder.payload().substr(0, payload_len));
     if (builder.timestamp().count() > 0) {
-        stream << ", \"timestamp\": \"" << builder.timestamp().count() << "\"";
+        json.tag("timestamp", builder.timestamp().count());
     }
-    stream << " } }";
+    json.endMember().end();
     return stream;
 }
 
 template <typename C>
 std::ostream& operator<<(std::ostream& stream,
                          const cppkafka::BasicMessageBuilder<cppkafka::Buffer, C> &builder) {
-    ssize_t max_len = getMaxMessageBuilderOutputLength();
+    ssize_t max_len = maxMessageBuilderOutputLength();
     size_t payload_len = (max_len == -1) ? builder.payload().get_size() :
                          std::min(builder.payload().get_size(), (size_t)max_len);
-    stream << "{ \"messageBuilder\": { "
-           << "\"topic\": \"" << builder.topic() << "\", "
-           << "\"partition\": " << builder.partition() << ", "
-           << "\"key\": \"" << (std::string)builder.key() << "\", "
-           << "\"length\": " << builder.payload().get_size() << ", "
-           << "\"payload\": \"" << std::string((const char*)builder.payload().get_data(), payload_len) << "\"";
+    JsonBuilder json(stream);
+    json.startMember("messageBuilder").
+        tag("topic", builder.topic()).
+        tag("partition", builder.partition()).
+        tag("key", (std::string)builder.key()).
+        tag("length", builder.payload().get_size()).
+        tag("payload", std::string((const char*)builder.payload().get_data(), payload_len));
     if (builder.timestamp().count() > 0) {
-        stream << ", \"timestamp\": \"" << builder.timestamp().count() << "\"";
+        json.tag("timestamp", builder.timestamp().count());
     }
-    stream << " } }";
+    json.endMember().end();
     return stream;
 }
 

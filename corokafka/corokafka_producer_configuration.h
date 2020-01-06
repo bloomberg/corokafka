@@ -18,7 +18,7 @@
 
 #include <corokafka/corokafka_callbacks.h>
 #include <corokafka/corokafka_utils.h>
-#include <corokafka/corokafka_configuration.h>
+#include <corokafka/corokafka_topic_configuration.h>
 #include <corokafka/corokafka_topic.h>
 
 namespace Bloomberg {
@@ -35,10 +35,32 @@ namespace corokafka {
  *        At a minimum, the user should supply a 'metadata.broker.list' in the constructor 'options'
  *        as well as a key and a payload serializer callback.
  */
-class ProducerConfiguration : public Configuration
+class ProducerConfiguration : public TopicConfiguration
 {
-    friend class Configuration;
+    friend class TopicConfiguration;
 public:
+    /**
+     * @brief Internal CoroKafka-specific options for the producer. They are used to control this
+     *        library's behavior for producers and are complementary to the RdKafka producer options.
+     *        For more details please read CONFIGURATION.md document.
+     */
+    struct Options
+    {
+        static constexpr const char* autoThrottle =                 "internal.producer.auto.throttle";
+        static constexpr const char* autoThrottleMultiplier =       "internal.producer.auto.throttle.multiplier";
+        static constexpr const char* flushWaitForAcks =             "internal.producer.flush.wait.for.acks";
+        static constexpr const char* flushWaitForAcksTimeoutMs =    "internal.producer.flush.wait.for.acks.timeout.ms";
+        static constexpr const char* logLevel =                     "internal.producer.log.level";
+        static constexpr const char* maxQueueLength =               "internal.producer.max.queue.length";
+        static constexpr const char* payloadPolicy =                "internal.producer.payload.policy";
+        static constexpr const char* preserveMessageOrder =         "internal.producer.preserve.message.order";
+        static constexpr const char* queueFullNotification =        "internal.producer.queue.full.notification";
+        static constexpr const char* retries =                      "internal.producer.retries";
+        static constexpr const char* timeoutMs =                    "internal.producer.timeout.ms";
+        static constexpr const char* waitForAcks =                  "internal.producer.wait.for.acks";
+        static constexpr const char* waitForAcksTimeoutMs =         "internal.producer.wait.for.acks.timeout.ms";
+    };
+    
     /**
      * @brief Create a producer configuration.
      * @param topic The topic to which this configuration applies.
@@ -47,8 +69,11 @@ public:
      * @note 'metadata.broker.list' must be supplied in 'options'.
      */
     ProducerConfiguration(const std::string& topicName,
-                          Options options,
-                          Options topicOptions);
+                          Configuration::OptionList options,
+                          Configuration::OptionList topicOptions);
+    ProducerConfiguration(const std::string& topicName,
+                          std::initializer_list<cppkafka::ConfigurationOption> options,
+                          std::initializer_list<cppkafka::ConfigurationOption> topicOptions);
     
     /**
      * @brief Set the delivery report callback.

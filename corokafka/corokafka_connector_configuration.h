@@ -31,9 +31,34 @@ namespace corokafka {
  * @brief The ConnectorConfiguration is a builder class which contains generic
  *        configuration options for the library as a whole.
  */
-class ConnectorConfiguration
+class ConnectorConfiguration : public Configuration
 {
+    friend class Configuration;
+    friend class ConnectorImpl;
 public:
+    /**
+     * @brief Internal CoroKafka-specific options for the connector.
+     *        See CONFIGURATION.md for more details.
+     */
+    struct Options
+    {
+        static constexpr const char* pollIntervalMs =           "internal.connector.poll.interval.ms";
+        static constexpr const char* maxPayloadOutputLength =   "internal.connector.max.payload.output.length";
+    };
+    
+    /**
+     * @brief Default constructor
+     */
+    ConnectorConfiguration() = default;
+    
+    /**
+     * @brief Creates a connector object using the supplied options.
+     * @param options The connector options (see 'Options' above).
+     * @remark No RdKafka option should be passed here.
+     */
+    explicit ConnectorConfiguration(Configuration::OptionList options);
+    explicit ConnectorConfiguration(std::initializer_list<cppkafka::ConfigurationOption> options);
+    
     /**
      * @brief Set the dispatcher configuration
      * @param config The configuration
@@ -45,32 +70,6 @@ public:
      * @return A reference to the configuration object.
      */
     const quantum::Configuration& getDispatcherConfiguration() const;
-    
-    /**
-     * @brief Set the internal poll interval for both consumers and producers.
-     * @param interval The interval in milliseconds. Default is 100.
-     * @remark Polling of all registered consumers and producers is done in parallel at each interval.
-     */
-    void setPollInterval(std::chrono::milliseconds interval);
-    
-    /**
-     * @brief Get the configured poll interval.
-     * @return The interval.
-     */
-    const std::chrono::milliseconds& getPollInterval() const;
-    
-    /**
-     * @brief Sets the length of the serialized message to be printed when an internal error occurs.
-     * @param length The length in bytes. Default is 100. -1 prints the entire message.
-     * @remark If a log callback is set, the message length will be respected when invoking it.
-     */
-    void setMaxMessagePayloadOutputLength(ssize_t length);
-    
-    /**
-     * @brief Get the maximum message length to be printed when an internal error occurs.
-     * @return The message length.
-     */
-    ssize_t getMaxMessagePayloadOutputLength() const;
     
     /**
      * @brief Set the log callback used for the connector.
@@ -86,10 +85,16 @@ public:
     const Callbacks::ConnectorLogCallback& getLogCallback() const;
     
 private:
-    std::chrono::milliseconds       _pollInterval{100};
-    ssize_t                         _maxMessagePayloadLength{100};
-    quantum::Configuration          _dispatcherConfig;
-    Callbacks::ConnectorLogCallback _logCallback;
+    void init();
+    const std::chrono::milliseconds& getPollInterval() const;
+    ssize_t getMaxMessagePayloadOutputLength() const;
+    
+    std::chrono::milliseconds               _pollInterval{100};
+    ssize_t                                 _maxMessagePayloadLength{100};
+    quantum::Configuration                  _dispatcherConfig;
+    Callbacks::ConnectorLogCallback         _logCallback;
+    static const OptionSet                  s_internalOptions;
+    static const std::string                s_internalOptionsPrefix;
 };
 
 }

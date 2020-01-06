@@ -14,8 +14,7 @@
 ** limitations under the License.
 */
 #include <corokafka/corokafka_configuration.h>
-#include <corokafka/corokafka_producer_configuration.h>
-#include <corokafka/corokafka_consumer_configuration.h>
+#include <corokafka/corokafka_exception.h>
 
 namespace Bloomberg {
 namespace corokafka {
@@ -30,25 +29,6 @@ const std::string& Configuration::getJsonSchema()
         "$schema" : "http://json-schema.org/draft-04/schema#",
         "$id" : "bloomberg:corokafka.json",
         "definitions": {
-            "connector": {
-                "title": "CoroKafka configuration",
-                "type": "object",
-                "properties": {
-                    "pollIntervalMs": {
-                        "type":"number",
-                        "default":100
-                    },
-                    "maxMessagePayloadOutputLength": {
-                        "type":"number",
-                        "default":100
-                    },
-                    "quantum": {
-                        "$ref": "bloomberg:quantum.json"
-                    },
-                },
-                "additionalProperties": false,
-                "required": []
-            },
             "option": {
                 "title": "Internal options for corokafka, cppkafka and rdkafka",
                 "type": "object",
@@ -62,6 +42,21 @@ const std::string& Configuration::getJsonSchema()
                         "examples": ["metadata.broker.list", "internal.producer.payload.policy"]
                     }
                 }
+            },
+            "connector": {
+                "title": "CoroKafka connector configuration",
+                "type": "object",
+                "properties": {
+                    "options": {
+                        "description": "The options for this connector",
+                        "$ref" : "#/definitions/option"
+                    },
+                    "quantum": {
+                        "$ref": "bloomberg:quantum.json"
+                    },
+                },
+                "additionalProperties": false,
+                "required": []
             },
             "partition": {
                 "title": "A kafka partition",
@@ -184,93 +179,19 @@ const std::string& Configuration::getJsonSchemaUri()
     return uri;
 }
 
-Configuration::Configuration(KafkaType type,
-                             const std::string& topic,
-                             Options options,
-                             Options topicOptions) :
-    _type(type),
-    _topic(topic)
+Configuration::Configuration(OptionList options)
 {
     _options[(int)OptionType::All] = std::move(options);
-    _topicOptions[(int)OptionType::All] = std::move(topicOptions);
-    filterOptions();
 }
 
-Configuration::Configuration(KafkaType type,
-                             const std::string& topic,
-                             std::initializer_list<cppkafka::ConfigurationOption> options,
-                             std::initializer_list<cppkafka::ConfigurationOption> topicOptions) :
-    _type(type),
-    _topic(topic)
+Configuration::Configuration(std::initializer_list<cppkafka::ConfigurationOption> options)
 {
     _options[(int)OptionType::All] = std::move(options);
-    _topicOptions[(int)OptionType::All] = std::move(topicOptions);
-    filterOptions();
 }
 
-KafkaType Configuration::configType() const
-{
-    return _type;
-}
-
-const std::string& Configuration::getTopic() const
-{
-    return _topic;
-}
-
-const Configuration::Options& Configuration::getOptions(OptionType type) const
+const Configuration::OptionList& Configuration::getOptions(OptionType type) const
 {
     return _options[(int)type];
-}
-
-const Configuration::Options& Configuration::getTopicOptions(OptionType type) const
-{
-    return _topicOptions[(int)type];
-}
-
-void Configuration::setErrorCallback(Callbacks::ErrorCallback callback)
-{
-    _errorCallback = std::move(callback);
-}
-
-void Configuration::setThrottleCallback(Callbacks::ThrottleCallback callback)
-{
-    _throttleCallback = std::move(callback);
-}
-
-void Configuration::setLogCallback(Callbacks::LogCallback callback)
-{
-    _logCallback = std::move(callback);
-}
-
-void Configuration::setStatsCallback(Callbacks::StatsCallback callback)
-{
-    _statsCallback = std::move(callback);
-}
-
-bool Configuration::operator<(const Configuration& other) const
-{
-    return _topic < other._topic;
-}
-
-const Callbacks::ErrorCallback& Configuration::getErrorCallback() const
-{
-    return _errorCallback;
-}
-
-const Callbacks::ThrottleCallback& Configuration::getThrottleCallback() const
-{
-    return _throttleCallback;
-}
-
-const Callbacks::LogCallback& Configuration::getLogCallback() const
-{
-    return _logCallback;
-}
-
-const Callbacks::StatsCallback& Configuration::getStatsCallback() const
-{
-    return _statsCallback;
 }
 
 const cppkafka::ConfigurationOption* Configuration::getOption(const std::string& name) const
@@ -278,13 +199,8 @@ const cppkafka::ConfigurationOption* Configuration::getOption(const std::string&
     return findOption(name, _options[(int)OptionType::All]);
 }
 
-const cppkafka::ConfigurationOption* Configuration::getTopicOption(const std::string& name) const
-{
-    return findOption(name, _topicOptions[(int)OptionType::All]);
-}
-
 const cppkafka::ConfigurationOption* Configuration::findOption(const std::string& name,
-                                                     const Options& config)
+                                                               const OptionList& config)
 {
     const auto it = std::find_if(config.cbegin(), config.cend(),
                                  [&name](const cppkafka::ConfigurationOption& config)->bool {
@@ -296,52 +212,68 @@ const cppkafka::ConfigurationOption* Configuration::findOption(const std::string
     return nullptr;
 }
 
-void Configuration::filterOptions()
+void Configuration::parseOptions(const std::string& optionsPrefix,
+                                 const OptionSet& allowed,
+                                 OptionList(&optionList)[3])
 {
-    const std::string& internalOptionsPrefix = (_type == KafkaType::Producer) ?
-        ProducerConfiguration::s_internalOptionsPrefix : ConsumerConfiguration::s_internalOptionsPrefix;
+    OptionList& internal = optionList[(int)OptionType::Internal];
+    OptionList& rdKafka = optionList[(int)OptionType::RdKafka];
+    const OptionList& config = optionList[(int)OptionType::All];
     
-    auto parse = [&internalOptionsPrefix](const OptionSet& allowed, Options& internal, Options& external, const Options& config)
-    {
-        if (!allowed.empty()) {
-            for (const auto& option : config) {
-                if (StringEqualCompare()(option.get_key(), internalOptionsPrefix, internalOptionsPrefix.length())) {
-                    auto it = allowed.find(option.get_key());
-                    if (it == allowed.end()) {
-                        std::ostringstream oss;
-                        oss << "Invalid option found: " << option.get_key();
-                        throw std::runtime_error(oss.str().c_str());
-                    }
-                    //this is an internal option
-                    internal.emplace_back(option);
+    if (!allowed.empty()) {
+        for (const auto& option : config) {
+            if (StringEqualCompare()(option.get_key(), optionsPrefix, optionsPrefix.length())) {
+                auto it = allowed.find(option.get_key());
+                if (it == allowed.end()) {
+                    throw InvalidOptionException(option.get_key(), "Invalid");
                 }
-                else {
-                    //rdkafka option
-                    external.emplace_back(option);
-                }
+                //this is an internal option
+                internal.emplace_back(option);
+            }
+            else {
+                //rdkafka option
+                rdKafka.emplace_back(option);
             }
         }
-        else {
-            external.assign(std::make_move_iterator(config.begin()),
-                            std::make_move_iterator(config.end()));
+    }
+    else {
+        rdKafka.assign(std::make_move_iterator(config.begin()),
+                       std::make_move_iterator(config.end()));
+    }
+}
+
+bool Configuration::extractBooleanValue(const std::string& topic,
+                                        const char* optionName,
+                                        const cppkafka::ConfigurationOption& option)
+{
+    if (StringEqualCompare()(option.get_value(), "true")) {
+        return true;
+    }
+    else if (StringEqualCompare()(option.get_value(), "false")) {
+        return false;
+    }
+    else {
+        if (topic.empty()) {
+            throw InvalidOptionException(optionName, option.get_value());
         }
-    };
-    
-    // Consumer/Producer options parsing
-    const OptionSet& internalOptions = (_type == KafkaType::Producer) ?
-        ProducerConfiguration::s_internalOptions : ConsumerConfiguration::s_internalOptions;
-    parse(internalOptions,
-          _options[(int)OptionType::Internal],
-          _options[(int)OptionType::RdKafka],
-          _options[(int)OptionType::All]);
-    
-    // Topic options parsing
-    const OptionSet& internalTopicOptions = (_type == KafkaType::Producer) ?
-        ProducerConfiguration::s_internalTopicOptions : ConsumerConfiguration::s_internalTopicOptions;
-    parse(internalTopicOptions,
-          _topicOptions[(int)OptionType::Internal],
-          _topicOptions[(int)OptionType::RdKafka],
-          _topicOptions[(int)OptionType::All]);
+        throw InvalidOptionException(topic, optionName, option.get_value());
+    }
+}
+
+ssize_t Configuration::extractCounterValue(const std::string& topic,
+                                           const char* optionName,
+                                           const cppkafka::ConfigurationOption& option,
+                                           ssize_t minAllowed,
+                                           ssize_t maxAllowed)
+{
+    ssize_t value = std::stoll(option.get_value());
+    if ((value < minAllowed) || (value > maxAllowed)) {
+        if (topic.empty()) {
+            throw InvalidOptionException(optionName, option.get_value());
+        }
+        throw InvalidOptionException(topic, optionName, option.get_value());
+    }
+    return value;
 }
 
 }

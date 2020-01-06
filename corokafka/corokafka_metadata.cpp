@@ -14,6 +14,7 @@
 ** limitations under the License.
 */
 #include <corokafka/corokafka_metadata.h>
+#include <corokafka/corokafka_exception.h>
 
 namespace Bloomberg {
 namespace corokafka {
@@ -49,7 +50,7 @@ const std::string& Metadata::getTopic() const
 const cppkafka::Topic& Metadata::getTopicObject() const
 {
     if (!_handle) {
-        throw std::runtime_error("Null handle");
+        throw HandleException("Null");
     }
     if (!_kafkaTopic) {
         _kafkaTopic = _handle->get_topic(_topic);
@@ -60,7 +61,7 @@ const cppkafka::Topic& Metadata::getTopicObject() const
 cppkafka::TopicMetadata Metadata::getTopicMetadata() const
 {
     if (!_handle) {
-        throw std::runtime_error("Null handle");
+        throw HandleException("Null");
     }
     return _handle->get_metadata(getTopicObject());
 }
@@ -68,7 +69,7 @@ cppkafka::TopicMetadata Metadata::getTopicMetadata() const
 std::string Metadata::getInternalName() const
 {
     if (!_handle) {
-        throw std::runtime_error("Null handle");
+        throw HandleException("Null");
     }
     return _handle->get_name();
 }

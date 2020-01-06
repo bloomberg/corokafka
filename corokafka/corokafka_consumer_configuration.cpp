@@ -24,40 +24,46 @@ namespace corokafka {
 const std::string ConsumerConfiguration::s_internalOptionsPrefix = "internal.consumer.";
 
 const Configuration::OptionSet ConsumerConfiguration::s_internalOptions = {
-    "internal.consumer.read.size",
-    "internal.consumer.auto.offset.persist",
-    "internal.consumer.auto.offset.persist.on.exception",
-    "internal.consumer.offset.persist.strategy",
-    "internal.consumer.commit.exec",
-    "internal.consumer.commit.backoff.strategy",
-    "internal.consumer.commit.backoff.interval.ms",
-    "internal.consumer.commit.max.backoff.ms",
-    "internal.consumer.commit.num.retries",
-    "internal.consumer.pause.on.start",
-    "internal.consumer.poll.strategy",
-    "internal.consumer.receive.callback.thread.range.low",
-    "internal.consumer.receive.callback.thread.range.high",
-    "internal.consumer.receive.callback.exec",
-    "internal.consumer.timeout.ms",
-    "internal.consumer.poll.timeout.ms",
-    "internal.consumer.batch.prefetch",
-    "internal.consumer.log.level",
-    "internal.consumer.skip.unknown.headers",
-    "internal.consumer.auto.throttle",
-    "internal.consumer.auto.throttle.multiplier",
-    "internal.consumer.preprocess.messages",
-    "internal.consumer.preprocess.invoke.thread",
-    "internal.consumer.receive.invoke.thread"
+    Options::autoOffsetPersist,
+    Options::autoOffsetPersistOnException,
+    Options::autoThrottle,
+    Options::autoThrottleMultiplier,
+    Options::batchPrefetch,
+    Options::commitBackoffStrategy,
+    Options::commitBackoffIntervalMs,
+    Options::commitExec,
+    Options::commitMaxBackoffMs,
+    Options::commitNumRetries,
+    Options::logLevel,
+    Options::offsetPersistStrategy,
+    Options::pauseOnStart,
+    Options::pollStrategy,
+    Options::pollTimeoutMs,
+    Options::preprocessMessages,
+    Options::preprocessInvokeThread,
+    Options::readSize,
+    Options::receiveCallbackExec,
+    Options::receiveCallbackThreadRangeLow,
+    Options::receiveCallbackThreadRangeHigh,
+    Options::receiveInvokeThread,
+    Options::skipUnknownHeaders,
+    Options::timeoutMs
 };
 
 const Configuration::OptionSet ConsumerConfiguration::s_internalTopicOptions;
 
 ConsumerConfiguration::ConsumerConfiguration(const std::string& topic,
-                                             Options options,
-                                             Options topicOptions) :
-    Configuration(KafkaType::Consumer, topic, std::move(options), std::move(topicOptions))
+                                             Configuration::OptionList options,
+                                             Configuration::OptionList topicOptions) :
+    TopicConfiguration(KafkaType::Consumer, topic, std::move(options), std::move(topicOptions))
 {
+}
 
+ConsumerConfiguration::ConsumerConfiguration(const std::string& topic,
+                                             std::initializer_list<cppkafka::ConfigurationOption> options,
+                                             std::initializer_list<cppkafka::ConfigurationOption> topicOptions) :
+    TopicConfiguration(KafkaType::Consumer, topic, std::move(options), std::move(topicOptions))
+{
 }
 
 PartitionStrategy ConsumerConfiguration::getPartitionStrategy() const
@@ -74,7 +80,7 @@ void ConsumerConfiguration::assignInitialPartitions(PartitionStrategy strategy,
                                                     cppkafka::TopicPartitionList partitions)
 {
     if ((strategy == PartitionStrategy::Static) && partitions.empty()) {
-        throw std::invalid_argument("Initial partition assignment is empty");
+        throw ConfigurationException(getTopic(), "Initial partition assignment is empty");
     }
     _strategy = strategy;
     _initialPartitionList = std::move(partitions);
@@ -118,7 +124,7 @@ const TypeErasedDeserializer& ConsumerConfiguration::getTypeErasedDeserializer()
 const Receiver& ConsumerConfiguration::getTypeErasedReceiver() const
 {
     if (!_receiver) {
-        throw std::runtime_error(std::string("Receiver callback not set for topic ") + getTopic());
+        throw ConfigurationException(getTopic(), "Receiver callback not set");
     }
     return *_receiver;
 }

@@ -44,8 +44,8 @@ public:
      * @param config The producer or consumer configuration.
      * @return A reference to self for chaining purposes.
      */
-    ConfigurationBuilder& operator()(const Configuration& config);
-    ConfigurationBuilder& operator()(Configuration&& config);
+    ConfigurationBuilder& operator()(const TopicConfiguration& config);
+    ConfigurationBuilder& operator()(TopicConfiguration&& config);
     
     /**
      * @brief The connector configuration.

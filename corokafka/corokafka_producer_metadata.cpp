@@ -14,6 +14,7 @@
 ** limitations under the License.
 */
 #include <corokafka/corokafka_producer_metadata.h>
+#include <corokafka/corokafka_exception.h>
 
 namespace Bloomberg {
 namespace corokafka {
@@ -50,7 +51,7 @@ const cppkafka::TopicPartitionList& ProducerMetadata::getTopicPartitions() const
 Metadata::OffsetWatermarkList ProducerMetadata::queryOffsetWatermarks() const
 {
     if (!_handle) {
-        throw std::runtime_error("Null producer");
+        throw HandleException("Null producer");
     }
     OffsetWatermarkList offsets;
     for (const auto& partition : getTopicPartitions()) {
@@ -62,7 +63,7 @@ Metadata::OffsetWatermarkList ProducerMetadata::queryOffsetWatermarks() const
 cppkafka::TopicPartitionList ProducerMetadata::queryOffsetsAtTime(Timestamp timestamp) const
 {
     if (!_handle) {
-        throw std::runtime_error("Null producer");
+        throw HandleException("Null producer");
     }
     cppkafka::KafkaHandleBase::TopicPartitionsTimestampsMap timestampMap;
     std::chrono::milliseconds epochTime = timestamp.time_since_epoch();
@@ -75,7 +76,7 @@ cppkafka::TopicPartitionList ProducerMetadata::queryOffsetsAtTime(Timestamp time
 size_t ProducerMetadata::getOutboundQueueLength() const
 {
     if (!_handle) {
-        throw std::runtime_error("Null producer");
+        throw HandleException("Null producer");
     }
     return _handle->get_out_queue_length();
 }
@@ -83,7 +84,7 @@ size_t ProducerMetadata::getOutboundQueueLength() const
 size_t ProducerMetadata::getInternalQueueLength() const
 {
     if (!_handle) {
-        throw std::runtime_error("Null producer");
+        throw HandleException("Null producer");
     }
     return _bufferedProducer->get_buffer_size();
 }
