@@ -14,6 +14,7 @@
 ** limitations under the License.
 */
 #include <corokafka/corokafka_header_pack.h>
+#include <corokafka/corokafka_exception.h>
 
 namespace Bloomberg {
 namespace corokafka {
@@ -30,7 +31,7 @@ HeaderPack::HeaderPack(std::initializer_list<HeaderNode> list) :
 
 HeaderPack& HeaderPack::push_front(const std::string& name, boost::any&& header) {
     if (name.empty()) {
-        throw std::invalid_argument("Header name cannot be empty");
+        throw InvalidArgumentException(0, "Header name cannot be empty");
     }
     _headers.emplace_front(name, std::move(header));
     return *this;
@@ -38,7 +39,7 @@ HeaderPack& HeaderPack::push_front(const std::string& name, boost::any&& header)
 
 HeaderPack& HeaderPack::push_back(const std::string& name, boost::any&& header) {
     if (name.empty()) {
-        throw std::invalid_argument("Header name cannot be empty");
+        throw InvalidArgumentException(0, "Header name cannot be empty");
     }
     _headers.emplace_back(name, std::move(header));
     return *this;
@@ -111,7 +112,7 @@ HeaderPack::ListType::iterator HeaderPack::getImpl(const std::string& name, int 
     else {
         auto it = _headers.begin() + nameIndex;
         if (!StringEqualCompare()(it->first, name)) {
-            throw std::runtime_error("Header name mismatch. Found name is:" + it->first);
+            throw InvalidArgumentException(0, "Header name mismatch. Name found is:" + it->first);
         }
         return it;
     }

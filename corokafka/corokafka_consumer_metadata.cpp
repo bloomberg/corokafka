@@ -14,6 +14,7 @@
 ** limitations under the License.
 */
 #include <corokafka/corokafka_consumer_metadata.h>
+#include <corokafka/corokafka_exception.h>
 
 namespace Bloomberg {
 namespace corokafka {
@@ -42,7 +43,7 @@ ConsumerMetadata::ConsumerMetadata(const std::string& topic,
 Metadata::OffsetWatermarkList ConsumerMetadata::queryOffsetWatermarks() const
 {
     if (!_handle) {
-        throw std::runtime_error("Null consumer");
+        throw HandleException("Null consumer");
     }
     OffsetWatermarkList offsets;
     for (const auto& partition : getPartitionAssignment()) {
@@ -55,7 +56,7 @@ Metadata::OffsetWatermarkList ConsumerMetadata::queryOffsetWatermarks() const
 Metadata::OffsetWatermarkList ConsumerMetadata::getOffsetWatermarks() const
 {
     if (!_handle) {
-        throw std::runtime_error("Null consumer");
+        throw HandleException("Null consumer");
     }
     OffsetWatermarkList offsets;
     for (const auto& partition : getPartitionAssignment()) {
@@ -68,7 +69,7 @@ Metadata::OffsetWatermarkList ConsumerMetadata::getOffsetWatermarks() const
 cppkafka::TopicPartitionList ConsumerMetadata::queryOffsetsAtTime(Metadata::Timestamp timestamp) const
 {
     if (!_handle) {
-        throw std::runtime_error("Null consumer");
+        throw HandleException("Null consumer");
     }
     cppkafka::KafkaHandleBase::TopicPartitionsTimestampsMap timestampMap;
     std::chrono::milliseconds epochTime = timestamp.time_since_epoch();
@@ -81,7 +82,7 @@ cppkafka::TopicPartitionList ConsumerMetadata::queryOffsetsAtTime(Metadata::Time
 cppkafka::TopicPartitionList ConsumerMetadata::queryCommittedOffsets() const
 {
     if (!_handle) {
-        throw std::runtime_error("Null consumer");
+        throw HandleException("Null consumer");
     }
     return static_cast<const cppkafka::Consumer*>(_handle)->get_offsets_committed(getPartitionAssignment());
 }
@@ -89,7 +90,7 @@ cppkafka::TopicPartitionList ConsumerMetadata::queryCommittedOffsets() const
 cppkafka::TopicPartitionList ConsumerMetadata::getOffsetPositions() const
 {
     if (!_handle) {
-        throw std::runtime_error("Null consumer");
+        throw HandleException("Null consumer");
     }
     return static_cast<const cppkafka::Consumer*>(_handle)->get_offsets_position(getPartitionAssignment());
 }
@@ -97,7 +98,7 @@ cppkafka::TopicPartitionList ConsumerMetadata::getOffsetPositions() const
 const cppkafka::TopicPartitionList& ConsumerMetadata::getPartitionAssignment() const
 {
     if (!_handle) {
-        throw std::runtime_error("Null consumer");
+        throw HandleException("Null consumer");
     }
     if (_partitions.empty()) {
         _partitions = static_cast<const cppkafka::Consumer*>(_handle)->get_assignment();
@@ -108,7 +109,7 @@ const cppkafka::TopicPartitionList& ConsumerMetadata::getPartitionAssignment() c
 cppkafka::GroupInformation ConsumerMetadata::getGroupInformation() const
 {
     if (!_handle) {
-        throw std::runtime_error("Null consumer");
+        throw HandleException("Null consumer");
     }
     return _handle->get_consumer_group(static_cast<const cppkafka::Consumer*>(_handle)->get_member_id());
 }

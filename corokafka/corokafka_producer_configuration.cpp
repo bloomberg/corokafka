@@ -24,27 +24,34 @@ namespace corokafka {
 const std::string ProducerConfiguration::s_internalOptionsPrefix = "internal.producer.";
 
 const Configuration::OptionSet ProducerConfiguration::s_internalOptions = {
-    "internal.producer.max.queue.length",
-    "internal.producer.payload.policy",
-    "internal.producer.preserve.message.order",
-    "internal.producer.retries",
-    "internal.producer.timeout.ms",
-    "internal.producer.wait.for.acks",
-    "internal.producer.wait.for.acks.timeout.ms",
-    "internal.producer.flush.wait.for.acks",
-    "internal.producer.flush.wait.for.acks.timeout.ms",
-    "internal.producer.log.level",
-    "internal.producer.auto.throttle",
-    "internal.producer.auto.throttle.multiplier",
-    "internal.producer.queue.full.notification"
+    Options::autoThrottle,
+    Options::autoThrottleMultiplier,
+    Options::flushWaitForAcks,
+    Options::flushWaitForAcksTimeoutMs,
+    Options::logLevel,
+    Options::maxQueueLength,
+    Options::payloadPolicy,
+    Options::preserveMessageOrder,
+    Options::queueFullNotification,
+    Options::retries,
+    Options::timeoutMs,
+    Options::waitForAcks,
+    Options::waitForAcksTimeoutMs
 };
 
 const Configuration::OptionSet ProducerConfiguration::s_internalTopicOptions;
 
 ProducerConfiguration::ProducerConfiguration(const std::string& topicName,
-                                             Options options,
-                                             Options topicOptions) :
-    Configuration(KafkaType::Producer, topicName, std::move(options), std::move(topicOptions))
+                                             Configuration::OptionList options,
+                                             Configuration::OptionList topicOptions) :
+    TopicConfiguration(KafkaType::Producer, topicName, std::move(options), std::move(topicOptions))
+{
+}
+
+ProducerConfiguration::ProducerConfiguration(const std::string& topicName,
+                                             std::initializer_list<cppkafka::ConfigurationOption> options,
+                                             std::initializer_list<cppkafka::ConfigurationOption> topicOptions) :
+    TopicConfiguration(KafkaType::Producer, topicName, std::move(options), std::move(topicOptions))
 {
 }
 

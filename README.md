@@ -179,7 +179,7 @@ std::initializer_list<cppkafka::ConfigurationOption > topicOptions = {
 };
 
 // Create a producer configuration (only 'metadata.broker.list' setting is mandatory)
-std::initializer_list<cppkafka::ConfigurationOption > configOptions = {
+std::initializer_list<cppkafka::ConfigurationOption > producerOptions = {
     { "metadata.broker.list", "broker_url:port" },
     { "api.version.request", true },
     { "internal.producer.retries", 5 }
@@ -187,15 +187,16 @@ std::initializer_list<cppkafka::ConfigurationOption > configOptions = {
 
 // Associate the topic and producer configuration with a topic name.
 // Note: any number of producer configs/topics can be created.
-corokafka::ProducerConfiguration config("my-topic", configOptions, topicOptions);
+corokafka::ProducerConfiguration config("my-topic", producerOptions, topicOptions);
 
 // Add the callbacks
 config.setDeliveryReportCallback(deliveryReportCallback);
 config.setLogCallback(logCallback);
 
 // Create the connector config (optional)
-corokafka::ConnectorConfiguration connectorConfiguration;
-connectorConfiguration.setPollInterval(std::chrono::milliseconds(100));
+corokafka::ConnectorConfiguration connectorConfiguration(
+    {{ "internal.connector.poll.interval.ms", 100 }}
+);
 
 // Combine all the configs together
 corokafka::ConfigurationBuilder builder;
@@ -308,7 +309,7 @@ void receiverCallback(MyTopic::receivedMessage message)
 }
 
 // Create the producer and topic config
-std::initializer_list<cppkafka::ConfigurationOption > configOptions = {
+std::initializer_list<cppkafka::ConfigurationOption > consumerOptions = {
     { "metadata.broker.list", "broker_url:port" },
     { "group.id", "my-group" },
     { "api.version.request", true },
@@ -321,7 +322,7 @@ std::initializer_list<cppkafka::ConfigurationOption > configOptions = {
 };
 
 //create the consumer configuration
-corokafka::ConsumerConfiguration config(myTopic, configOptions, {}, receiverCallback);
+corokafka::ConsumerConfiguration config(myTopic, consumerOptions, {}, receiverCallback);
 
 //add the callbacks
 config.setLogCallback(logCallback);

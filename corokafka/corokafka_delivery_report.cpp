@@ -14,6 +14,7 @@
 ** limitations under the License.
 */
 #include <corokafka/corokafka_delivery_report.h>
+#include <corokafka/utils/corokafka_json_builder.h>
 #include <sstream>
 
 namespace Bloomberg {
@@ -23,7 +24,10 @@ namespace corokafka {
 //                               DELIVERY REPORT
 //====================================================================================
 
-DeliveryReport::DeliveryReport(cppkafka::TopicPartition topicPartition, size_t numBytes, cppkafka::Error error, void * opaque) :
+DeliveryReport::DeliveryReport(cppkafka::TopicPartition topicPartition,
+                               size_t numBytes,
+                               cppkafka::Error error,
+                               void * opaque) :
     _topicPartition(std::move(topicPartition)),
     _numBytes(numBytes),
     _error(std::move(error)),
@@ -54,18 +58,18 @@ void* DeliveryReport::getOpaque() const
 std::string DeliveryReport::toString() const
 {
     std::ostringstream oss;
-    oss << "{ \"deliveryReport\": { ";
-    oss << "{ \"destination\": \"" << _topicPartition << "\"";
+    JsonBuilder json(oss);
+    json.startMember("deliveryReport").tag("destination", _topicPartition);
     if (_error) {
-        oss << ", \"error\": \"" << _error << "\"";
+        json.tag("error", _error);
     }
     else {
-        oss << ", \"numBytes\": " << _numBytes;
+        json.tag("numBytes", _numBytes);
     }
     if (_opaque) {
-        oss << ", \"opaque\": " << std::hex << _opaque;
+        json.tag("opaque", _opaque);
     }
-    oss << "} }";
+    json.endMember().end();
     return oss.str();
 }
 

@@ -13,6 +13,8 @@
 ** See the License for the specific language governing permissions and
 ** limitations under the License.
 */
+#include <corokafka/corokafka_exception.h>
+
 namespace Bloomberg {
 namespace corokafka {
 
@@ -117,7 +119,7 @@ std::chrono::milliseconds ReceivedMessage<KEY,PAYLOAD,HEADERS>::getTimestamp() c
 {
     boost::optional<cppkafka::MessageTimestamp> timestamp = _message.get_timestamp();
     if (!timestamp) {
-        throw std::runtime_error("Timestamp not set");
+        throw MessageException("Timestamp not set");
     }
     return timestamp.get().get_timestamp();
 }
@@ -208,7 +210,7 @@ ReceivedMessage<KEY,PAYLOAD,HEADERS>::getHeaderAt() const &
     using Header = typename std::tuple_element<I,typename HEADERS::HeaderTypes>::type;
     validateHeadersError();
     if (!_headers.isValidAt(I)) {
-        throw std::runtime_error("Header is invalid (empty)");
+        throw InvalidArgumentException(0, "Header is invalid (empty)");
     }
     return _headers.getAt<Header>(I).value();
 }
@@ -221,7 +223,7 @@ ReceivedMessage<KEY,PAYLOAD,HEADERS>::getHeaderAt() &
     using Header = typename std::tuple_element<I,typename HEADERS::HeaderTypes>::type;
     validateHeadersError();
     if (!_headers.isValidAt(I)) {
-        throw std::runtime_error("Header is invalid (empty)");
+        throw InvalidArgumentException(0, "Header is invalid (empty)");
     }
     return _headers.getAt<Header>(I).value();
 }
@@ -234,7 +236,7 @@ ReceivedMessage<KEY,PAYLOAD,HEADERS>::getHeaderAt() &&
     using Header = typename std::tuple_element<I,typename HEADERS::HeaderTypes>::type;
     validateHeadersError();
     if (!_headers.isValidAt(I)) {
-        throw std::runtime_error("Header is invalid (empty)");
+        throw InvalidArgumentException(0, "Header is invalid (empty)");
     }
     return _headers.getAt<Header>(I).value();
 }
@@ -271,10 +273,10 @@ template <typename KEY, typename PAYLOAD, typename HEADERS>
 void ReceivedMessage<KEY,PAYLOAD,HEADERS>::validateMessageError() const
 {
     if (_error.isPreprocessorError()) {
-        throw std::runtime_error("Dropped message");
+        throw MessageException("Dropped message");
     }
     if (_error.isKafkaError()) {
-        throw std::runtime_error("Invalid message");
+        throw MessageException("Invalid message");
     }
 }
 
@@ -283,7 +285,7 @@ void ReceivedMessage<KEY,PAYLOAD,HEADERS>::validateKeyError() const
 {
     validateMessageError();
     if (_error.isKeyError()) {
-        throw std::runtime_error("Key deserialization error");
+        throw MessageException("Key deserialization error");
     }
 }
 
@@ -292,7 +294,7 @@ void ReceivedMessage<KEY,PAYLOAD,HEADERS>::validatePayloadError() const
 {
     validateMessageError();
     if (_error.isPayloadError()) {
-        throw std::runtime_error("Payload deserialization error");
+        throw MessageException("Payload deserialization error");
     }
 }
 
@@ -301,7 +303,7 @@ void ReceivedMessage<KEY,PAYLOAD,HEADERS>::validateHeadersError() const
 {
     validateMessageError();
     if (_error.isHeaderError()) {
-        throw std::runtime_error("Header deserialization error");
+        throw MessageException("Header deserialization error");
     }
 }
 

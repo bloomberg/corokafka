@@ -14,6 +14,7 @@
 ** limitations under the License.
 */
 #include <corokafka/corokafka_connector_configuration.h>
+#include <corokafka/corokafka_exception.h>
 
 namespace Bloomberg {
 namespace corokafka {
@@ -21,27 +22,51 @@ namespace corokafka {
 //========================================================================
 //                       CONNECTOR CONFIGURATION
 //========================================================================
+const std::string ConnectorConfiguration::s_internalOptionsPrefix = "internal.connector.";
+
+const Configuration::OptionSet ConnectorConfiguration::s_internalOptions = {
+    Options::pollIntervalMs,
+    Options::maxPayloadOutputLength,
+};
+
+ConnectorConfiguration::ConnectorConfiguration(Configuration::OptionList options) :
+    Configuration(std::move(options))
+{
+    init();
+}
+
+ConnectorConfiguration::ConnectorConfiguration(std::initializer_list<cppkafka::ConfigurationOption> options) :
+    Configuration(std::move(options))
+{
+    init();
+}
+
+void ConnectorConfiguration::init()
+{
+    //Validate options
+    parseOptions(s_internalOptionsPrefix, s_internalOptions, _options);
+    
+    const cppkafka::ConfigurationOption* pollInterval = Configuration::getOption(Options::pollIntervalMs);
+    if (pollInterval) {
+        _pollInterval = std::chrono::milliseconds(
+            Configuration::extractCounterValue({}, Options::pollIntervalMs, *pollInterval, 1));
+    }
+    
+    const cppkafka::ConfigurationOption* maxPayloadLength = Configuration::getOption(Options::maxPayloadOutputLength);
+    if (maxPayloadLength) {
+        _maxMessagePayloadLength =
+            Configuration::extractCounterValue({}, Options::maxPayloadOutputLength, *maxPayloadLength, -1);
+    }
+}
+
 void ConnectorConfiguration::setDispatcherConfiguration(quantum::Configuration config)
 {
     _dispatcherConfig = std::move(config);
 }
 
-void ConnectorConfiguration::setPollInterval(std::chrono::milliseconds interval)
-{
-    if (interval.count() == 0) {
-        throw std::invalid_argument("Poll interval must be greater than 0");
-    }
-    _pollInterval = interval;
-}
-
 const std::chrono::milliseconds& ConnectorConfiguration::getPollInterval() const
 {
     return _pollInterval;
-}
-
-void ConnectorConfiguration::setMaxMessagePayloadOutputLength(ssize_t length)
-{
-    _maxMessagePayloadLength = length;
 }
 
 ssize_t ConnectorConfiguration::getMaxMessagePayloadOutputLength() const

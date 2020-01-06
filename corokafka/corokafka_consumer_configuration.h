@@ -18,7 +18,7 @@
 
 #include <corokafka/corokafka_callbacks.h>
 #include <corokafka/corokafka_utils.h>
-#include <corokafka/corokafka_configuration.h>
+#include <corokafka/corokafka_topic_configuration.h>
 #include <corokafka/corokafka_type_erased_deserializer.h>
 
 namespace Bloomberg {
@@ -34,37 +34,78 @@ namespace corokafka {
  *        (see CONFIGURATION.md in the respective projects).
  *        At a minimum, the user should supply a 'metadata.broker.list' in the constructor 'options'.
  */
-class ConsumerConfiguration : public Configuration
+class ConsumerConfiguration : public TopicConfiguration
 {
-    friend class Configuration;
+    friend class TopicConfiguration;
     friend class ConsumerManagerImpl;
 public:
+    /**
+     * @brief Internal CoroKafka-specific options for the consumer. They are used to control this
+     *        library's behavior for consumers and are complementary to the RdKafka consumer options.
+     *        For more details please read CONFIGURATION.md document.
+     */
+    struct Options
+    {
+        static constexpr const char* autoOffsetPersist =                "internal.consumer.auto.offset.persist";
+        static constexpr const char* autoOffsetPersistOnException =     "internal.consumer.auto.offset.persist.on.exception";
+        static constexpr const char* autoThrottle =                     "internal.consumer.auto.throttle";
+        static constexpr const char* autoThrottleMultiplier =           "internal.consumer.auto.throttle.multiplier";
+        static constexpr const char* batchPrefetch =                    "internal.consumer.batch.prefetch";
+        static constexpr const char* commitBackoffStrategy =            "internal.consumer.commit.backoff.strategy";
+        static constexpr const char* commitBackoffIntervalMs =          "internal.consumer.commit.backoff.interval.ms";
+        static constexpr const char* commitExec =                       "internal.consumer.commit.exec";
+        static constexpr const char* commitMaxBackoffMs =               "internal.consumer.commit.max.backoff.ms";
+        static constexpr const char* commitNumRetries =                 "internal.consumer.commit.num.retries";
+        static constexpr const char* logLevel =                         "internal.consumer.log.level";
+        static constexpr const char* offsetPersistStrategy =            "internal.consumer.offset.persist.strategy";
+        static constexpr const char* pauseOnStart =                     "internal.consumer.pause.on.start";
+        static constexpr const char* pollStrategy =                     "internal.consumer.poll.strategy";
+        static constexpr const char* pollTimeoutMs =                    "internal.consumer.poll.timeout.ms";
+        static constexpr const char* preprocessMessages =               "internal.consumer.preprocess.messages";
+        static constexpr const char* preprocessInvokeThread =           "internal.consumer.preprocess.invoke.thread";
+        static constexpr const char* readSize =                         "internal.consumer.read.size";
+        static constexpr const char* receiveCallbackExec =              "internal.consumer.receive.callback.exec";
+        static constexpr const char* receiveCallbackThreadRangeLow =    "internal.consumer.receive.callback.thread.range.low";
+        static constexpr const char* receiveCallbackThreadRangeHigh =   "internal.consumer.receive.callback.thread.range.high";
+        static constexpr const char* receiveInvokeThread =              "internal.consumer.receive.invoke.thread";
+        static constexpr const char* skipUnknownHeaders =               "internal.consumer.skip.unknown.headers";
+        static constexpr const char* timeoutMs =                        "internal.consumer.timeout.ms";
+    };
+    
     /**
      * @brief Create a consumer configuration.
      * @tparam TOPIC Type Topic<KEY,PAYLOAD,HEADERS> which represents this consumer.
      * @param topic The topic object to which this configuration applies.
-     * @param options The producer configuration options (for both RdKafka and CoroKafka).
+     * @param options The consumer configuration options (for both RdKafka and CoroKafka).
      * @param topicOptions The topic configuration options (for both RdKafka and CoroKafka).
      * @param receiver The receiver function on which all messages are delivered.
      * @note 'metadata.broker.list' must be supplied in 'options'.
      */
     template <typename TOPIC>
     ConsumerConfiguration(const TOPIC& topic,
-                          Options options,
-                          Options topicOptions,
+                          Configuration::OptionList options,
+                          Configuration::OptionList topicOptions,
+                          Callbacks::ReceiverCallback<TOPIC> receiver);
+    template <typename TOPIC>
+    ConsumerConfiguration(const TOPIC& topic,
+                          std::initializer_list<cppkafka::ConfigurationOption> options,
+                          std::initializer_list<cppkafka::ConfigurationOption> topicOptions,
                           Callbacks::ReceiverCallback<TOPIC> receiver);
     
     /**
      * @brief Create a consumer configuration.
      * @param topic The topic name to which this configuration applies.
-     * @param options The producer configuration options (for both RdKafka and CoroKafka).
+     * @param options The consumer configuration options (for both RdKafka and CoroKafka).
      * @param topicOptions The topic configuration options (for both RdKafka and CoroKafka).
      * @note When using this constructor, the application must call 'setReceiverCallback()' below.
      * @note 'metadata.broker.list' must be supplied in 'options'.
      */
     ConsumerConfiguration(const std::string& topic,
-                          Options options,
-                          Options topicOptions);
+                          Configuration::OptionList options,
+                          Configuration::OptionList topicOptions);
+    ConsumerConfiguration(const std::string& topic,
+                          std::initializer_list<cppkafka::ConfigurationOption> options,
+                          std::initializer_list<cppkafka::ConfigurationOption> topicOptions);
     
     /**
      * @brief Assign partitions and offsets on startup for this consumer.

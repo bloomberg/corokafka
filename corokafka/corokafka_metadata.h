@@ -120,7 +120,7 @@ protected:
     
     const cppkafka::Topic& getTopicObject() const;
     
-    const std::string&            _topic;
+    const std::string&                      _topic;
     cppkafka::KafkaHandleBase*              _handle;
     mutable cppkafka::Topic                 _kafkaTopic;
     mutable cppkafka::TopicPartitionList    _partitions;

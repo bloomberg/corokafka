@@ -31,7 +31,7 @@ ConnectorImpl::ConnectorImpl(const ConfigurationBuilder& builder,
     _pollThread(std::bind(&ConnectorImpl::poll, this)),
     _postThread(std::bind(&ConnectorImpl::post, this))
 {
-    setMaxMessageBuilderOutputLength(_config.getMaxMessagePayloadOutputLength());
+    maxMessageBuilderOutputLength() = _config.getMaxMessagePayloadOutputLength();
 }
 
 ConnectorImpl::ConnectorImpl(ConfigurationBuilder&& builder,
@@ -43,7 +43,7 @@ ConnectorImpl::ConnectorImpl(ConfigurationBuilder&& builder,
     _pollThread(std::bind(&ConnectorImpl::poll, this)),
     _postThread(std::bind(&ConnectorImpl::post, this))
 {
-    setMaxMessageBuilderOutputLength(_config.getMaxMessagePayloadOutputLength());
+    maxMessageBuilderOutputLength() = _config.getMaxMessagePayloadOutputLength();
 }
 
 void ConnectorImpl::shutdown(bool drain,
