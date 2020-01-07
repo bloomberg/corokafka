@@ -49,11 +49,11 @@ public:
             std::cout << ex.what() << std::endl;
             exit(0);
         }
-        _kafkaType = type == "consumer" ? ck::KafkaType::Consumer : ck::KafkaType::Producer;
+        _kafkaType = (type == "consumer") ? KafkaType::Consumer : KafkaType::Producer;
     }
     
     std::string _broker;
-    ck::KafkaType _kafkaType;
+    KafkaType   _kafkaType;
     std::string _topicWithHeaders;
     std::string _topicWithoutHeaders;
 };

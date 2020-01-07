@@ -82,8 +82,6 @@ enum class TimerValues : char
     Unlimited = -1  ///< Blocks indefinitely
 };
 
-cppkafka::LogLevel logLevelFromString(const std::string &level);
-
 struct Empty
 {
 };
@@ -167,6 +165,16 @@ struct StringEqualCompare
 #endif
     }
 };
+
+// Trim whitespaces at both ends
+static inline void trim(std::string& str) {
+    str.erase(str.begin(), std::find_if(str.begin(), str.end(), [](int c) {
+        return !std::isspace(c);
+    }));
+    str.erase(std::find_if(str.rbegin(), str.rend(), [](int c) {
+        return !std::isspace(c);
+    }).base(), str.end());
+}
 
 //======================================================================================================================
 //                                               Unique pointer casts

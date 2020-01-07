@@ -28,12 +28,4 @@ int main(int argc, char **argv) {
     return RUN_ALL_TESTS();
 }
 
-//==============================================================================
-//                             TEST CASES
-//==============================================================================
-TEST(Connector, Constructor)
-{
-    ck::ConfigurationBuilder builder;
-    ck::Connector connector(builder);
-}
 

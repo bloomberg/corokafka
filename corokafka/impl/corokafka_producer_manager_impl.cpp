@@ -40,7 +40,15 @@ ProducerManagerImpl::ProducerManagerImpl(quantum::Dispatcher& dispatcher,
     for (const auto& entry : configs) {
         // Process each configuration
         auto it = _producers.emplace(entry.first, ProducerTopicEntry(nullptr, connectorConfiguration, entry.second));
-        setup(entry.first, it.first->second);
+        try {
+            setup(entry.first, it.first->second);
+        }
+        catch (const cppkafka::ConfigException& ex) {
+            throw InvalidOptionException(entry.first, "RdKafka", ex.what());
+        }
+        catch (const cppkafka::Exception& ex) {
+            throw TopicException(entry.first, ex.what());
+        }
     }
 }
 
@@ -54,7 +62,15 @@ ProducerManagerImpl::ProducerManagerImpl(quantum::Dispatcher& dispatcher,
     for (auto&& entry : configs) {
         // Process each configuration
         auto it = _producers.emplace(entry.first, ProducerTopicEntry(nullptr, connectorConfiguration, std::move(entry.second)));
-        setup(entry.first, it.first->second);
+        try {
+            setup(entry.first, it.first->second);
+        }
+        catch (const cppkafka::ConfigException& ex) {
+            throw InvalidOptionException(entry.first, "RdKafka", ex.what());
+        }
+        catch (const cppkafka::Exception& ex) {
+            throw TopicException(entry.first, ex.what());
+        }
     }
 }
 
@@ -212,7 +228,7 @@ void ProducerManagerImpl::setup(const std::string& topic, ProducerTopicEntry& to
     const cppkafka::ConfigurationOption* logLevel =
         Configuration::findOption(ProducerConfiguration::Options::logLevel, internalOptions);
     if (logLevel) {
-        cppkafka::LogLevel level = logLevelFromString(logLevel->get_value());
+        cppkafka::LogLevel level = Configuration::extractLogLevel(topic, ProducerConfiguration::Options::logLevel, logLevel->get_value());
         topicEntry._producer->get_producer().set_log_level(level);
         topicEntry._logLevel = level;
     }
@@ -255,27 +271,29 @@ void ProducerManagerImpl::setup(const std::string& topic, ProducerTopicEntry& to
         &flushTerminationCallback, std::ref(topicEntry), _1, _2);
     topicEntry._producer->set_flush_termination_callback(flushTerminationFunc);
     
-    if (topicEntry._configuration.getQueueFullCallback()) {
-        const cppkafka::ConfigurationOption* queueFullNotification =
+    const cppkafka::ConfigurationOption* queueFullNotification =
         Configuration::findOption(ProducerConfiguration::Options::queueFullNotification, internalOptions);
-        if (queueFullNotification) {
-            if (StringEqualCompare()(queueFullNotification->get_value(), "edgeTriggered")) {
-                topicEntry._queueFullNotification = QueueFullNotification::EdgeTriggered;
-                topicEntry._producer->set_queue_full_notification(ProducerType::QueueFullNotification::EachOccurence);
-            }
-            else if (StringEqualCompare()(queueFullNotification->get_value(), "oncePerMessage")) {
-                topicEntry._queueFullNotification = QueueFullNotification::OncePerMessage;
-                topicEntry._producer->set_queue_full_notification(ProducerType::QueueFullNotification::OncePerMessage);
-            }
-            else if (StringEqualCompare()(queueFullNotification->get_value(), "eachOccurence")) {
-                topicEntry._queueFullNotification = QueueFullNotification::EachOccurence;
-                topicEntry._producer->set_queue_full_notification(ProducerType::QueueFullNotification::EachOccurence);
-            }
-            else {
-                throw InvalidOptionException(topic, ProducerConfiguration::Options::queueFullNotification, queueFullNotification->get_value());
-            }
+    if (queueFullNotification) {
+        if (StringEqualCompare()(queueFullNotification->get_value(), "edgeTriggered")) {
+            topicEntry._queueFullNotification = QueueFullNotification::EdgeTriggered;
         }
-        else { //default
+        else if (StringEqualCompare()(queueFullNotification->get_value(), "oncePerMessage")) {
+            topicEntry._queueFullNotification = QueueFullNotification::OncePerMessage;
+        }
+        else if (StringEqualCompare()(queueFullNotification->get_value(), "eachOccurence")) {
+            topicEntry._queueFullNotification = QueueFullNotification::EachOccurence;
+        }
+        else {
+            throw InvalidOptionException(topic, ProducerConfiguration::Options::queueFullNotification, queueFullNotification->get_value());
+        }
+    }
+    
+    if (topicEntry._configuration.getQueueFullCallback()) {
+        if ((topicEntry._queueFullNotification == QueueFullNotification::EdgeTriggered) ||
+            (topicEntry._queueFullNotification == QueueFullNotification::EachOccurence)) {
+            topicEntry._producer->set_queue_full_notification(ProducerType::QueueFullNotification::EachOccurence);
+        }
+        else {
             topicEntry._producer->set_queue_full_notification(ProducerType::QueueFullNotification::OncePerMessage);
         }
         auto queueFullFunc = std::bind(&queueFullCallback, std::ref(topicEntry), _1);

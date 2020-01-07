@@ -27,21 +27,27 @@ struct Message {
 
 // Topic type definitions
 using Key = size_t;
-using TestHeaders = ck::Headers<Header1, Header2>;
-using TopicWithHeaders = ck::Topic<size_t, Message, TestHeaders>;
-using TopicWithoutHeaders = ck::Topic<size_t, Message>;
+using TestHeaders = Headers<Header1, Header2>;
+using TopicWithHeaders = Topic<size_t, Message, TestHeaders>;
+using TopicWithoutHeaders = Topic<size_t, Message>;
 
-static constexpr const char* topic1Str = "Topic-1";
-static constexpr const char* topic2Str = "Topic-2";
 static constexpr const char* header1Str = "Header-1";
 static constexpr const char* header2Str = "Header-2";
 
 // Create a topic which will be shared between producer and consumer.
-static TopicWithHeaders topic1(topic1Str, ck::Header<Header1>(header1Str), ck::Header<Header2>(header2Str));
-static TopicWithoutHeaders topic2(topic2Str);
+inline
+const TopicWithHeaders& topicWithHeaders() {
+    static TopicWithHeaders topic(programOptions()._topicWithHeaders, Header<Header1>(header1Str), Header<Header2>(header2Str));
+    return topic;
+}
+inline
+const TopicWithoutHeaders& topicWithoutHeaders() {
+    static TopicWithoutHeaders topic(programOptions()._topicWithoutHeaders);
+    return topic;
+}
 
-using MessageWithHeaders = ck::ReceivedMessage<Key, Message, TestHeaders>;
-using MessageWithoutHeaders = ck::ReceivedMessage<Key, Message>;
+using MessageWithHeaders = ReceivedMessage<Key, Message, TestHeaders>;
+using MessageWithoutHeaders = ReceivedMessage<Key, Message>;
 
 }}}
 
@@ -52,7 +58,7 @@ namespace Bloomberg { namespace corokafka {
 template <>
 struct Serialize<tests::Key>
 {
-    ck::ByteArray operator()(const tests::Key &key)
+    ByteArray operator()(const tests::Key &key)
     {
         uint8_t *it = (uint8_t *) &key;
         return {it, it + sizeof(tests::Key)};
@@ -62,9 +68,9 @@ struct Serialize<tests::Key>
 template <>
 struct Serialize<tests::Header1>
 {
-    ck::ByteArray operator()(const tests::Header1 &header)
+    ByteArray operator()(const tests::Header1 &header)
     {
-        ck::ByteArray ret;
+        ByteArray ret;
         ret.reserve(sizeof(uint16_t) + header._to.size() + header._from.size() + 2);
         uint8_t *it = (uint8_t *) &header._senderId;
         ret.insert(ret.end(), it, it + sizeof(uint16_t)); //senderId
@@ -79,7 +85,7 @@ struct Serialize<tests::Header1>
 template <>
 struct Serialize<tests::Header2>
 {
-    ck::ByteArray operator()(const tests::Header2 &payload)
+    ByteArray operator()(const tests::Header2 &payload)
     {
         using Rep = std::chrono::system_clock::time_point::duration::rep;
         Rep count = payload._timestamp.time_since_epoch().count();
@@ -91,7 +97,7 @@ struct Serialize<tests::Header2>
 template <>
 struct Serialize<tests::Message>
 {
-    ck::ByteArray operator()(const tests::Message &payload)
+    ByteArray operator()(const tests::Message &payload)
     {
         return {payload._message.begin(), payload._message.end()};
     }

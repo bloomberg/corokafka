@@ -5,7 +5,7 @@ namespace corokafka {
 namespace tests {
 
 //callback implementations
-void Callbacks::handleKafkaError(const ck::Metadata& metadata,
+void Callbacks::handleKafkaError(const Metadata& metadata,
                                  cppkafka::Error error,
                                  const std::string &reason,
                                  void *opaque)
@@ -13,7 +13,7 @@ void Callbacks::handleKafkaError(const ck::Metadata& metadata,
     callbackCounters()._error++;
 }
 
-void Callbacks::handleThrottling(const ck::Metadata& metadata,
+void Callbacks::handleThrottling(const Metadata& metadata,
                                  const std::string &brokerName,
                                  int32_t brokerId,
                                  std::chrono::milliseconds throttleTime)
@@ -21,7 +21,7 @@ void Callbacks::handleThrottling(const ck::Metadata& metadata,
     callbackCounters()._throttle++;
 }
 
-void Callbacks::kafkaLogger(const ck::Metadata& metadata,
+void Callbacks::kafkaLogger(const Metadata& metadata,
                             cppkafka::LogLevel level,
                             const std::string &facility,
                             const std::string &message)
@@ -36,7 +36,7 @@ void Callbacks::connectorLogger(cppkafka::LogLevel level,
     callbackCounters()._connectorLogger++;
 }
 
-void Callbacks::handleStats(const ck::Metadata &metadata,
+void Callbacks::handleStats(const Metadata &metadata,
                             const std::string &json)
 {
     callbackCounters()._stats++;
@@ -48,13 +48,13 @@ bool Callbacks::messagePreprocessor(cppkafka::TopicPartition toppar)
     return false;
 }
 
-void Callbacks::handleDeliveryReport(const ck::ProducerMetadata &metadata,
-                                     const ck::SentMessage &msg)
+void Callbacks::handleDeliveryReport(const ProducerMetadata &metadata,
+                                     const SentMessage &msg)
 {
     callbackCounters()._deliveryReport++;
 }
 
-int32_t Callbacks::partitioner(const ck::ProducerMetadata& metadata,
+int32_t Callbacks::partitioner(const ProducerMetadata& metadata,
                                const cppkafka::Buffer& key,
                                int32_t partition_count)
 {
@@ -70,13 +70,13 @@ int32_t Callbacks::partitioner(const ck::ProducerMetadata& metadata,
     return result % partition_count;
 }
 
-void Callbacks::handleQueueFull(const ck::ProducerMetadata &metadata,
-                                const ck::SentMessage &message)
+void Callbacks::handleQueueFull(const ProducerMetadata &metadata,
+                                const SentMessage &message)
 {
     callbackCounters()._queueFull++;
 }
 
-void Callbacks::handleOffsetCommit(const ck::ConsumerMetadata &metadata,
+void Callbacks::handleOffsetCommit(const ConsumerMetadata &metadata,
                                    cppkafka::Error error,
                                    const cppkafka::TopicPartitionList &topicPartitions,
                                    const std::vector<const void *>&)
@@ -84,12 +84,12 @@ void Callbacks::handleOffsetCommit(const ck::ConsumerMetadata &metadata,
     callbackCounters()._offsetCommit++;
 }
 
-void Callbacks::messageReceiver(MessageWithHeaders message)
+void Callbacks::messageReceiverWithHeaders(TopicWithHeaders::ReceivedMessageType message)
 {
 
 }
 
-void Callbacks::messageReceiver(MessageWithoutHeaders message)
+void Callbacks::messageReceiverWithoutHeaders(TopicWithoutHeaders::ReceivedMessageType message)
 {
 
 }

@@ -218,10 +218,12 @@ void Configuration::parseOptions(const std::string& optionsPrefix,
 {
     OptionList& internal = optionList[(int)OptionType::Internal];
     OptionList& rdKafka = optionList[(int)OptionType::RdKafka];
-    const OptionList& config = optionList[(int)OptionType::All];
+    OptionList& config = optionList[(int)OptionType::All];
     
     if (!allowed.empty()) {
-        for (const auto& option : config) {
+        for (auto& option : config) {
+            trim(const_cast<std::string&>(option.get_key()));
+            trim(const_cast<std::string&>(option.get_value()));
             if (StringEqualCompare()(option.get_key(), optionsPrefix, optionsPrefix.length())) {
                 auto it = allowed.find(option.get_key());
                 if (it == allowed.end()) {
@@ -266,7 +268,13 @@ ssize_t Configuration::extractCounterValue(const std::string& topic,
                                            ssize_t minAllowed,
                                            ssize_t maxAllowed)
 {
-    ssize_t value = std::stoll(option.get_value());
+    ssize_t value;
+    try {
+        value = std::stoll(option.get_value());
+    }
+    catch (const std::invalid_argument& ex) {
+        throw InvalidOptionException(topic, optionName, option.get_value());
+    }
     if ((value < minAllowed) || (value > maxAllowed)) {
         if (topic.empty()) {
             throw InvalidOptionException(optionName, option.get_value());
@@ -274,6 +282,38 @@ ssize_t Configuration::extractCounterValue(const std::string& topic,
         throw InvalidOptionException(topic, optionName, option.get_value());
     }
     return value;
+}
+
+cppkafka::LogLevel Configuration::extractLogLevel(const std::string& topic,
+                                                  const char* optionName,
+                                                  const std::string& level)
+{
+    StringEqualCompare compare;
+    if (compare(level, "emergency")) {
+        return cppkafka::LogLevel::LogEmerg;
+    }
+    if (compare(level, "alert")) {
+        return cppkafka::LogLevel::LogAlert;
+    }
+    if (compare(level, "critical")) {
+        return cppkafka::LogLevel::LogCrit;
+    }
+    if (compare(level, "error")) {
+        return cppkafka::LogLevel::LogErr;
+    }
+    if (compare(level, "warning")) {
+        return cppkafka::LogLevel::LogWarning;
+    }
+    if (compare(level, "notice")) {
+        return cppkafka::LogLevel::LogNotice;
+    }
+    if (compare(level, "info")) {
+        return cppkafka::LogLevel::LogInfo;
+    }
+    if (compare(level, "debug")) {
+        return cppkafka::LogLevel::LogDebug;
+    }
+    throw InvalidOptionException(topic, optionName, level);
 }
 
 }

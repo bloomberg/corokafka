@@ -97,6 +97,9 @@ protected:
                                        const cppkafka::ConfigurationOption& option,
                                        ssize_t minAllowed = 0,
                                        ssize_t maxAllowed = std::numeric_limits<ssize_t>::max());
+    static cppkafka::LogLevel extractLogLevel(const std::string& topic,
+                                              const char* optionName,
+                                              const std::string &level);
     // Members
     OptionList  _options[3];
 };
