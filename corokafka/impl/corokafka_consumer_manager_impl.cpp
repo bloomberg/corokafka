@@ -40,7 +40,15 @@ ConsumerManagerImpl::ConsumerManagerImpl(quantum::Dispatcher& dispatcher,
                                                                      entry.second,
                                                                      dispatcher.getNumIoThreads(),
                                                                      dispatcher.getCoroQueueIdRangeForAny()));
-        setup(entry.first, it.first->second);
+        try {
+            setup(entry.first, it.first->second);
+        }
+        catch (const cppkafka::ConfigException& ex) {
+            throw InvalidOptionException(entry.first, "RdKafka", ex.what());
+        }
+        catch (const cppkafka::Exception& ex) {
+            throw TopicException(entry.first, ex.what());
+        }
     }
 }
 
@@ -57,7 +65,15 @@ ConsumerManagerImpl::ConsumerManagerImpl(quantum::Dispatcher& dispatcher,
                                                                      std::move(entry.second),
                                                                      dispatcher.getNumIoThreads(),
                                                                      dispatcher.getCoroQueueIdRangeForAny()));
-        setup(entry.first, it.first->second);
+        try {
+            setup(entry.first, it.first->second);
+        }
+        catch (const cppkafka::ConfigException& ex) {
+            throw InvalidOptionException(entry.first, "RdKafka", ex.what());
+        }
+        catch (const std::exception& ex) {
+            throw TopicException(entry.first, ex.what());
+        }
     }
 }
 
@@ -243,7 +259,7 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
     const cppkafka::ConfigurationOption* logLevel =
         Configuration::findOption(ConsumerConfiguration::Options::logLevel, internalOptions);
     if (logLevel) {
-        cppkafka::LogLevel level = logLevelFromString(logLevel->get_value());
+        cppkafka::LogLevel level = Configuration::extractLogLevel(topic, ConsumerConfiguration::Options::logLevel, logLevel->get_value());
         topicEntry._consumer->set_log_level(level);
         topicEntry._logLevel = level;
     }
@@ -271,7 +287,7 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
     
     const cppkafka::ConfigurationOption* backoffInterval =
         Configuration::findOption(ConsumerConfiguration::Options::commitBackoffIntervalMs, internalOptions);
-    std::chrono::milliseconds commitBackoffStep;
+    std::chrono::milliseconds commitBackoffStep{50};
     if (backoffInterval) {
         commitBackoffStep = std::chrono::milliseconds(
             Configuration::extractCounterValue(topic, ConsumerConfiguration::Options::commitBackoffIntervalMs, *backoffInterval, 1));

@@ -4,6 +4,7 @@
 #include <corokafka/utils/corokafka_json_builder.h>
 #include <stdexcept>
 #include <sstream>
+#include <atomic>
 
 namespace Bloomberg {
 namespace corokafka {
@@ -17,18 +18,22 @@ struct Exception : public std::runtime_error
     virtual ~Exception() = default;
     const char* what() const noexcept override
     {
-        std::ostringstream oss;
-        JsonBuilder json(oss);
-        json.startMember(name()).
-            tag("reason", std::runtime_error::what()).
-            endMember().end();
-        return oss.str().c_str();
+        if (_what.empty()) {
+            std::ostringstream oss;
+            JsonBuilder json(oss);
+            json.startMember(name()).
+                tag("reason", std::runtime_error::what()).
+                endMember().end();
+            _what = oss.str();
+        }
+        return _what.c_str();
     }
     virtual const char* name() const noexcept
     {
-        static const char* name = "Exception";
-        return name;
+        return "Exception";
     }
+protected:
+    mutable std::string _what;
 };
 
 //=========================================================================================
@@ -39,8 +44,7 @@ struct MessageException : public Exception
     using Exception::Exception;
     const char* name() const noexcept override
     {
-        static const char* name = "MessageException";
-        return name;
+        return "MessageException";
     }
 };
 
@@ -52,8 +56,7 @@ struct HandleException : public Exception
     using Exception::Exception;
     const char* name() const noexcept override
     {
-        static const char* name = "HandleException";
-        return name;
+        return "HandleException";
     }
 };
 
@@ -74,13 +77,16 @@ struct TopicException : public Exception
     virtual ~TopicException() = default;
     const char* what() const noexcept override
     {
-        std::ostringstream oss;
-        JsonBuilder json(oss);
-        json.startMember(name()).
-            tag("topic", topic()).
-            tag("reason", std::runtime_error::what()).
-            endMember().end();
-        return oss.str().c_str();
+        if (_what.empty()) {
+            std::ostringstream oss;
+            JsonBuilder json(oss);
+            json.startMember(name()).
+                tag("topic", topic()).
+                    tag("reason", std::runtime_error::what()).
+                    endMember().end();
+            _what = oss.str();
+        }
+        return _what.c_str();
     }
     const char* topic() const noexcept
     {
@@ -88,8 +94,7 @@ struct TopicException : public Exception
     }
     const char* name() const noexcept override
     {
-        static const char* name = "TopicException";
-        return name;
+        return "TopicException";
     }
 private:
     std::string _topic{"unknown"};
@@ -103,8 +108,7 @@ struct ConfigurationException : public TopicException
     using TopicException::TopicException;
     const char* name() const noexcept override
     {
-        static const char* name = "ConfigurationException";
-        return name;
+        return "ConfigurationException";
     }
 };
 
@@ -125,18 +129,20 @@ struct InvalidArgumentException : public Exception
     }
     const char* what() const noexcept override
     {
-        std::ostringstream oss;
-        JsonBuilder json(oss);
-        json.startMember(name()).
-            tag("argument", argument()).
-            tag("reason", std::runtime_error::what()).
-            endMember().end();
-        return oss.str().c_str();
+        if (_what.empty()) {
+            std::ostringstream oss;
+            JsonBuilder json(oss);
+            json.startMember(name()).
+                tag("argument", argument()).
+                    tag("reason", std::runtime_error::what()).
+                    endMember().end();
+            _what = oss.str();
+        }
+        return _what.c_str();
     }
     const char* name() const noexcept override
     {
-        static const char* name = "InvalidArgumentException";
-        return name;
+        return "InvalidArgumentException";
     }
     size_t argument() const { return _argument; }
 private:
@@ -166,14 +172,17 @@ struct InvalidOptionException : public ConfigurationException
     {}
     const char* what() const noexcept override
     {
-        std::ostringstream oss;
-        JsonBuilder json(oss);
-        json.startMember(name()).
-            tag("topic", topic()).
-            tag("option", option()).
-            tag("reason", std::runtime_error::what()).
-            endMember().end();
-        return oss.str().c_str();
+        if (_what.empty()) {
+            std::ostringstream oss;
+            JsonBuilder json(oss);
+            json.startMember(name()).
+                tag("topic", topic()).
+                    tag("option", option()).
+                    tag("reason", std::runtime_error::what()).
+                    endMember().end();
+            _what = oss.str();
+        }
+        return _what.c_str();
     }
     const char* option() const noexcept
     {
@@ -181,8 +190,7 @@ struct InvalidOptionException : public ConfigurationException
     }
     const char* name() const noexcept override
     {
-        static const char* name = "InvalidOptionException";
-        return name;
+        return "InvalidOptionException";
     }
 private:
     std::string _option;
@@ -196,8 +204,7 @@ struct ConsumerException : public TopicException
     using TopicException::TopicException;
     const char* name() const noexcept override
     {
-        static const char* name = "ConsumerException";
-        return name;
+        return "ConsumerException";
     }
 };
 
@@ -209,8 +216,7 @@ struct ProducerException : public TopicException
     using TopicException::TopicException;
     const char* name() const noexcept override
     {
-        static const char* name = "ProducerException";
-        return name;
+        return "ProducerException";
     }
 };
 
@@ -222,8 +228,7 @@ struct FeatureNotSupportedException : public Exception
     using Exception::Exception;
     const char* name() const noexcept override
     {
-        static const char* name = "FeatureNotSupportedException";
-        return name;
+        return "FeatureNotSupportedException";
     }
 };
 

@@ -30,36 +30,6 @@ ssize_t& maxMessageBuilderOutputLength()
     return messageLen;
 }
 
-cppkafka::LogLevel logLevelFromString(const std::string& level)
-{
-    StringEqualCompare compare;
-    if (compare(level, "emergency")) {
-        return cppkafka::LogLevel::LogEmerg;
-    }
-    if (compare(level, "alert")) {
-        return cppkafka::LogLevel::LogAlert;
-    }
-    if (compare(level, "critical")) {
-        return cppkafka::LogLevel::LogCrit;
-    }
-    if (compare(level, "error")) {
-        return cppkafka::LogLevel::LogErr;
-    }
-    if (compare(level, "warning")) {
-        return cppkafka::LogLevel::LogWarning;
-    }
-    if (compare(level, "notice")) {
-        return cppkafka::LogLevel::LogNotice;
-    }
-    if (compare(level, "info")) {
-        return cppkafka::LogLevel::LogInfo;
-    }
-    if (compare(level, "debug")) {
-        return cppkafka::LogLevel::LogDebug;
-    }
-    throw InvalidArgumentException(0, "Unknown log level");
-}
-
 void handleException(const std::exception& ex,
                      const Metadata& metadata,
                      const TopicConfiguration& config,

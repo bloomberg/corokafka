@@ -68,6 +68,8 @@ private:
     std::vector<std::string> _names;
 };
 
+using NoHeaders = Headers<NullHeader>;
+
 /**
  * @brief Helper function to make a Headers object from a list of Header objects.
  * @tparam T The list of header types
