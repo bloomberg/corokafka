@@ -23,20 +23,13 @@ namespace corokafka {
 
 /**
  * @brief Represents the result of a successful or failed delivery
- * of a message
+ *        of a message
  */
 class DeliveryReport
 {
+    friend class ProducerManagerImpl;
 public:
     DeliveryReport() = default;
-    /**
-     * @brief Constructs an instance of a message delivery report
-     * @param topicPartition the partition the message was sent to
-     * @param numBytes number of bytes produced
-     * @param error the error associated with the message delivery, if any
-     * @param opaque a user-provided pointer to an opaque data associated with the message
-     */
-    DeliveryReport(cppkafka::TopicPartition topicPartition, size_t numBytes, cppkafka::Error error, void * opaque);
     /**
      * @brief Gets the message topic partition
      */
@@ -58,10 +51,22 @@ public:
      */
     std::string toString() const;
 private:
+    /**
+     * @brief Constructs an instance of a message delivery report
+     * @param topicPartition the partition the message was sent to
+     * @param numBytes number of bytes produced
+     * @param error the error associated with the message delivery, if any
+     * @param opaque a user-provided pointer to an opaque data associated with the message
+     */
+    DeliveryReport(cppkafka::TopicPartition topicPartition,
+                   size_t numBytes,
+                   cppkafka::Error error,
+                   const void* opaque);
+    
     cppkafka::TopicPartition    _topicPartition;
     size_t                      _numBytes{0};
     cppkafka::Error             _error;
-    void*                       _opaque{nullptr};
+    const void*                 _opaque{nullptr};
 };
 
 /**

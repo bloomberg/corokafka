@@ -48,7 +48,6 @@ public:
     {
         static constexpr const char* autoThrottle =                 "internal.producer.auto.throttle";
         static constexpr const char* autoThrottleMultiplier =       "internal.producer.auto.throttle.multiplier";
-        static constexpr const char* flushWaitForAcks =             "internal.producer.flush.wait.for.acks";
         static constexpr const char* flushWaitForAcksTimeoutMs =    "internal.producer.flush.wait.for.acks.timeout.ms";
         static constexpr const char* logLevel =                     "internal.producer.log.level";
         static constexpr const char* maxQueueLength =               "internal.producer.max.queue.length";
@@ -57,7 +56,6 @@ public:
         static constexpr const char* queueFullNotification =        "internal.producer.queue.full.notification";
         static constexpr const char* retries =                      "internal.producer.retries";
         static constexpr const char* timeoutMs =                    "internal.producer.timeout.ms";
-        static constexpr const char* waitForAcks =                  "internal.producer.wait.for.acks";
         static constexpr const char* waitForAcksTimeoutMs =         "internal.producer.wait.for.acks.timeout.ms";
     };
     
@@ -69,11 +67,11 @@ public:
      * @note 'metadata.broker.list' must be supplied in 'options'.
      */
     ProducerConfiguration(const std::string& topicName,
-                          Configuration::OptionList options,
-                          Configuration::OptionList topicOptions);
+                          OptionList options,
+                          OptionList topicOptions);
     ProducerConfiguration(const std::string& topicName,
-                          std::initializer_list<cppkafka::ConfigurationOption> options,
-                          std::initializer_list<cppkafka::ConfigurationOption> topicOptions);
+                          OptionInitList options,
+                          OptionInitList topicOptions);
     
     /**
      * @brief Set the delivery report callback.

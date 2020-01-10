@@ -83,13 +83,13 @@ public:
      */
     template <typename TOPIC>
     ConsumerConfiguration(const TOPIC& topic,
-                          Configuration::OptionList options,
-                          Configuration::OptionList topicOptions,
+                          OptionList options,
+                          OptionList topicOptions,
                           Callbacks::ReceiverCallback<TOPIC> receiver);
     template <typename TOPIC>
     ConsumerConfiguration(const TOPIC& topic,
-                          std::initializer_list<cppkafka::ConfigurationOption> options,
-                          std::initializer_list<cppkafka::ConfigurationOption> topicOptions,
+                          OptionInitList options,
+                          OptionInitList topicOptions,
                           Callbacks::ReceiverCallback<TOPIC> receiver);
     
     /**
@@ -101,11 +101,11 @@ public:
      * @note 'metadata.broker.list' must be supplied in 'options'.
      */
     ConsumerConfiguration(const std::string& topic,
-                          Configuration::OptionList options,
-                          Configuration::OptionList topicOptions);
+                          OptionList options,
+                          OptionList topicOptions);
     ConsumerConfiguration(const std::string& topic,
-                          std::initializer_list<cppkafka::ConfigurationOption> options,
-                          std::initializer_list<cppkafka::ConfigurationOption> topicOptions);
+                          OptionInitList options,
+                          OptionInitList topicOptions);
     
     /**
      * @brief Assign partitions and offsets on startup for this consumer.

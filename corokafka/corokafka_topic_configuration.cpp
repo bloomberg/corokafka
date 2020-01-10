@@ -59,9 +59,11 @@ const Configuration::OptionList& TopicConfiguration::getTopicOptions(OptionType 
     return _topicOptions[(int)type];
 }
 
-void TopicConfiguration::setErrorCallback(Callbacks::ErrorCallback callback)
+void TopicConfiguration::setErrorCallback(Callbacks::ErrorCallback callback,
+                                          const void* opaque)
 {
     _errorCallback = std::move(callback);
+    _errorOpaque = opaque;
 }
 
 void TopicConfiguration::setThrottleCallback(Callbacks::ThrottleCallback callback)
@@ -87,6 +89,11 @@ bool TopicConfiguration::operator<(const TopicConfiguration& other) const
 const Callbacks::ErrorCallback& TopicConfiguration::getErrorCallback() const
 {
     return _errorCallback;
+}
+
+const void* TopicConfiguration::getErrorCallbackOpaque() const
+{
+    return _errorOpaque;
 }
 
 const Callbacks::ThrottleCallback& TopicConfiguration::getThrottleCallback() const

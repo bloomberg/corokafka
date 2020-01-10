@@ -58,8 +58,10 @@ public:
     /**
      * @brief Set the error callback.
      * @param callback The callback.
+     * @param opaque An application-managed pointer which shall be passed when the callback is invoked.
      */
-    void setErrorCallback(Callbacks::ErrorCallback callback);
+    void setErrorCallback(Callbacks::ErrorCallback callback,
+                          const void* opaque = nullptr);
     
     /**
      * @brief Set the throttle callback.
@@ -86,6 +88,12 @@ public:
      * @return The callback.
      */
     const Callbacks::ErrorCallback& getErrorCallback() const;
+    
+    /**
+     * @brief Get the opaque pointer (if any) for the error callback.
+     * @return The application-managed data pointer.
+     */
+    const void* getErrorCallbackOpaque() const;
     
     /**
      * @brief Get the throttle callback.
@@ -129,6 +137,7 @@ private:
     std::string                         _topic;
     OptionList                          _topicOptions[3];
     Callbacks::ErrorCallback            _errorCallback;
+    const void*                         _errorOpaque{nullptr};
     Callbacks::ThrottleCallback         _throttleCallback;
     Callbacks::LogCallback              _logCallback;
     Callbacks::StatsCallback            _statsCallback;

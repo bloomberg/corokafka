@@ -57,7 +57,7 @@ public:
      */
     template <typename TOPIC, typename K, typename P, typename ...H>
     int send(const TOPIC& topic,
-             void* opaque,
+             const void* opaque,
              const K& key,
              const P& payload,
              const H&...headers);
@@ -83,7 +83,7 @@ public:
     template <typename TOPIC, typename K, typename P, typename ...H>
     quantum::GenericFuture<DeliveryReport>
     post(const TOPIC& topic,
-         void* opaque,
+         const void* opaque,
          K&& key,
          P&& payload,
          H&&...headers);
@@ -164,7 +164,7 @@ private:
 template <typename TOPIC, typename K, typename P, typename ...H>
 int
 ProducerManager::send(const TOPIC& topic,
-                      void* opaque,
+                      const void* opaque,
                       const K& key,
                       const P& payload,
                       const H&... headers) {
@@ -178,7 +178,7 @@ ProducerManager::send(const TOPIC& topic,
 template <typename TOPIC, typename K, typename P, typename ...H>
 quantum::GenericFuture<DeliveryReport>
 ProducerManager::post(const TOPIC& topic,
-                      void* opaque,
+                      const void* opaque,
                       K&& key,
                       P&& payload,
                       H&&...headers) {

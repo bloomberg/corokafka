@@ -19,10 +19,23 @@ TEST(ConsumerConfiguration, MissingBrokerList)
     }
 }
 
+TEST(ConsumerConfiguration, MissingGroupId)
+{
+    ConsumerConfiguration config(topicWithHeaders().topic(), {{"metadata.broker.list", programOptions()._broker}}, {}); //use all defaults
+    ConfigurationBuilder builder;
+    builder(config);
+    ASSERT_THROW(Connector connector(builder), InvalidOptionException);
+    try { Connector connector(builder); }
+    catch(const InvalidOptionException& ex) {
+        ASSERT_STREQ("group.id", ex.option());
+    }
+}
+
 TEST(ConsumerConfiguration, UnknownOption)
 {
     ConsumerConfiguration config(topicWithHeaders(),
         {{"metadata.broker.list", programOptions()._broker},
+         {"group.id", "test-group"},
          {"somebadoption", "bad"}}, {},
          Callbacks::messageReceiverWithHeaders);
     ConfigurationBuilder builder;

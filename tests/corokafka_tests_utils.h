@@ -76,6 +76,17 @@ void testConsumerOption(const char* exName, const char* opName, const ValueTestL
     }
 }
 
+inline
+Connector makeProducerConnector(const Configuration::OptionList& ops, const std::string& topic)
+{
+    Configuration::OptionList options = ops;
+    options.push_back({"metadata.broker.list", programOptions()._broker});
+    ProducerConfiguration config(topic, options, {});
+    ConfigurationBuilder builder;
+    builder(config);
+    return {builder};
+}
+
 
 }}}
 

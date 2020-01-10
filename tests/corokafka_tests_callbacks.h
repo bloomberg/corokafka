@@ -25,10 +25,11 @@ struct CallbackCounters
     int _queueFull{0};
     int _offsetCommit{0};
     std::map<uint16_t, int> _receiver; //indexed by producer id
+    void* _opaque{nullptr};
 };
 
 inline
-CallbackCounters &callbackCounters()
+CallbackCounters& callbackCounters()
 {
     static CallbackCounters _counters;
     return _counters;
@@ -75,7 +76,7 @@ struct Callbacks
     static void handleOffsetCommit(const ConsumerMetadata &metadata,
                                    cppkafka::Error error,
                                    const cppkafka::TopicPartitionList &topicPartitions,
-                                   const std::vector<const void *> &opaques);
+                                   const std::vector<void*> &opaques);
     
     static void messageReceiverWithHeaders(TopicWithHeaders::ReceivedMessageType message);
     

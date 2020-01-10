@@ -23,7 +23,7 @@ namespace corokafka {
 //                               SENT MESSAGE
 //====================================================================================
 SentMessage::SentMessage(const cppkafka::Message& kafkaMessage,
-                         void* opaque) :
+                         const void* opaque) :
     _message(&kafkaMessage),
     _builder(nullptr),
     _error(kafkaMessage.get_error()),
@@ -33,7 +33,7 @@ SentMessage::SentMessage(const cppkafka::Message& kafkaMessage,
 
 SentMessage::SentMessage(const cppkafka::MessageBuilder& builder,
                          cppkafka::Error error,
-                         void* opaque) :
+                         const void* opaque) :
     _message(nullptr),
     _builder(&builder),
     _error(error),
@@ -100,7 +100,7 @@ SentMessage::operator bool() const
 
 void* SentMessage::getOpaque() const
 {
-    return _opaque;
+    return const_cast<void*>(_opaque);
 }
 
 #if (RD_KAFKA_VERSION >= RD_KAFKA_MESSAGE_STATUS_SUPPORT_VERSION)

@@ -35,6 +35,7 @@ class Configuration
     friend class ConnectorImpl;
 public:
     using OptionList = std::vector<cppkafka::ConfigurationOption>;
+    using OptionInitList = std::initializer_list<cppkafka::ConfigurationOption>;
     enum class OptionType : int { All = 0, RdKafka = 1, Internal = 2 };
     
     /**
@@ -70,6 +71,7 @@ protected:
     struct RdKafkaOptions
     {
         static constexpr const char* metadataBrokerList =       "metadata.broker.list";
+        static constexpr const char* groupId =                  "group.id";
         static constexpr const char* maxInFlight =              "max.in.flight";
         static constexpr const char* enableAutoOffsetStore =    "enable.auto.offset.store";
         static constexpr const char* enableAutoCommit =         "enable.auto.commit";
@@ -80,7 +82,7 @@ protected:
     
     Configuration() = default;
     Configuration(OptionList options);
-    Configuration(std::initializer_list<cppkafka::ConfigurationOption> options);
+    Configuration(OptionInitList options);
     virtual ~Configuration() = default;
     
     static const cppkafka::ConfigurationOption* findOption(const std::string& name,
@@ -101,7 +103,7 @@ protected:
                                               const char* optionName,
                                               const std::string &level);
     // Members
-    OptionList  _options[3];
+    OptionList  _options[3]; //indexed by OptionType
 };
 
 } // corokafka

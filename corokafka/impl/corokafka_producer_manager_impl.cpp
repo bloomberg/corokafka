@@ -99,17 +99,18 @@ void ProducerManagerImpl::produceMessage(const ProducerTopicEntry& entry,
 
 void ProducerManagerImpl::flush(const ProducerTopicEntry& entry)
 {
-    if (entry._flushWaitForAcksTimeout.count() == (int)TimerValues::Disabled) {
+    if ((entry._flushWaitForAcksTimeout.count() == (int)TimerValues::Disabled) &&
+        !entry._forceSyncFlush) {
         //async flush
         entry._producer->async_flush();
     }
     else if (entry._flushWaitForAcksTimeout.count() == (int)TimerValues::Unlimited) {
         //full blocking flush
-        entry._producer->flush();
+        entry._producer->flush(entry._preserveMessageOrder);
     }
     else {
         //block until ack arrives or timeout
-        entry._producer->flush(entry._flushWaitForAcksTimeout);
+        entry._producer->flush(entry._flushWaitForAcksTimeout, entry._preserveMessageOrder);
     }
 }
 
@@ -346,7 +347,7 @@ void ProducerManagerImpl::shutdown()
         _emptyCondition.notify_one(); //awake the posting thread
         // wait for all pending flushes to complete
         for (auto&& entry : _producers) {
-            entry.second._producer->flush();
+            flush(entry.second);
         }
     }
 }
@@ -448,11 +449,13 @@ void ProducerManagerImpl::errorCallback(
                         cppkafka::KafkaHandleBase& handle,
                         int error,
                         const std::string& reason,
-                        void* opaque)
+                        const void* sendOpaque)
 {
+    const void* errorOpaque = topicEntry._configuration.getErrorCallbackOpaque() ?
+                              topicEntry._configuration.getErrorCallbackOpaque() : sendOpaque;
     cppkafka::CallbackInvoker<Callbacks::ErrorCallback>
         ("error", topicEntry._configuration.getErrorCallback(), &handle)
-            (makeMetadata(topicEntry), cppkafka::Error((rd_kafka_resp_err_t)error), reason, opaque);
+            (makeMetadata(topicEntry), cppkafka::Error((rd_kafka_resp_err_t)error), reason, const_cast<void*>(errorOpaque));
 }
 
 void ProducerManagerImpl::throttleCallback(
@@ -505,7 +508,7 @@ void ProducerManagerImpl::produceSuccessCallback(
                         ProducerTopicEntry& topicEntry,
                         const cppkafka::Message& kafkaMessage)
 {
-    void* opaque = setPackedOpaqueFuture(kafkaMessage); //set future
+    const void* opaque = setPackedOpaqueFuture(kafkaMessage); //set future
     cppkafka::CallbackInvoker<Callbacks::DeliveryReportCallback>
         ("produce success", topicEntry._configuration.getDeliveryReportCallback(), &topicEntry._producer->get_producer())
             (makeMetadata(topicEntry), SentMessage(kafkaMessage, opaque));
@@ -515,7 +518,7 @@ void ProducerManagerImpl::produceTerminationCallback(
                         ProducerTopicEntry& topicEntry,
                         const cppkafka::Message& kafkaMessage)
 {
-    void* opaque = setPackedOpaqueFuture(kafkaMessage); //set future
+    const void* opaque = setPackedOpaqueFuture(kafkaMessage); //set future
     cppkafka::CallbackInvoker<Callbacks::DeliveryReportCallback>
         ("produce failure", topicEntry._configuration.getDeliveryReportCallback(), &topicEntry._producer->get_producer())
             (makeMetadata(topicEntry), SentMessage(kafkaMessage, opaque));
@@ -539,7 +542,7 @@ void ProducerManagerImpl::flushTerminationCallback(
                         const cppkafka::MessageBuilder& builder,
                         cppkafka::Error error)
 {
-    void* opaque = setPackedOpaqueFuture(builder, error); //set future
+    const void* opaque = setPackedOpaqueFuture(builder, error); //set future
     cppkafka::CallbackInvoker<Callbacks::DeliveryReportCallback>
         ("produce failure", topicEntry._configuration.getDeliveryReportCallback(), &topicEntry._producer->get_producer())
             (makeMetadata(topicEntry), SentMessage(builder, error, opaque));
@@ -563,10 +566,10 @@ void ProducerManagerImpl::report(ProducerTopicEntry& topicEntry,
                                  cppkafka::LogLevel level,
                                  int error,
                                  const std::string& reason,
-                                 void* opaque)
+                                 const void* sendOpaque)
 {
     if (error) {
-        errorCallback(topicEntry, topicEntry._producer->get_producer(), error, reason, opaque);
+        errorCallback(topicEntry, topicEntry._producer->get_producer(), error, reason, sendOpaque);
     }
     if (topicEntry._logLevel >= level) {
         logCallback(topicEntry, topicEntry._producer->get_producer(), (int)level, "corokafka", reason);
@@ -585,13 +588,7 @@ void ProducerManagerImpl::adjustThrottling(ProducerTopicEntry& topicEntry,
 int ProducerManagerImpl::pollTask(ProducerTopicEntry& entry)
 {
     try {
-        if (entry._forceSyncFlush || entry._preserveMessageOrder) {
-            entry._producer->flush(entry._preserveMessageOrder); //synchronous flush
-            entry._forceSyncFlush = false;
-        }
-        else {
-            flush(entry);
-        }
+        flush(entry);
         return 0;
     }
     catch (const std::exception& ex) {
@@ -651,7 +648,7 @@ ProducerMetadata ProducerManagerImpl::makeMetadata(const ProducerTopicEntry& top
     return ProducerMetadata(topicEntry._configuration.getTopic(), topicEntry._producer.get());
 }
 
-void* ProducerManagerImpl::setPackedOpaqueFuture(const cppkafka::Message& kafkaMessage)
+const void* ProducerManagerImpl::setPackedOpaqueFuture(const cppkafka::Message& kafkaMessage)
 {
     std::unique_ptr<PackedOpaque> packedOpaque(static_cast<PackedOpaque*>(kafkaMessage.get_user_data()));
     packedOpaque->second.set(DeliveryReport(cppkafka::TopicPartition(kafkaMessage.get_topic(),
@@ -663,7 +660,7 @@ void* ProducerManagerImpl::setPackedOpaqueFuture(const cppkafka::Message& kafkaM
     return packedOpaque->first;
 }
 
-void* ProducerManagerImpl::setPackedOpaqueFuture(const cppkafka::MessageBuilder& builder, cppkafka::Error error)
+const void* ProducerManagerImpl::setPackedOpaqueFuture(const cppkafka::MessageBuilder& builder, cppkafka::Error error)
 {
     std::unique_ptr<PackedOpaque> packedOpaque(static_cast<PackedOpaque*>(builder.user_data()));
     packedOpaque->second.set(DeliveryReport(cppkafka::TopicPartition(builder.topic(),
