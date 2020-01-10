@@ -95,6 +95,12 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
         throw InvalidOptionException(topic, Configuration::RdKafkaOptions::metadataBrokerList, "Missing");
     }
     
+    const cppkafka::ConfigurationOption* groupId =
+        Configuration::findOption(Configuration::RdKafkaOptions::groupId, rdKafkaOptions);
+    if (!groupId) {
+        throw InvalidOptionException(topic, Configuration::RdKafkaOptions::groupId, "Missing");
+    }
+    
     //Check if the receiver is set (will throw if not set)
     topicEntry._configuration.getTypeErasedReceiver();
     
@@ -675,11 +681,13 @@ void ConsumerManagerImpl::errorCallback(
                         cppkafka::KafkaHandleBase& handle,
                         int error,
                         const std::string& reason,
-                        cppkafka::Message* message)
+                        const cppkafka::Message* message)
 {
+    const void* errorOpaque = topicEntry._configuration.getErrorCallbackOpaque() ?
+                              topicEntry._configuration.getErrorCallbackOpaque() : message;
     cppkafka::CallbackInvoker<Callbacks::ErrorCallback>
         ("error", topicEntry._configuration.getErrorCallback(), &handle)
-            (makeMetadata(topicEntry), cppkafka::Error((rd_kafka_resp_err_t)error), reason, message);
+            (makeMetadata(topicEntry), cppkafka::Error((rd_kafka_resp_err_t)error), reason, const_cast<void*>(errorOpaque));
 }
 
 void ConsumerManagerImpl::throttleCallback(
@@ -735,14 +743,14 @@ void ConsumerManagerImpl::offsetCommitCallback(
                         const cppkafka::TopicPartitionList& topicPartitions)
 {
     // Check if we have opaque data
-    std::vector<const void*> opaques;
+    std::vector<void*> opaques;
     if (!topicEntry._offsets.empty()) {
         opaques.reserve(topicPartitions.size());
     }
     for (auto& partition : topicPartitions) {
         //remove the opaque values and pass them back to the application
         if (!topicEntry._offsets.empty()) {
-            opaques.push_back(topicEntry._offsets.remove(partition));
+            opaques.push_back(const_cast<void*>(topicEntry._offsets.remove(partition)));
         }
     }
     cppkafka::CallbackInvoker<Callbacks::OffsetCommitCallback>
@@ -832,10 +840,10 @@ void ConsumerManagerImpl::report(
                     cppkafka::LogLevel level,
                     int error,
                     const std::string& reason,
-                    const cppkafka::Message& message)
+                    const cppkafka::Message* message)
 {
     if (error) {
-        errorCallback(topicEntry, *topicEntry._consumer, error, reason, &const_cast<cppkafka::Message&>(message));
+        errorCallback(topicEntry, *topicEntry._consumer, error, reason, message);
     }
     if (topicEntry._logLevel >= level) {
         logCallback(topicEntry, *topicEntry._consumer, (int)level, "corokafka", reason);
@@ -920,7 +928,7 @@ ConsumerManagerImpl::deserializeMessage(ConsumerTopicEntry& entry,
         // Decoding failed
         de._error = RD_KAFKA_RESP_ERR__KEY_DESERIALIZATION;
         de._source |= (uint8_t)DeserializerError::Source::Key;
-        report(entry, cppkafka::LogLevel::LogErr, RD_KAFKA_RESP_ERR__KEY_DESERIALIZATION, "Failed to deserialize key", kafkaMessage);
+        report(entry, cppkafka::LogLevel::LogErr, RD_KAFKA_RESP_ERR__KEY_DESERIALIZATION, "Failed to deserialize key", &kafkaMessage);
     }
     
     //Deserialize the headers if any
@@ -942,19 +950,19 @@ ConsumerManagerImpl::deserializeMessage(ConsumerTopicEntry& entry,
                 de._headerNum = num;
                 std::ostringstream oss;
                 oss << "Failed to deserialize header: " << it->get_name();
-                report(entry, cppkafka::LogLevel::LogErr, RD_KAFKA_RESP_ERR__VALUE_DESERIALIZATION, oss.str(), kafkaMessage);
+                report(entry, cppkafka::LogLevel::LogErr, RD_KAFKA_RESP_ERR__VALUE_DESERIALIZATION, oss.str(), &kafkaMessage);
                 break;
             }
         }
         catch (const std::exception& ex) {
             if (entry._skipUnknownHeaders) {
-                report(entry, cppkafka::LogLevel::LogWarning, 0, ex.what(), kafkaMessage);
+                report(entry, cppkafka::LogLevel::LogWarning, 0, ex.what(), &kafkaMessage);
                 continue;
             }
             de._error = RD_KAFKA_RESP_ERR__NOT_IMPLEMENTED;
             de._source |= (uint8_t)DeserializerError::Source::Header;
             de._headerNum = num;
-            report(entry, cppkafka::LogLevel::LogErr, RD_KAFKA_RESP_ERR__NOT_IMPLEMENTED, ex.what(), kafkaMessage);
+            report(entry, cppkafka::LogLevel::LogErr, RD_KAFKA_RESP_ERR__NOT_IMPLEMENTED, ex.what(), &kafkaMessage);
             break;
         }
         ++num;
@@ -962,14 +970,14 @@ ConsumerManagerImpl::deserializeMessage(ConsumerTopicEntry& entry,
     
     //Deserialize the payload
     boost::any payload = cppkafka::CallbackInvoker<Deserializer>("payload_deserializer",
-                                                       *deserializer._payloadDeserializer,
-                                                       entry._consumer.get())
+                                                                 *deserializer._payloadDeserializer,
+                                                                 entry._consumer.get())
                      (toppar, kafkaMessage.get_payload());
     if (payload.empty()) {
         // Decoding failed
         de._error = RD_KAFKA_RESP_ERR__VALUE_DESERIALIZATION;
         de._source |= (uint8_t)DeserializerError::Source::Payload;
-        report(entry, cppkafka::LogLevel::LogErr, RD_KAFKA_RESP_ERR__VALUE_DESERIALIZATION, "Failed to deserialize payload", kafkaMessage);
+        report(entry, cppkafka::LogLevel::LogErr, RD_KAFKA_RESP_ERR__VALUE_DESERIALIZATION, "Failed to deserialize payload", &kafkaMessage);
     }
     
     return DeserializedMessage(std::move(key), std::move(payload), std::move(headers), de);

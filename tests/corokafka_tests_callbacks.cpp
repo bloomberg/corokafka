@@ -11,6 +11,7 @@ void Callbacks::handleKafkaError(const Metadata& metadata,
                                  void *opaque)
 {
     callbackCounters()._error++;
+    callbackCounters()._opaque = opaque;
 }
 
 void Callbacks::handleThrottling(const Metadata& metadata,
@@ -52,6 +53,7 @@ void Callbacks::handleDeliveryReport(const ProducerMetadata &metadata,
                                      const SentMessage &msg)
 {
     callbackCounters()._deliveryReport++;
+    callbackCounters()._opaque = msg.getOpaque();
 }
 
 int32_t Callbacks::partitioner(const ProducerMetadata& metadata,
@@ -79,9 +81,12 @@ void Callbacks::handleQueueFull(const ProducerMetadata &metadata,
 void Callbacks::handleOffsetCommit(const ConsumerMetadata &metadata,
                                    cppkafka::Error error,
                                    const cppkafka::TopicPartitionList &topicPartitions,
-                                   const std::vector<const void *>&)
+                                   const std::vector<void*>& opaques)
 {
     callbackCounters()._offsetCommit++;
+    if (!opaques.empty()) {
+        callbackCounters()._opaque = opaques.front();
+    }
 }
 
 void Callbacks::messageReceiverWithHeaders(TopicWithHeaders::ReceivedMessageType message)

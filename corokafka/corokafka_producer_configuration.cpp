@@ -26,7 +26,6 @@ const std::string ProducerConfiguration::s_internalOptionsPrefix = "internal.pro
 const Configuration::OptionSet ProducerConfiguration::s_internalOptions = {
     Options::autoThrottle,
     Options::autoThrottleMultiplier,
-    Options::flushWaitForAcks,
     Options::flushWaitForAcksTimeoutMs,
     Options::logLevel,
     Options::maxQueueLength,
@@ -35,22 +34,21 @@ const Configuration::OptionSet ProducerConfiguration::s_internalOptions = {
     Options::queueFullNotification,
     Options::retries,
     Options::timeoutMs,
-    Options::waitForAcks,
     Options::waitForAcksTimeoutMs
 };
 
 const Configuration::OptionSet ProducerConfiguration::s_internalTopicOptions;
 
 ProducerConfiguration::ProducerConfiguration(const std::string& topicName,
-                                             Configuration::OptionList options,
-                                             Configuration::OptionList topicOptions) :
+                                             OptionList options,
+                                             OptionList topicOptions) :
     TopicConfiguration(KafkaType::Producer, topicName, std::move(options), std::move(topicOptions))
 {
 }
 
 ProducerConfiguration::ProducerConfiguration(const std::string& topicName,
-                                             std::initializer_list<cppkafka::ConfigurationOption> options,
-                                             std::initializer_list<cppkafka::ConfigurationOption> topicOptions) :
+                                             OptionInitList options,
+                                             OptionInitList topicOptions) :
     TopicConfiguration(KafkaType::Producer, topicName, std::move(options), std::move(topicOptions))
 {
 }

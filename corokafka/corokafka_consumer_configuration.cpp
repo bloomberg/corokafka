@@ -53,8 +53,8 @@ const Configuration::OptionSet ConsumerConfiguration::s_internalOptions = {
 const Configuration::OptionSet ConsumerConfiguration::s_internalTopicOptions;
 
 ConsumerConfiguration::ConsumerConfiguration(const std::string& topic,
-                                             Configuration::OptionList options,
-                                             Configuration::OptionList topicOptions) :
+                                             OptionList options,
+                                             OptionList topicOptions) :
     TopicConfiguration(KafkaType::Consumer, topic, std::move(options), std::move(topicOptions))
 {
 }

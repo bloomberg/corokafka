@@ -72,15 +72,15 @@ void ConsumerManager::unsubscribe(const std::string& topic)
 }
 
 cppkafka::Error ConsumerManager::commit(const cppkafka::TopicPartition& topicPartition,
-                                          const void* opaque,
-                                          bool forceSync)
+                                        const void* opaque,
+                                        bool forceSync)
 {
     return _impl->commit(topicPartition, opaque, forceSync);
 }
 
 cppkafka::Error ConsumerManager::commit(const cppkafka::TopicPartitionList& topicPartitions,
-                                          const void* opaque,
-                                          bool forceSync)
+                                        const void* opaque,
+                                        bool forceSync)
 {
     return _impl->commit(topicPartitions, opaque, forceSync);
 }

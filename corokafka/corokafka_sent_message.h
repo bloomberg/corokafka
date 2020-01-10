@@ -89,13 +89,13 @@ public:
 #endif
 
 private:
-    SentMessage(const cppkafka::Message& kafkaMessage, void* opaque);
-    SentMessage(const cppkafka::MessageBuilder& builder, cppkafka::Error error, void* opaque);
+    SentMessage(const cppkafka::Message& kafkaMessage, const void* opaque);
+    SentMessage(const cppkafka::MessageBuilder& builder, cppkafka::Error error, const void* opaque);
     
     const cppkafka::Message*          _message;
     const cppkafka::MessageBuilder*   _builder;
     cppkafka::Error                   _error;
-    void*                             _opaque;
+    const void*                       _opaque;
 };
 
 }}

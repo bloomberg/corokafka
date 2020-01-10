@@ -63,7 +63,7 @@ private:
 
     template <typename TOPIC, typename K, typename P, typename ...H>
     size_t send(const TOPIC& topic,
-                void* opaque,
+                const void* opaque,
                 const K& key,
                 const P& payload,
                 const H&... headers);
@@ -71,7 +71,7 @@ private:
     template <typename TOPIC, typename K, typename P, typename ...H>
     quantum::GenericFuture<DeliveryReport>
     post(const TOPIC& topic,
-         void* opaque,
+         const void* opaque,
          K&& key,
          P&& payload,
          H&&... headers);
@@ -102,7 +102,7 @@ private:
                                cppkafka::KafkaHandleBase& handle,
                                int error,
                                const std::string& reason,
-                               void* opaque);
+                               const void* sendOpaque);
     static void throttleCallback(ProducerTopicEntry& topicEntry,
                                  cppkafka::KafkaHandleBase& handle,
                                  const std::string& brokerName,
@@ -133,7 +133,7 @@ private:
                        cppkafka::LogLevel level,
                        int error,
                        const std::string& reason,
-                       void* opaque);
+                       const void* sendOpaque);
     
     static void adjustThrottling(ProducerTopicEntry& topicEntry,
                                  const std::chrono::steady_clock::time_point& now);
@@ -146,17 +146,17 @@ private:
                                const ProducerMessageBuilder<ByteArray>& builder);
     template <typename TOPIC, typename K, typename P, typename ...H>
     static BuilderTuple serializeCoro(quantum::VoidContextPtr ctx,
-                             const TOPIC& topic,
-                             ProducerTopicEntry& entry,
-                             PackedOpaque* opaque,
-                             K&& key,
-                             P&& payload,
-                             H&& ...headers);
+                                      const TOPIC& topic,
+                                      ProducerTopicEntry& entry,
+                                      PackedOpaque* opaque,
+                                      K&& key,
+                                      P&& payload,
+                                      H&& ...headers);
     template <typename TOPIC, typename K, typename P, typename ...H>
     static ProducerMessageBuilder<ByteArray>
     serializeMessage(const TOPIC& topic,
                      ProducerTopicEntry& entry,
-                     void* opaque,
+                     const void* opaque,
                      const K& key,
                      const P& payload,
                      const H&... headers);
@@ -171,8 +171,8 @@ private:
                                  const ProducerTopicEntry& topicEntry);
     static ProducerMetadata makeMetadata(const ProducerTopicEntry& topicEntry);
     // Returns raw user data pointer
-    static void* setPackedOpaqueFuture(const cppkafka::Message& kafkaMessage);
-    static void* setPackedOpaqueFuture(const cppkafka::MessageBuilder& builder, cppkafka::Error error);
+    static const void* setPackedOpaqueFuture(const cppkafka::Message& kafkaMessage);
+    static const void* setPackedOpaqueFuture(const cppkafka::MessageBuilder& builder, cppkafka::Error error);
     
     Producers::iterator findProducer(const std::string& topic);
     Producers::const_iterator findProducer(const std::string& topic) const;
@@ -230,7 +230,7 @@ template <typename TOPIC, typename K, typename P, typename ...H>
 ProducerMessageBuilder<ByteArray>
 ProducerManagerImpl::serializeMessage(const TOPIC& topic,
                                       ProducerTopicEntry& entry,
-                                      void* opaque,
+                                      const void* opaque,
                                       const K& key,
                                       const P& payload,
                                       const H&... headers)
@@ -283,7 +283,7 @@ ProducerManagerImpl::serializeMessage(const TOPIC& topic,
     // Add timestamp
     builder.timestamp(std::chrono::high_resolution_clock::now());
     // Add user data
-    builder.user_data(opaque);
+    builder.user_data(const_cast<void*>(opaque));
     return builder;
 }
 
@@ -302,7 +302,7 @@ ProducerManagerImpl::serializeCoro(quantum::VoidContextPtr ctx,
 
 template <typename TOPIC, typename K, typename P, typename ...H>
 size_t ProducerManagerImpl::send(const TOPIC& topic,
-                                 void* opaque,
+                                 const void* opaque,
                                  const K& key,
                                  const P& payload,
                                  const H&... headers)
@@ -327,7 +327,7 @@ size_t ProducerManagerImpl::send(const TOPIC& topic,
 template <typename TOPIC, typename K, typename P, typename ...H>
 quantum::GenericFuture<DeliveryReport>
 ProducerManagerImpl::post(const TOPIC& topic,
-                          void* opaque,
+                          const void* opaque,
                           K&& key,
                           P&& payload,
                           H&&...headers)

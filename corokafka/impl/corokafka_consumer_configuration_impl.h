@@ -21,8 +21,8 @@ namespace corokafka {
 
 template <typename TOPIC>
 ConsumerConfiguration::ConsumerConfiguration(const TOPIC& topic,
-                                             Configuration::OptionList options,
-                                             Configuration::OptionList topicOptions,
+                                             OptionList options,
+                                             OptionList topicOptions,
                                              Callbacks::ReceiverCallback<TOPIC> receiver) :
     TopicConfiguration(KafkaType::Consumer, topic.topic(), std::move(options), std::move(topicOptions)),
     _typeErasedDeserializer(topic),
@@ -33,8 +33,8 @@ ConsumerConfiguration::ConsumerConfiguration(const TOPIC& topic,
 
 template <typename TOPIC>
 ConsumerConfiguration::ConsumerConfiguration(const TOPIC& topic,
-                                             std::initializer_list<cppkafka::ConfigurationOption> options,
-                                             std::initializer_list<cppkafka::ConfigurationOption> topicOptions,
+                                             OptionInitList options,
+                                             OptionInitList topicOptions,
                                              Callbacks::ReceiverCallback<TOPIC> receiver) :
     TopicConfiguration(KafkaType::Consumer, topic.topic(), std::move(options), std::move(topicOptions)),
     _typeErasedDeserializer(topic),

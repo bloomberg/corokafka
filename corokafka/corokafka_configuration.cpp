@@ -184,7 +184,7 @@ Configuration::Configuration(OptionList options)
     _options[(int)OptionType::All] = std::move(options);
 }
 
-Configuration::Configuration(std::initializer_list<cppkafka::ConfigurationOption> options)
+Configuration::Configuration(OptionInitList options)
 {
     _options[(int)OptionType::All] = std::move(options);
 }
@@ -216,18 +216,24 @@ void Configuration::parseOptions(const std::string& optionsPrefix,
                                  const OptionSet& allowed,
                                  OptionList(&optionList)[3])
 {
-    OptionList& internal = optionList[(int)OptionType::Internal];
-    OptionList& rdKafka = optionList[(int)OptionType::RdKafka];
     OptionList& config = optionList[(int)OptionType::All];
+    OptionList& rdKafka = optionList[(int)OptionType::RdKafka];
+    OptionList& internal = optionList[(int)OptionType::Internal];
     
     if (!allowed.empty()) {
         for (auto& option : config) {
             trim(const_cast<std::string&>(option.get_key()));
+            if (option.get_key().empty()) {
+                throw InvalidOptionException("unknown", "Name is empty");
+            }
             trim(const_cast<std::string&>(option.get_value()));
+            if (option.get_value().empty()) {
+                throw InvalidOptionException(option.get_value(), "Value is empty");
+            }
             if (StringEqualCompare()(option.get_key(), optionsPrefix, optionsPrefix.length())) {
                 auto it = allowed.find(option.get_key());
                 if (it == allowed.end()) {
-                    throw InvalidOptionException(option.get_key(), "Invalid");
+                    throw InvalidOptionException(option.get_key(), "Not found");
                 }
                 //this is an internal option
                 internal.emplace_back(option);
@@ -239,8 +245,7 @@ void Configuration::parseOptions(const std::string& optionsPrefix,
         }
     }
     else {
-        rdKafka.assign(std::make_move_iterator(config.begin()),
-                       std::make_move_iterator(config.end()));
+        rdKafka.assign(config.begin(), config.end());
     }
 }
 

@@ -56,8 +56,8 @@ public:
      * @param options The connector options (see 'Options' above).
      * @remark No RdKafka option should be passed here.
      */
-    explicit ConnectorConfiguration(Configuration::OptionList options);
-    explicit ConnectorConfiguration(std::initializer_list<cppkafka::ConfigurationOption> options);
+    explicit ConnectorConfiguration(OptionList options);
+    explicit ConnectorConfiguration(OptionInitList options);
     
     /**
      * @brief Set the dispatcher configuration

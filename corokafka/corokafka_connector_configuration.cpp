@@ -29,13 +29,13 @@ const Configuration::OptionSet ConnectorConfiguration::s_internalOptions = {
     Options::maxPayloadOutputLength,
 };
 
-ConnectorConfiguration::ConnectorConfiguration(Configuration::OptionList options) :
+ConnectorConfiguration::ConnectorConfiguration(OptionList options) :
     Configuration(std::move(options))
 {
     init();
 }
 
-ConnectorConfiguration::ConnectorConfiguration(std::initializer_list<cppkafka::ConfigurationOption> options) :
+ConnectorConfiguration::ConnectorConfiguration(OptionInitList options) :
     Configuration(std::move(options))
 {
     init();

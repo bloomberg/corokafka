@@ -55,6 +55,11 @@ public:
     Connector(ConfigurationBuilder&& builder,
               quantum::Dispatcher& dispatcher);
     
+    Connector(const Connector& other) = delete;
+    Connector(Connector&& other) = default;
+    Connector& operator=(const Connector& other) = delete;
+    Connector& operator=(Connector&& other) = default;
+    
     /**
      * @brief Destructor.
      * @remark This calls shutdown().
@@ -86,8 +91,8 @@ public:
     
 private:
     //members
-    std::unique_ptr<quantum::Dispatcher>        _dispatcherPtr;
-    std::unique_ptr<ConnectorImpl>              _impl;
+    std::shared_ptr<quantum::Dispatcher>        _dispatcherPtr;
+    std::shared_ptr<ConnectorImpl>              _impl;
 };
 
 }

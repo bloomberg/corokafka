@@ -98,7 +98,7 @@ private:
                               cppkafka::KafkaHandleBase& handle,
                               int error,
                               const std::string& reason,
-                              cppkafka::Message* message);
+                              const cppkafka::Message* opaque);
     static void throttleCallback(ConsumerTopicEntry& topicEntry,
                                  cppkafka::KafkaHandleBase& handle,
                                  const std::string& brokerName,
@@ -131,7 +131,7 @@ private:
                        cppkafka::LogLevel level,
                        int error,
                        const std::string& reason,
-                       const cppkafka::Message& message);
+                       const cppkafka::Message* message);
     
     void adjustThrottling(ConsumerTopicEntry& topicEntry,
                           const std::chrono::steady_clock::time_point& now);

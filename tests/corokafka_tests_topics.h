@@ -22,6 +22,7 @@ struct Header2 {
 };
 
 struct Message {
+    int         _num;
     std::string _message;
 };
 
@@ -99,7 +100,12 @@ struct Serialize<tests::Message>
 {
     ByteArray operator()(const tests::Message &payload)
     {
-        return {payload._message.begin(), payload._message.end()};
+        ByteArray ret;
+        uint8_t *it = (uint8_t *)&payload._num;
+        ret.insert(ret.end(), it, it+sizeof(int));
+        ret.push_back(payload._message.size());
+        ret.insert(ret.end(), payload._message.begin(), payload._message.end());
+        return ret;
     }
 };
 
@@ -121,7 +127,7 @@ struct Deserialize<tests::Header1>
     tests::Header1 operator()(const cppkafka::TopicPartition &, const cppkafka::Buffer &buf)
     {
         tests::Header1 header;
-        header._senderId = *(uint16_t *) buf.get_data();
+        header._senderId = *(uint16_t *)buf.get_data();
         uint8_t len = *(buf.get_data() + sizeof(uint16_t)); //to len
         unsigned const char *start = buf.get_data() + sizeof(uint16_t) + 1; //to start
         header._to = {start, start + len};
@@ -148,8 +154,25 @@ struct Deserialize<tests::Message>
 {
     tests::Message operator()(const cppkafka::TopicPartition &, const cppkafka::Buffer &buf)
     {
-        return {{buf.get_data(), buf.get_data() + buf.get_size()}};
+        tests::Message message;
+        message._num = *(int *)buf.get_data();
+        int len = *buf.get_data()+sizeof(int); //message length (up to 256 chars)
+        unsigned const char* msgStart = buf.get_data()+sizeof(int)+1;
+        message._message = {msgStart, msgStart + len};
+        return message;
     }
+};
+
+enum class SenderId : uint16_t {
+    SyncWithoutHeaders = 0,
+    Sync,
+    SyncOneHeaderMissing,
+    SyncBothHeadersMissing,
+    SyncUnordered,
+    SyncIdempotent,
+    Async,
+    AsyncUnordered,
+    Callbacks
 };
 
 }} //Bloomberg::corokafka

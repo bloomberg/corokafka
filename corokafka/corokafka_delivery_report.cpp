@@ -27,7 +27,7 @@ namespace corokafka {
 DeliveryReport::DeliveryReport(cppkafka::TopicPartition topicPartition,
                                size_t numBytes,
                                cppkafka::Error error,
-                               void * opaque) :
+                               const void * opaque) :
     _topicPartition(std::move(topicPartition)),
     _numBytes(numBytes),
     _error(std::move(error)),
@@ -52,7 +52,7 @@ const cppkafka::Error& DeliveryReport::getError() const
 
 void* DeliveryReport::getOpaque() const
 {
-    return _opaque;
+    return const_cast<void*>(_opaque);
 }
 
 std::string DeliveryReport::toString() const

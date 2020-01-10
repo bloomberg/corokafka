@@ -33,13 +33,13 @@ struct Callbacks {
                                                     const std::string& message)>;
     
     // ===================================== CONSUMER & PRODUCER =======================================================
-    // Note: If an error happens during serialization or deserialization, the following values will be passed in the
-    //       'opaque' pointer *if* an error callback is registered. The 'error' field shall contain
-    //       RD_KAFKA_RESP_ERR__VALUE_SERIALIZATION/RD_KAFKA_RESP_ERR__VALUE_DESERIALIZATION.
-    //       Opaque values:
-    //       Serialization => the same 'opaque' data which was passed-in when calling 'send()' or 'sendAsync()'.
-    //       Deserialization => can be safely cast to a 'Message*' which contains the raw unpacked message.
-    //       All other contexts => NULL
+    // Note: If the user registers an opaque data pointer while setting the error callback in the producer or consumer
+    //       configurations, that opaque data shall **always** passed when the callback gets invoked.
+    //       Otherwise the opaque data shall contain the following values:
+    //       - Producer: If not NULL, it shall contain the same opaque pointer which was passed-in when calling
+    //                   'send()' or 'post()'.
+    //       - Consumer: If not NULL, it can be safely cast to a 'cppkafka::Message*' which contains the
+    //                   raw unpacked message.
     using ErrorCallback = std::function<void(const Metadata& metadata,
                                              cppkafka::Error error,
                                              const std::string& reason,
@@ -62,7 +62,7 @@ struct Callbacks {
     using OffsetCommitCallback = std::function<void(const ConsumerMetadata& metadata,
                                                     cppkafka::Error error,
                                                     const cppkafka::TopicPartitionList& topicPartitions,
-                                                    const std::vector<const void*>& opaques)>;
+                                                    const std::vector<void*>& opaques)>;
     
     using RebalanceCallback = std::function<void(const ConsumerMetadata& metadata,
                                                  cppkafka::Error error,
