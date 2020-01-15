@@ -51,9 +51,9 @@ void ConnectorImpl::shutdown(bool drain,
 {
     if (!_shutdownInitiated.test_and_set())
     {
+        _shuttingDown = true;
         ProducerManager::shutdown();
         ConsumerManager::shutdown();
-        _interrupt = true;
         
         // Wait on the poll thread
         try {
@@ -90,7 +90,7 @@ void ConnectorImpl::shutdown(bool drain,
 
 void ConnectorImpl::poll()
 {
-    while(!_interrupt) {
+    while(!_shuttingDown) {
         auto start = std::chrono::high_resolution_clock::now();
         try {
             ProducerManager::poll(); //flush the producers
@@ -113,7 +113,7 @@ void ConnectorImpl::poll()
 
 void ConnectorImpl::post()
 {
-    while(!_interrupt) {
+    while(!_shuttingDown) {
         try {
             ProducerManager::post(); //flush the internal async producer queue
         }

@@ -32,7 +32,7 @@ namespace corokafka {
 
 using MessageContainer = quantum::Buffer<cppkafka::Message>;
 
-class ConsumerManagerImpl
+class ConsumerManagerImpl : public Interruptible
 {
     friend class ConsumerManager;
 public:
@@ -206,7 +206,7 @@ private:
     quantum::Dispatcher&        _dispatcher;
     Consumers                   _consumers;
     size_t                      _batchSize;
-    std::atomic_flag            _shutdownInitiated ATOMIC_FLAG_INIT;
+    std::atomic_flag            _shutdownInitiated{0};
 };
 
 }}

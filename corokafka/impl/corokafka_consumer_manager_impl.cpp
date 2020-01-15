@@ -636,6 +636,7 @@ std::vector<std::string> ConsumerManagerImpl::getTopics() const
 void ConsumerManagerImpl::shutdown()
 {
     if (!_shutdownInitiated.test_and_set()) {
+        _shuttingDown = true;
         unsubscribe({});
     }
 }
@@ -881,8 +882,10 @@ int ConsumerManagerImpl::messageRoundRobinReceiveTask(quantum::ThreadPromise<Mes
 {
     try {
         int batchSize = entry._batchSize;
-        std::chrono::milliseconds timeoutPerMessage(entry._pollTimeout.count()/entry._batchSize);
         while (batchSize--) {
+            if (!entry._isSubscribed) {
+                break;
+            }
             if (entry._pollTimeout.count() == (int)TimerValues::Disabled) {
                 cppkafka::Message message = entry._roundRobin->poll();
                 if (message) {
@@ -890,7 +893,7 @@ int ConsumerManagerImpl::messageRoundRobinReceiveTask(quantum::ThreadPromise<Mes
                 }
             }
             else {
-                cppkafka::Message message = entry._roundRobin->poll(timeoutPerMessage);
+                cppkafka::Message message = entry._roundRobin->poll(entry._pollTimeout);
                 if (message) {
                     promise->push(std::move(message));
                 }
@@ -1039,10 +1042,14 @@ std::vector<bool> ConsumerManagerImpl::executePreprocessorCallbacks(
         futures.emplace_back(ctx->postAsyncIo(ioQueueId, false,
             [&entry, &skipMessages, batchIndex, batchSize, inputIt]() mutable ->int
         {
-            for (size_t j = batchIndex; j < (batchIndex + batchSize) && entry._preprocess; ++j, ++inputIt) {
-                skipMessages[j] = entry._preprocessorCallback(cppkafka::TopicPartition(inputIt->get_topic(),
-                                                              inputIt->get_partition(),
-                                                              inputIt->get_offset()));
+            for (size_t j = batchIndex;
+                 j < (batchIndex + batchSize) && entry._preprocess;
+                 ++j, ++inputIt) {
+                if (!inputIt->get_error()) {
+                    skipMessages[j] = entry._preprocessorCallback(cppkafka::TopicPartition(inputIt->get_topic(),
+                                                                                           inputIt->get_partition(),
+                                                                                           inputIt->get_offset()));
+                }
             }
             return 0;
         }));
@@ -1097,7 +1104,8 @@ ConsumerManagerImpl::deserializeBatchCoro(quantum::VoidContextPtr ctx,
             for (size_t j = batchIndex; j < (batchIndex + batchSize); ++j, ++inputIt) {
                 if (entry._configuration.getPreprocessorCallback() &&
                     entry._preprocess &&
-                    (entry._preprocessorThread == ThreadType::Coro)) {
+                    (entry._preprocessorThread == ThreadType::Coro) &&
+                    !inputIt->get_error()) {
                     // Run the preprocessor on the coroutine thread
                     skipMessages[j] = entry._preprocessorCallback(cppkafka::TopicPartition(inputIt->get_topic(),
                                                                   inputIt->get_partition(),

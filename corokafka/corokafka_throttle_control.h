@@ -25,12 +25,12 @@ struct ThrottleControl
     {
         On = 0, //throttle was off and it's turned on
         Off,    //throttle was on and it's turned off
-        Ongoing //throttle is still ongoing
+        Unchanged //throttle is still ongoing or was never turned on. This is a no-op
     };
     
     Status handleThrottleCallback(std::chrono::milliseconds throttleDuration)
     {
-        Status status;
+        Status status = Status::Unchanged;
         if (_autoThrottle) {
             quantum::Mutex::Guard guard(_throttleMutex);
             if (isThrottleOn(throttleDuration)) {
@@ -38,9 +38,6 @@ struct ThrottleControl
             }
             else if (isThrottleOff(throttleDuration)) {
                 status = Status::Off;
-            }
-            else {
-                status = Status::Ongoing;
             }
             _throttleDuration = throttleDuration * _throttleMultiplier;
             _throttleTime = std::chrono::steady_clock::now();

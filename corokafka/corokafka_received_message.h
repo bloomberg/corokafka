@@ -43,7 +43,7 @@ class ConcreteReceiver;
  * @tparam PAYLOAD Payload type
  * @tparam HEADERS Headers type i.e. Headers<...>
  */
-template <typename KEY, typename PAYLOAD, typename HEADERS = NoHeaders>
+template <typename KEY, typename PAYLOAD, typename HEADERS = Headers<>>
 class ReceivedMessage : public IMessage
 {
     friend class ConcreteReceiver<Topic<KEY,PAYLOAD,HEADERS>>;
@@ -168,11 +168,11 @@ public:
      * @return The header
      * @note The position specified should match the type in the HEADERS template argument.
      */
-    template <size_t I>
+    template <size_t I, std::enable_if_t<I<HeadersType::NumHeaders, int> = 0>
     const typename std::tuple_element<I,HeaderTypes>::type& getHeaderAt() const &;
-    template <size_t I>
+    template <size_t I, std::enable_if_t<I<HeadersType::NumHeaders, int> = 0>
     typename std::tuple_element<I,HeaderTypes>::type& getHeaderAt() &;
-    template <size_t I>
+    template <size_t I, std::enable_if_t<I<HeadersType::NumHeaders, int> = 0>
     typename std::tuple_element<I,HeaderTypes>::type&& getHeaderAt() &&;
     
     /**
@@ -180,7 +180,7 @@ public:
      * @tparam I The position of the header
      * @return True if it's valid.
      */
-    template <size_t I>
+    template <size_t I, std::enable_if_t<I<HeadersType::NumHeaders, int> = 0>
     bool isHeaderValidAt() const;
     
     /**

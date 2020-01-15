@@ -21,10 +21,20 @@ addons:
       - valgrind
       - zookeeper
       - zookeeperd
+      - gdb
+
 env:
-  - CXXSTANDARD=17
+  global:
+    - CXX_STANDARD=17
+    - TEST_DIR=tests
+    - EXEC=$TEST_DIR/CoroKafkaTests.Linux
+
+after_failure:
+  - COREFILE=$(find $TEST_DIR -maxdepth 1 -name "core*" | head -n 1)
+  - if [[ -f "$COREFILE" ]]; then gdb -c "$COREFILE" $EXEC -ex "thread apply all bt" -ex "set pagination 0" -batch; fi
 
 before_script:
+  - ulimit -c unlimited -s #enable core dumps
   - KAFKA_VERSION=2.12-2.4.0
   - RD_KAFKA_VERSION=v1.3.0
   - wget http://apache.cs.utah.edu/kafka/2.4.0/kafka_$KAFKA_VERSION.tgz && tar -xvzf kafka_$KAFKA_VERSION.tgz
@@ -40,33 +50,34 @@ script:
 # Build and install GTEST framework
   - git clone https://github.com/google/googletest.git
   - cd googletest
-  - cmake -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR -S . -G Ninja
+  - cmake -DCMAKE_CXX_STANDARD=$CXX_STANDARD -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR -S . -G Ninja
   - ninja install
   - cd ..
 
 # Build and install rdkafka
   - git clone https://github.com/edenhill/librdkafka.git --branch $RD_KAFKA_VERSION
   - cd librdkafka
-  - cmake -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR -S . -G Ninja
+  - cmake -DCMAKE_CXX_STANDARD=$CXX_STANDARD -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR -S . -G Ninja
   - ninja install
   - cd ..
 
 # Build and install cppkafka
   - git clone https://github.com/mfontanini/cppkafka.git
   - cd cppkafka
-  - cmake -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR -S . -G Ninja
+  - cmake -DCMAKE_CXX_STANDARD=$CXX_STANDARD -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR -S . -G Ninja
   - ninja install
   - cd ..
 
 # Build and install quantum
   - git clone https://github.com/bloomberg/quantum.git
   - cd quantum
-  - cmake -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR -DQUANTUM_BOOST_USE_VALGRIND=ON -S . -G Ninja
+  - cmake -DCMAKE_CXX_STANDARD=$CXX_STANDARD -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR -DQUANTUM_BOOST_USE_VALGRIND=ON -S . -G Ninja
   - ninja install
   - cd ..
 
 # Build and run corokafka
-  - cmake -DCMAKE_VERBOSE_MAKEFILE=ON
+  - cmake -DCMAKE_CXX_STANDARD=$CXX_STANDARD
+        -DCMAKE_VERBOSE_MAKEFILE=ON
         -DCMAKE_PREFIX_PATH=$INSTALL_DIR
         -DCOROKAFKA_CPPKAFKA_STATIC_LIB=ON
         -DCOROKAFKA_RDKAFKA_STATIC_LIB=ON
@@ -76,4 +87,4 @@ script:
         -DCMAKE_BUILD_TYPE=Debug
         -G Ninja -S .
   - ninja CoroKafkaTests
-  - ./tests/CoroKafkaTests.Linux -b localhost:9092 -k producer -t topic_with_headers -n topic_no_headers
+  - $EXEC -b localhost:9092 -k producer -t topic_with_headers -n topic_no_headers

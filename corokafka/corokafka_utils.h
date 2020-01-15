@@ -100,8 +100,9 @@ struct is_empty<Empty>
 
 ssize_t& maxMessageBuilderOutputLength();
 
-struct TopicEntry
+struct Interruptible
 {
+    bool _shuttingDown{false};
 };
 
 void handleException(const std::exception &ex,

@@ -148,10 +148,14 @@ TEST(Producer, SendSyncWithoutHeaders)
     Connector connector = makeProducerConnector(syncConfig, programOptions()._topicWithoutHeaders);
     
     //Send messages
+    SenderId id = SenderId::SyncWithoutHeaders;
     for (size_t i = 0; i < MaxMessages; ++i) {
-        Message message{(int)i, "Sync message without headers"};
-        int num = connector.producer().send(topicWithoutHeaders(), nullptr, i, message);
-        ASSERT_GT(num, 0);
+        Message message{(int)i, getSenderStr(id)};
+        messageWithoutHeadersTracker().add({id, message});
+        if (programOptions()._kafkaType == KafkaType::Producer) {
+            int num = connector.producer().send(topicWithoutHeaders(), nullptr, (Key) id, message);
+            ASSERT_GT(num, 0);
+        }
     }
 }
 
@@ -160,12 +164,16 @@ TEST(Producer, SendSyncWithHeaders)
     Connector connector = makeProducerConnector(syncConfig, programOptions()._topicWithHeaders);
     
     //Send messages
+    SenderId id = SenderId::Sync;
     for (size_t i = 0; i < MaxMessages; ++i) {
-        Header1 header1{(uint16_t)SenderId::Sync, "test:consumer", "test:producer"};
+        Header1 header1{(Key)id, "test:consumer", "test:producer"};
         Header2 header2{std::chrono::system_clock::now()};
-        Message message{(int)i, "Sync message with 2 headers"};
-        int num = connector.producer().send(topicWithHeaders(), nullptr, i, message, header1, header2);
-        ASSERT_GT(num, 0);
+        Message message{(int)i, getSenderStr(id)};
+        messageTracker().add({id, header1, header2, message});
+        if (programOptions()._kafkaType == KafkaType::Producer) {
+            int num = connector.producer().send(topicWithHeaders(), nullptr, header1._senderId, message, header1, header2);
+            ASSERT_GT(num, 0);
+        }
     }
 }
 
@@ -174,11 +182,15 @@ TEST(Producer, SendSyncSkippingOneHeader)
     Connector connector = makeProducerConnector(syncConfig, programOptions()._topicWithHeaders);
     
     //Send messages
+    SenderId id = SenderId::SyncSecondHeaderMissing;
     for (size_t i = 0; i < MaxMessages; ++i) {
-        Header1 header1{(uint16_t)SenderId::SyncOneHeaderMissing, "test:consumer", "test:producer"};
-        Message message{(int)i, "Sync message with one header missing"};
-        int num = connector.producer().send(topicWithHeaders(), nullptr, i, message, header1, NullHeader{});
-        ASSERT_GT(num, 0);
+        Header1 header1{(Key)id, "test:consumer", "test:producer"};
+        Message message{(int)i, getSenderStr(id)};
+        messageTracker().add({id, header1, message});
+        if (programOptions()._kafkaType == KafkaType::Producer) {
+            int num = connector.producer().send(topicWithHeaders(), nullptr, header1._senderId, message, header1, NullHeader{});
+            ASSERT_GT(num, 0);
+        }
     }
 }
 
@@ -187,10 +199,14 @@ TEST(Producer, SendSyncSkippingBothHeaders)
     Connector connector = makeProducerConnector(syncConfig, programOptions()._topicWithHeaders);
     
     //Send messages
+    SenderId id = SenderId::SyncBothHeadersMissing;
     for (size_t i = 0; i < MaxMessages; ++i) {
-        Message message{(int)i, "Sync message with both headers missing"};
-        int num = connector.producer().send(topicWithHeaders(), nullptr, i, message, NullHeader{}, NullHeader{});
-        ASSERT_GT(num, 0);
+        Message message{(int)i, getSenderStr(id)};
+        messageTracker().add({id, message});
+        if (programOptions()._kafkaType == KafkaType::Producer) {
+            int num = connector.producer().send(topicWithHeaders(), nullptr, (Key)id, message, NullHeader{}, NullHeader{});
+            ASSERT_GT(num, 0);
+        }
     }
 }
 
@@ -199,12 +215,16 @@ TEST(Producer, SendSyncUnorderedWithHeaders)
     Connector connector = makeProducerConnector(syncUnorderedConfig, programOptions()._topicWithHeaders);
     
     //Send messages
+    SenderId id = SenderId::SyncUnordered;
     for (size_t i = 0; i < MaxMessages; ++i) {
-        Header1 header1{(uint16_t)SenderId::SyncUnordered, "test:consumer", "test:producer"};
+        Header1 header1{(Key)id, "test:consumer", "test:producer"};
         Header2 header2{std::chrono::system_clock::now()};
-        Message message{(int)i, "Sync unordered message"};
-        int num = connector.producer().send(topicWithHeaders(), nullptr, i, message, header1, header2);
-        ASSERT_GT(num, 0);
+        Message message{(int)i, getSenderStr(id)};
+        messageTracker().add({id, header1, header2, message});
+        if (programOptions()._kafkaType == KafkaType::Producer) {
+            int num = connector.producer().send(topicWithHeaders(), nullptr, header1._senderId, message, header1, header2);
+            ASSERT_GT(num, 0);
+        }
     }
 }
 
@@ -213,12 +233,16 @@ TEST(Producer, SendSyncIdempotent)
     Connector connector = makeProducerConnector(syncIdempotentConfig, programOptions()._topicWithHeaders);
     
     //Send messages
+    SenderId id = SenderId::SyncIdempotent;
     for (size_t i = 0; i < MaxMessages; ++i) {
-        Header1 header1{(uint16_t)SenderId::SyncIdempotent, "test:consumer", "test:producer"};
+        Header1 header1{(Key)id, "test:consumer", "test:producer"};
         Header2 header2{std::chrono::system_clock::now()};
-        Message message{(int)i, "Sync idempotent message"};
-        int num = connector.producer().send(topicWithHeaders(), nullptr, i, message, header1, header2);
-        ASSERT_GT(num, 0);
+        Message message{(int)i, getSenderStr(id)};
+        messageTracker().add({id, header1, header2, message});
+        if (programOptions()._kafkaType == KafkaType::Producer) {
+            int num = connector.producer().send(topicWithHeaders(), nullptr, header1._senderId, message, header1, header2);
+            ASSERT_GT(num, 0);
+        }
     }
 }
 
@@ -228,18 +252,24 @@ TEST(Producer, SendAsync)
     
     std::vector<quantum::GenericFuture<DeliveryReport>> futures;
     //Send messages
+    SenderId id = SenderId::Async;
     for (size_t i = 0; i < MaxMessages; ++i) {
-        Header1 header1{(uint16_t)SenderId::Async, "test:consumer", "test:producer"};
+        Header1 header1{(Key)id, "test:consumer", "test:producer"};
         Header2 header2{std::chrono::system_clock::now()};
-        Message message{(int)i, "Async message"};
-        futures.push_back(connector.producer().post(topicWithHeaders(), nullptr, i, std::move(message), std::move(header1), std::move(header2)));
+        Message message{(int)i, getSenderStr(id)};
+        messageTracker().add({id, header1, header2, message});
+        if (programOptions()._kafkaType == KafkaType::Producer) {
+            futures.push_back(connector.producer().post(topicWithHeaders(), nullptr, header1._senderId, std::move(message), std::move(header1), std::move(header2)));
+        }
     }
     
     //get all the results
-    for (auto&& f : futures) {
-        DeliveryReport dr = f.get();
-        ASSERT_FALSE((bool)dr.getError());
-        ASSERT_GT(dr.getNumBytesWritten(), 0);
+    if (programOptions()._kafkaType == KafkaType::Producer) {
+        for (auto&& f : futures) {
+            DeliveryReport dr = f.get();
+            EXPECT_FALSE((bool)dr.getError());
+            EXPECT_GT(dr.getNumBytesWritten(), 0);
+        }
     }
 }
 
@@ -249,24 +279,32 @@ TEST(Producer, SendAsyncUnordered)
     
     std::vector<quantum::GenericFuture<DeliveryReport>> futures;
     //Send messages
+    SenderId id = SenderId::AsyncUnordered;
     for (size_t i = 0; i < MaxMessages; ++i) {
-        Header1 header1{(uint16_t)SenderId::AsyncUnordered, "test:consumer", "test:producer"};
+        Header1 header1{(Key)id, "test:consumer", "test:producer"};
         Header2 header2{std::chrono::system_clock::now()};
-        Message message{(int)i, "Async unordered message"};
-        futures.push_back(connector.producer().post(topicWithHeaders(), nullptr, i, std::move(message), std::move(header1), std::move(header2)));
+        Message message{(int)i, getSenderStr(id)};
+        messageTracker().add({id, header1, header2, message});
+        if (programOptions()._kafkaType == KafkaType::Producer) {
+            futures.push_back(connector.producer().post(topicWithHeaders(), nullptr, header1._senderId, std::move(message), std::move(header1), std::move(header2)));
+        }
     }
     
     //get all the results
-    for (auto&& f : futures) {
-        DeliveryReport dr = f.get();
-        ASSERT_FALSE((bool)dr.getError());
-        ASSERT_GT(dr.getNumBytesWritten(), 0);
+    if (programOptions()._kafkaType == KafkaType::Producer) {
+        for (auto&& f : futures) {
+            DeliveryReport dr = f.get();
+            EXPECT_FALSE((bool)dr.getError());
+            EXPECT_GT(dr.getNumBytesWritten(), 0);
+        }
     }
 }
 
 TEST(Producer, ValidateCallbacks)
 {
     int opaque;
+    callbackCounters().reset();
+    
     Configuration::OptionList options = syncConfig;
     options.push_back({"metadata.broker.list", programOptions()._broker});
     options.push_back({"statistics.interval.ms", 100});
@@ -285,31 +323,44 @@ TEST(Producer, ValidateCallbacks)
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
     
     //Send messages
+    SenderId id = SenderId::Callbacks;
     for (size_t i = 0; i < MaxMessages/2; ++i) {
-        Header1 header1{(uint16_t)SenderId::Callbacks, "test:consumer", "test:producer"};
+        Header1 header1{(Key)id, "test:consumer", "test:producer"};
         Header2 header2{std::chrono::system_clock::now()};
-        Message message{(int)i, "Validating callbacks"};
-        int num = connector.producer().send(topicWithHeaders(), &opaque, i, message, header1, header2);
-        ASSERT_GT(num, 0);
+        Message message{(int)i, getSenderStr(id)};
+        messageTracker().add({id, header1, header2, message});
+        if (programOptions()._kafkaType == KafkaType::Producer) {
+            int num = connector.producer().send(topicWithHeaders(), &opaque, header1._senderId, message, header1, header2);
+            ASSERT_GT(num, 0);
+        }
     }
     for (size_t i = MaxMessages/2; i < MaxMessages; ++i) {
-        Header1 header1{(uint16_t)SenderId::Callbacks, "test:consumer", "test:producer"};
+        Header1 header1{(Key)id, "test:consumer", "test:producer"};
         Header2 header2{std::chrono::system_clock::now()};
-        Message message{(int)i, "Validating callbacks"};
-        DeliveryReport dr = connector.producer().post(topicWithHeaders(), &opaque, i, message, header1, header2).get();
-        ASSERT_GT(dr.getNumBytesWritten(), 0);
-        ASSERT_EQ(&opaque, dr.getOpaque());
+        Message message{(int)i, getSenderStr(id)};
+        messageTracker().add({id, header1, header2, message});
+        if (programOptions()._kafkaType == KafkaType::Producer) {
+            DeliveryReport dr = connector.producer().post(topicWithHeaders(), &opaque, header1._senderId, message, header1, header2).get();
+            ASSERT_GT(dr.getNumBytesWritten(), 0);
+            ASSERT_EQ(&opaque, dr.getOpaque());
+        }
     }
     
-    //assert
-    CallbackCounters& counters = callbackCounters();
-    ASSERT_EQ(MaxMessages, counters._partitioner);
-    ASSERT_EQ(MaxMessages, counters._deliveryReport);
-    ASSERT_LT(1, counters._stats);
-    ASSERT_LT(1, counters._logger);
-    ASSERT_EQ(0, counters._error);
-    ASSERT_EQ(&opaque, counters._opaque);
-    counters.reset();
+    if (programOptions()._kafkaType == KafkaType::Producer) {
+        CallbackCounters& counters = callbackCounters();
+        int loop = 30;
+        while (counters._deliveryReport < MaxMessages && loop--) {
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+        }
+        //assert
+        EXPECT_EQ(MaxMessages, counters._partitioner);
+        EXPECT_EQ(MaxMessages, counters._deliveryReport);
+        EXPECT_LT(1, counters._stats);
+        EXPECT_LT(1, counters._logger);
+        EXPECT_EQ(0, counters._error);
+        EXPECT_EQ(&opaque, counters._opaque);
+        counters.reset();
+    }
 }
 
 TEST(Producer, ValidateErrorCallback)
@@ -330,14 +381,14 @@ TEST(Producer, ValidateErrorCallback)
         Header1 header1{(uint16_t)SenderId::Callbacks, "test:consumer", "test:producer"};
         Header2 header2{std::chrono::system_clock::now()};
         Message message{(int)i, "Validating error callback"};
-        int num = connector.producer().send(topicWithHeaders(), nullptr, i, message, header1, header2);
+        int num = connector.producer().send(topicWithHeaders(), nullptr, header1._senderId, message, header1, header2);
         ASSERT_GT(num, 0);
     }
     
     //assert
     CallbackCounters& counters = callbackCounters();
-    ASSERT_LT(1, counters._error);
-    ASSERT_EQ(&opaque, counters._opaque);
+    EXPECT_LT(1, counters._error);
+    EXPECT_EQ(&opaque, counters._opaque);
     counters.reset();
 }
 

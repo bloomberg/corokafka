@@ -17,7 +17,7 @@ The following configuration options are complementary to the RdKafka [options](h
 | :------- | :---: | :-----: | :---------- |
 | internal.consumer.pause.on.start | true, false | false | Start the consumer in paused state. User needs to call `resume()` to consume. |
 | internal.consumer.timeout.ms | \>= -1 | 1000 | Sets the timeout on any operations requiring a timeout such as poll, query offsets, etc. Set to **-1** for infinite timeout. |
-| internal.consumer.poll.timeout.ms | \>= -1 | N/A | If set, overrides the 'internal.consumer.timeout.ms' default setting for polling only. Note that in the case where **internal.consumer.poll.strategy=roundrobin**, the actual timeout per message will be **internal.consumer.poll.timeout.ms/internal.consumer.read.size**. Set to **-1** for infinite timeout. |
+| internal.consumer.poll.timeout.ms | \>= -1 | N/A | If set, overrides the 'internal.consumer.timeout.ms' default setting for polling only. Set to **-1** for infinite timeout. |
 | internal.consumer.auto.offset.persist | true, false | false | Enables auto-commit/auto-store inside the `ReceivedMessage` destructor. |
 | internal.consumer.auto.offset.persist.on.exception | true, false | false | Dictates if the offset persist should be aborted as a result of an exception. This could allow the application to reprocess a message following an exception. This is only valid if **internal.consumer.auto.offset.persist=true**. |
 | internal.consumer.offset.persist.strategy | commit, store | store | Determines if offsets are committed or stored locally. Some rdkafka settings will be changed according to **note 2** below. If **store** is chosen, **auto.commit.interval.ms > 0** must be set. |

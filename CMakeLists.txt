@@ -75,7 +75,7 @@ endif()
 
 #Set compile flags if CXXFLAGS environment variable is not set
 if (NOT CMAKE_CXX_FLAGS)
-    set(CMAKE_CXX_FLAGS "-Wall -Wextra ${WERROR} -O0 -m64 -std=c++${CMAKE_CXX_STANDARD} -ftemplate-backtrace-limit=0")
+    set(CMAKE_CXX_FLAGS "-Wall -Wextra ${WERROR} -O0 -m64 -ftemplate-backtrace-limit=0 -Wno-unused-variable -Wno-unused-parameter -Wno-unused-function")
 endif()
 
 if (COROKAFKA_VERBOSE_MAKEFILE)
