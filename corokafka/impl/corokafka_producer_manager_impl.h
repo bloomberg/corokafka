@@ -32,7 +32,7 @@
 namespace Bloomberg {
 namespace corokafka {
 
-class ProducerManagerImpl
+class ProducerManagerImpl : public Interruptible
 {
     friend class ProducerManager;
 public:
@@ -180,8 +180,7 @@ private:
     // Members
     quantum::Dispatcher&        _dispatcher;
     Producers                   _producers;
-    std::atomic_flag            _shutdownInitiated ATOMIC_FLAG_INIT;
-    bool                        _shuttingDown{false};
+    std::atomic_flag            _shutdownInitiated{0};
     std::mutex                  _messageQueueMutex;
     std::condition_variable     _emptyCondition;
     std::deque<MessageFuture>   _messageQueue;

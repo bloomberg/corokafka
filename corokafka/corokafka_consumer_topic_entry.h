@@ -34,7 +34,7 @@ using ConsumerPtr = std::unique_ptr<ConsumerType>;
 using CommitterPtr = std::unique_ptr<cppkafka::BackoffCommitter>;
 using PollingStrategyPtr = std::unique_ptr<cppkafka::RoundRobinPollStrategy>;
 
-struct ConsumerTopicEntry : TopicEntry {
+struct ConsumerTopicEntry {
     ConsumerTopicEntry(ConsumerPtr consumer,
                const ConnectorConfiguration& connectorConfiguration,
                const ConsumerConfiguration& configuration,

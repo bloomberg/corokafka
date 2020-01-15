@@ -56,7 +56,7 @@ ProducerManagerImpl::ProducerManagerImpl(quantum::Dispatcher& dispatcher,
                                          const ConnectorConfiguration& connectorConfiguration,
                                          ConfigMap&& configs) :
     _dispatcher(dispatcher),
-    _shutdownInitiated(ATOMIC_FLAG_INIT)
+    _shutdownInitiated{0}
 {
     // Create a producer for each topic and apply the appropriate configuration
     for (auto&& entry : configs) {
