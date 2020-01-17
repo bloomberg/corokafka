@@ -120,6 +120,10 @@ void ProducerManagerImpl::setup(const std::string& topic, ProducerTopicEntry& to
     const Configuration::OptionList& rdKafkaTopicOptions = topicEntry._configuration.getTopicOptions(Configuration::OptionType::RdKafka);
     const Configuration::OptionList& internalOptions = topicEntry._configuration.getOptions(Configuration::OptionType::Internal);
     
+    auto extract = [&topic, &internalOptions](const std::string& name, auto& value)->bool {
+        return ProducerConfiguration::extract(name)(topic, Configuration::findOption(name, internalOptions), &value);
+    };
+    
     //Validate config
     const cppkafka::ConfigurationOption* brokerList =
         Configuration::findOption(Configuration::RdKafkaOptions::metadataBrokerList, rdKafkaOptions);
@@ -131,19 +135,8 @@ void ProducerManagerImpl::setup(const std::string& topic, ProducerTopicEntry& to
     cppkafka::Configuration kafkaConfig(rdKafkaOptions);
     cppkafka::TopicConfiguration topicConfig(rdKafkaTopicOptions);
     
-    const cppkafka::ConfigurationOption* autoThrottle =
-        Configuration::findOption(ProducerConfiguration::Options::autoThrottle, internalOptions);
-    if (autoThrottle) {
-        topicEntry._throttleControl.autoThrottle() =
-            Configuration::extractBooleanValue(topic, ProducerConfiguration::Options::autoThrottle, *autoThrottle);
-    }
-    
-    const cppkafka::ConfigurationOption* throttleMultiplier =
-        Configuration::findOption(ProducerConfiguration::Options::autoThrottleMultiplier, internalOptions);
-    if (throttleMultiplier) {
-        topicEntry._throttleControl.throttleMultiplier() =
-            Configuration::extractCounterValue(topic, ProducerConfiguration::Options::autoThrottleMultiplier, *throttleMultiplier, 1);
-    }
+    extract(ProducerConfiguration::Options::autoThrottle, topicEntry._throttleControl.autoThrottle());
+    extract(ProducerConfiguration::Options::autoThrottleMultiplier, topicEntry._throttleControl.throttleMultiplier());
     
     //Set the global callbacks
     if (topicEntry._configuration.getPartitionerCallback()) {
@@ -171,30 +164,11 @@ void ProducerManagerImpl::setup(const std::string& topic, ProducerTopicEntry& to
         kafkaConfig.set_stats_callback(statsFunc);
     }
     
-    const cppkafka::ConfigurationOption* maxQueueLength =
-        Configuration::findOption(ProducerConfiguration::Options::maxQueueLength, internalOptions);
-    if (maxQueueLength) {
-        topicEntry._maxQueueLength =
-            Configuration::extractCounterValue(topic, ProducerConfiguration::Options::maxQueueLength, *maxQueueLength, 1);
-    }
-    
-    const cppkafka::ConfigurationOption* preserveMessageOrder =
-        Configuration::findOption(ProducerConfiguration::Options::preserveMessageOrder, internalOptions);
-    if (preserveMessageOrder) {
-        topicEntry._preserveMessageOrder =
-            Configuration::extractBooleanValue(topic, ProducerConfiguration::Options::preserveMessageOrder, *preserveMessageOrder);
-        if (topicEntry._preserveMessageOrder) {
-            // change rdkafka settings
-            kafkaConfig.set(Configuration::RdKafkaOptions::maxInFlight, 1);  //limit one request at a time
-        }
-    }
-    
-    size_t internalProducerRetries = 0;
-    const cppkafka::ConfigurationOption* numRetriesOption =
-        Configuration::findOption(ProducerConfiguration::Options::retries, internalOptions);
-    if (numRetriesOption) {
-        internalProducerRetries =
-            Configuration::extractCounterValue(topic, ProducerConfiguration::Options::retries, *numRetriesOption, 0);
+    extract(ProducerConfiguration::Options::maxQueueLength, topicEntry._maxQueueLength);
+    extract(ProducerConfiguration::Options::preserveMessageOrder, topicEntry._preserveMessageOrder);
+    if (topicEntry._preserveMessageOrder) {
+        // change rdkafka settings
+        kafkaConfig.set(Configuration::RdKafkaOptions::maxInFlight, 1);  //limit one request at a time
     }
     
     kafkaConfig.set_default_topic_configuration(topicConfig);
@@ -207,53 +181,26 @@ void ProducerManagerImpl::setup(const std::string& topic, ProducerTopicEntry& to
     topicEntry._producer.reset(new cppkafka::BufferedProducer<ByteArray>(kafkaConfig));
     
     //Set internal config options
-    if (numRetriesOption) {
+    size_t internalProducerRetries = 0;
+    if (extract(ProducerConfiguration::Options::retries, internalProducerRetries)) {
         topicEntry._producer->set_max_number_retries(internalProducerRetries);
     }
     
-    const cppkafka::ConfigurationOption* payloadPolicy =
-        Configuration::findOption(ProducerConfiguration::Options::payloadPolicy, internalOptions);
-    if (payloadPolicy) {
-        if (StringEqualCompare()(payloadPolicy->get_value(), "passthrough")) {
-            topicEntry._payloadPolicy = cppkafka::Producer::PayloadPolicy::PASSTHROUGH_PAYLOAD;
-        }
-        else if (StringEqualCompare()(payloadPolicy->get_value(), "copy")) {
-            topicEntry._payloadPolicy = cppkafka::Producer::PayloadPolicy::COPY_PAYLOAD;
-        }
-        else {
-            throw InvalidOptionException(topic, ProducerConfiguration::Options::payloadPolicy, payloadPolicy->get_value());
-        }
+    if (extract(ProducerConfiguration::Options::payloadPolicy, topicEntry._payloadPolicy)) {
         topicEntry._producer->get_producer().set_payload_policy(topicEntry._payloadPolicy);
     }
     
-    const cppkafka::ConfigurationOption* logLevel =
-        Configuration::findOption(ProducerConfiguration::Options::logLevel, internalOptions);
-    if (logLevel) {
-        cppkafka::LogLevel level = Configuration::extractLogLevel(topic, ProducerConfiguration::Options::logLevel, logLevel->get_value());
-        topicEntry._producer->get_producer().set_log_level(level);
-        topicEntry._logLevel = level;
+    if (extract(ProducerConfiguration::Options::logLevel, topicEntry._logLevel)) {
+        topicEntry._producer->get_producer().set_log_level(topicEntry._logLevel);
     }
     
-    const cppkafka::ConfigurationOption* pollTimeout =
-        Configuration::findOption(ProducerConfiguration::Options::timeoutMs, internalOptions);
-    if (pollTimeout) {
-        topicEntry._producer->get_producer().set_timeout(std::chrono::milliseconds(
-            Configuration::extractCounterValue(topic, ProducerConfiguration::Options::timeoutMs, *pollTimeout, (int)TimerValues::Unlimited)));
+    std::chrono::milliseconds timeoutMs;
+    if (extract(ProducerConfiguration::Options::timeoutMs, timeoutMs)) {
+        topicEntry._producer->get_producer().set_timeout(timeoutMs);
     }
     
-    const cppkafka::ConfigurationOption* waitForAcksTimeout =
-        Configuration::findOption(ProducerConfiguration::Options::waitForAcksTimeoutMs, internalOptions);
-    if (waitForAcksTimeout) {
-        topicEntry._waitForAcksTimeout = std::chrono::milliseconds(
-            Configuration::extractCounterValue(topic, ProducerConfiguration::Options::waitForAcksTimeoutMs, *waitForAcksTimeout, (int)TimerValues::Unlimited));
-    }
-    
-    const cppkafka::ConfigurationOption* flushWaitForAcksTimeout =
-        Configuration::findOption(ProducerConfiguration::Options::flushWaitForAcksTimeoutMs, internalOptions);
-    if (flushWaitForAcksTimeout) {
-        topicEntry._flushWaitForAcksTimeout = std::chrono::milliseconds(
-            Configuration::extractCounterValue(topic, ProducerConfiguration::Options::flushWaitForAcksTimeoutMs, *flushWaitForAcksTimeout, (int)TimerValues::Unlimited));
-    }
+    extract(ProducerConfiguration::Options::waitForAcksTimeoutMs, topicEntry._waitForAcksTimeout);
+    extract(ProducerConfiguration::Options::flushWaitForAcksTimeoutMs, topicEntry._flushWaitForAcksTimeout);
     
     // Set the buffered producer callbacks
     auto produceSuccessFunc = std::bind(
@@ -272,23 +219,7 @@ void ProducerManagerImpl::setup(const std::string& topic, ProducerTopicEntry& to
         &flushTerminationCallback, std::ref(topicEntry), _1, _2);
     topicEntry._producer->set_flush_termination_callback(flushTerminationFunc);
     
-    const cppkafka::ConfigurationOption* queueFullNotification =
-        Configuration::findOption(ProducerConfiguration::Options::queueFullNotification, internalOptions);
-    if (queueFullNotification) {
-        if (StringEqualCompare()(queueFullNotification->get_value(), "edgeTriggered")) {
-            topicEntry._queueFullNotification = QueueFullNotification::EdgeTriggered;
-        }
-        else if (StringEqualCompare()(queueFullNotification->get_value(), "oncePerMessage")) {
-            topicEntry._queueFullNotification = QueueFullNotification::OncePerMessage;
-        }
-        else if (StringEqualCompare()(queueFullNotification->get_value(), "eachOccurence")) {
-            topicEntry._queueFullNotification = QueueFullNotification::EachOccurence;
-        }
-        else {
-            throw InvalidOptionException(topic, ProducerConfiguration::Options::queueFullNotification, queueFullNotification->get_value());
-        }
-    }
-    
+    extract(ProducerConfiguration::Options::queueFullNotification, topicEntry._queueFullNotification);
     if (topicEntry._configuration.getQueueFullCallback()) {
         if ((topicEntry._queueFullNotification == QueueFullNotification::EdgeTriggered) ||
             (topicEntry._queueFullNotification == QueueFullNotification::EachOccurence)) {

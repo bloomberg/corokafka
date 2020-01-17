@@ -122,14 +122,14 @@ void TopicConfiguration::filterOptions()
         ProducerConfiguration::s_internalOptionsPrefix : ConsumerConfiguration::s_internalOptionsPrefix;
     
     // Consumer/Producer options parsing
-    const OptionSet& internalOptions = (_type == KafkaType::Producer) ?
+    const OptionMap& internalOptions = (_type == KafkaType::Producer) ?
         ProducerConfiguration::s_internalOptions : ConsumerConfiguration::s_internalOptions;
-    parseOptions(internalOptionsPrefix, internalOptions, _options);
+    parseOptions(_topic, internalOptionsPrefix, internalOptions, _options, true);
     
     // Topic options parsing
-    const OptionSet& internalTopicOptions = (_type == KafkaType::Producer) ?
+    const OptionMap& internalTopicOptions = (_type == KafkaType::Producer) ?
         ProducerConfiguration::s_internalTopicOptions : ConsumerConfiguration::s_internalTopicOptions;
-    parseOptions(internalOptionsPrefix, internalTopicOptions, _topicOptions);
+    parseOptions(_topic, internalOptionsPrefix, internalTopicOptions, _topicOptions, true);
 }
 
 }}

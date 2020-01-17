@@ -123,8 +123,8 @@ struct MessageTracker
             //start a new serie
             _messages[info._id].emplace_back();
         }
-        _messages[info._id].back().push_back(std::move(info));
         _offsets[{_topic, info._partition}] = info._offset;
+        _messages[info._id].back().push_back(std::move(info));
     }
     void clear() {
         std::lock_guard<std::mutex> lock(_mutex);
@@ -194,10 +194,10 @@ void testConnectorOption(const char* exName, const char* opName, const ValueTest
 }
 
 template <typename EX, typename CONFIG>
-void testOption(CONFIG&& config, const char* exName, const char* opName, const std::pair<std::string,bool>& value)
+void testConnectorOption(CONFIG&& config, const char* exName, const char* opName, bool throws)
 {
     ConfigurationBuilder builder; builder(config);
-    if (value.second) { //throws
+    if (throws) { //throws
         ASSERT_THROW(Connector connector(builder), EX);
         try { Connector connector(builder); }
         catch (const EX& ex) {
@@ -216,10 +216,32 @@ template <typename EX>
 void testProducerOption(const char* exName, const char* opName, const ValueTestList& values)
 {
     for (auto&& value : values) {
-        ProducerConfiguration config(topicWithHeaders().topic(),
-            {{opName, value.first},
-             {"metadata.broker.list", programOptions()._broker}}, {});
-        testOption<EX>(config, exName, opName, value);
+        if (value.second) { //throws
+            try {
+                ProducerConfiguration config(
+                    topicWithHeaders().topic(),
+                    {{opName, value.first},
+                    {"metadata.broker.list", programOptions()._broker}}, {});
+                FAIL(); //should have thrown
+            }
+            catch (const EX& ex) {
+                ASSERT_STREQ(exName, ex.name());
+                std::string op = opName;
+                trim(op);
+                ASSERT_TRUE(StringEqualCompare()(op, ex.option()));
+            }
+            catch(...) {
+                FAIL();
+            }
+        }
+        else {
+            ASSERT_NO_THROW(
+                ProducerConfiguration config(
+                    topicWithHeaders().topic(),
+                    {{opName, value.first},
+                    {"metadata.broker.list", programOptions()._broker}}, {});
+            );
+        }
     }
 }
 
@@ -227,13 +249,36 @@ template <typename EX>
 void testConsumerOption(const char* exName, const char* opName, const ValueTestList& values)
 {
     for (auto&& value : values) {
-        ConsumerConfiguration config(topicWithHeaders(),
-            {{opName, value.first},
-             {"metadata.broker.list", programOptions()._broker},
-             {"group.id","test-group"},
-             {ConsumerConfiguration::Options::pauseOnStart, true},
-             {ConsumerConfiguration::Options::readSize, 1}}, {}, Callbacks::messageReceiverWithHeaders);
-        testOption<EX>(config, exName, opName, value);
+        if (value.second) { //throws
+            try {
+                ConsumerConfiguration config(topicWithHeaders(),
+                    {{opName, value.first},
+                     {"metadata.broker.list", programOptions()._broker},
+                     {"group.id","test-group"},
+                     {ConsumerConfiguration::Options::pauseOnStart, true},
+                     {ConsumerConfiguration::Options::readSize, 1}}, {}, Callbacks::messageReceiverWithHeaders);
+                FAIL(); //should have thrown
+            }
+            catch (const EX& ex) {
+                ASSERT_STREQ(exName, ex.name());
+                std::string op = opName;
+                trim(op);
+                ASSERT_TRUE(StringEqualCompare()(op, ex.option()));
+            }
+            catch(...) {
+                FAIL();
+            }
+        }
+        else {
+            ASSERT_NO_THROW(
+                ConsumerConfiguration config(topicWithHeaders(),
+                    {{opName, value.first},
+                     {"metadata.broker.list", programOptions()._broker},
+                     {"group.id","test-group"},
+                     {ConsumerConfiguration::Options::pauseOnStart, true},
+                     {ConsumerConfiguration::Options::readSize, 1}}, {}, Callbacks::messageReceiverWithHeaders);
+            );
+        }
     }
 }
 

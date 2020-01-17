@@ -24,9 +24,21 @@ namespace corokafka {
 //========================================================================
 const std::string ConnectorConfiguration::s_internalOptionsPrefix = "internal.connector.";
 
-const Configuration::OptionSet ConnectorConfiguration::s_internalOptions = {
-    Options::pollIntervalMs,
-    Options::maxPayloadOutputLength,
+const Configuration::OptionMap ConnectorConfiguration::s_internalOptions = {
+    {Options::pollIntervalMs,
+     [](const std::string& topic, const cppkafka::ConfigurationOption* option, void* value)->bool{
+        if (!option) return false;
+        std::chrono::milliseconds temp{Configuration::extractCounterValue({}, Options::pollIntervalMs, *option, 1)};
+        if (value) *reinterpret_cast<std::chrono::milliseconds*>(value) = temp;
+        return true;
+    }},
+    {Options::maxPayloadOutputLength,
+     [](const std::string& topic, const cppkafka::ConfigurationOption* option, void* value)->bool {
+        if (!option) return false;
+        ssize_t temp = Configuration::extractCounterValue({}, Options::maxPayloadOutputLength, *option, -1);
+        if (value) *reinterpret_cast<ssize_t*>(value) = temp;
+        return true;
+    }}
 };
 
 ConnectorConfiguration::ConnectorConfiguration(OptionList options) :
@@ -44,19 +56,11 @@ ConnectorConfiguration::ConnectorConfiguration(OptionInitList options) :
 void ConnectorConfiguration::init()
 {
     //Validate options
-    parseOptions(s_internalOptionsPrefix, s_internalOptions, _options);
-    
-    const cppkafka::ConfigurationOption* pollInterval = Configuration::getOption(Options::pollIntervalMs);
-    if (pollInterval) {
-        _pollInterval = std::chrono::milliseconds(
-            Configuration::extractCounterValue({}, Options::pollIntervalMs, *pollInterval, 1));
-    }
-    
-    const cppkafka::ConfigurationOption* maxPayloadLength = Configuration::getOption(Options::maxPayloadOutputLength);
-    if (maxPayloadLength) {
-        _maxMessagePayloadLength =
-            Configuration::extractCounterValue({}, Options::maxPayloadOutputLength, *maxPayloadLength, -1);
-    }
+    parseOptions({}, s_internalOptionsPrefix, s_internalOptions, _options, false);
+    extract(Options::pollIntervalMs)
+        ({}, Configuration::getOption(Options::pollIntervalMs), &_pollInterval);
+    extract(Options::maxPayloadOutputLength)
+        ({}, Configuration::getOption(Options::maxPayloadOutputLength), &_maxMessagePayloadLength);
 }
 
 void ConnectorConfiguration::setDispatcherConfiguration(quantum::Configuration config)
@@ -87,6 +91,12 @@ void ConnectorConfiguration::setLogCallback(Callbacks::ConnectorLogCallback call
 const Callbacks::ConnectorLogCallback& ConnectorConfiguration::getLogCallback() const
 {
     return _logCallback;
+}
+
+const Configuration::OptionExtractorFunc&
+ConnectorConfiguration::extract(const std::string& option)
+{
+    return s_internalOptions.at(option);
 }
 
 }

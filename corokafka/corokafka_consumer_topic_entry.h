@@ -80,6 +80,7 @@ struct ConsumerTopicEntry {
     quantum::ThreadContext<int>::Ptr _pollFuture{nullptr};
     size_t                          _batchSize{100};
     std::chrono::milliseconds       _pollTimeout{(int)TimerValues::Disabled};
+    std::chrono::milliseconds       _roundRobinMinPollTimeout{10};
     std::pair<int,int>              _coroQueueIdRangeForAny;
     std::pair<int,int>              _receiveCallbackThreadRange;
     ExecMode                        _receiveCallbackExec{ExecMode::Async};

@@ -14,6 +14,7 @@
 ** limitations under the License.
 */
 #include <corokafka/corokafka_producer_configuration.h>
+#include <corokafka/corokafka_producer_topic_entry.h>
 
 namespace Bloomberg {
 namespace corokafka {
@@ -23,21 +24,103 @@ namespace corokafka {
 //========================================================================
 const std::string ProducerConfiguration::s_internalOptionsPrefix = "internal.producer.";
 
-const Configuration::OptionSet ProducerConfiguration::s_internalOptions = {
-    Options::autoThrottle,
-    Options::autoThrottleMultiplier,
-    Options::flushWaitForAcksTimeoutMs,
-    Options::logLevel,
-    Options::maxQueueLength,
-    Options::payloadPolicy,
-    Options::preserveMessageOrder,
-    Options::queueFullNotification,
-    Options::retries,
-    Options::timeoutMs,
-    Options::waitForAcksTimeoutMs
+const Configuration::OptionMap ProducerConfiguration::s_internalOptions = {
+    {Options::autoThrottle,
+     [](const std::string& topic, const cppkafka::ConfigurationOption* option, void* value)->bool {
+        if (!option) return false;
+        bool temp = Configuration::extractBooleanValue(topic, ProducerConfiguration::Options::autoThrottle, *option);
+        if (value) *reinterpret_cast<bool*>(value) = temp;
+        return true;
+    }},
+    {Options::autoThrottleMultiplier,
+     [](const std::string& topic, const cppkafka::ConfigurationOption* option, void* value)->bool {
+        if (!option) return false;
+        ssize_t temp = Configuration::extractCounterValue(topic, ProducerConfiguration::Options::autoThrottleMultiplier, *option, 1);
+        if (value) *reinterpret_cast<ssize_t*>(value) = temp;
+        return true;
+    }},
+    {Options::flushWaitForAcksTimeoutMs, [](const std::string& topic, const cppkafka::ConfigurationOption* option, void* value)->bool {
+        if (!option) return false;
+        std::chrono::milliseconds temp(Configuration::extractCounterValue(
+            topic, ProducerConfiguration::Options::flushWaitForAcksTimeoutMs, *option, (int)TimerValues::Unlimited));
+        if (value) *reinterpret_cast<std::chrono::milliseconds*>(value) = temp;
+        return true;
+    }},
+    {Options::logLevel, [](const std::string& topic, const cppkafka::ConfigurationOption* option, void* value)->bool{
+        if (!option) return false;
+        cppkafka::LogLevel temp = Configuration::extractLogLevel(topic, ProducerConfiguration::Options::logLevel, option->get_value());
+        if (value) *reinterpret_cast<cppkafka::LogLevel*>(value) = temp;
+        return true;
+    }},
+    {Options::maxQueueLength, [](const std::string& topic, const cppkafka::ConfigurationOption* option, void* value)->bool{
+        if (!option) return false;
+        size_t temp = Configuration::extractCounterValue(topic, ProducerConfiguration::Options::maxQueueLength, *option, 1);
+        if (value) *reinterpret_cast<size_t*>(value) = temp;
+        return true;
+    }},
+    {Options::payloadPolicy, [](const std::string& topic, const cppkafka::ConfigurationOption* option, void* value)->bool{
+        if (!option) return false;
+        cppkafka::Producer::PayloadPolicy temp;
+        if (StringEqualCompare()(option->get_value(), "passthrough")) {
+            temp = cppkafka::Producer::PayloadPolicy::PASSTHROUGH_PAYLOAD;
+        }
+        else if (StringEqualCompare()(option->get_value(), "copy")) {
+            temp = cppkafka::Producer::PayloadPolicy::COPY_PAYLOAD;
+        }
+        else {
+            throw InvalidOptionException(topic, ProducerConfiguration::Options::payloadPolicy, option->get_value());
+        }
+        if (value) *reinterpret_cast<cppkafka::Producer::PayloadPolicy*>(value) = temp;
+        return true;
+    }},
+    {Options::preserveMessageOrder, [](const std::string& topic, const cppkafka::ConfigurationOption* option, void* value)->bool {
+        if (!option) return false;
+        bool temp = Configuration::extractBooleanValue(
+            topic, ProducerConfiguration::Options::preserveMessageOrder, *option);
+        if (value) *reinterpret_cast<bool*>(value) = temp;
+        return true;
+    }},
+    {Options::queueFullNotification, [](const std::string& topic, const cppkafka::ConfigurationOption* option, void* value){
+        if (!option) return false;
+        QueueFullNotification temp;
+        if (StringEqualCompare()(option->get_value(), "edgeTriggered")) {
+            temp = QueueFullNotification::EdgeTriggered;
+        }
+        else if (StringEqualCompare()(option->get_value(), "oncePerMessage")) {
+            temp = QueueFullNotification::OncePerMessage;
+        }
+        else if (StringEqualCompare()(option->get_value(), "eachOccurence")) {
+            temp = QueueFullNotification::EachOccurence;
+        }
+        else {
+            throw InvalidOptionException(topic, ProducerConfiguration::Options::queueFullNotification, option->get_value());
+        }
+        if (value) *reinterpret_cast<QueueFullNotification*>(value) = temp;
+        return true;
+    }},
+    {Options::retries, [](const std::string& topic, const cppkafka::ConfigurationOption* option, void* value)->bool{
+        if (!option) return false;
+        size_t temp = Configuration::extractCounterValue(topic, ProducerConfiguration::Options::retries, *option, 0);
+        if (value) *reinterpret_cast<size_t*>(value) = temp;
+        return true;
+    }},
+    {Options::timeoutMs, [](const std::string& topic, const cppkafka::ConfigurationOption* option, void* value)->bool{
+        if (!option) return false;
+        std::chrono::milliseconds temp{Configuration::extractCounterValue(
+            topic, ProducerConfiguration::Options::timeoutMs, *option, (int)TimerValues::Unlimited)};
+        if (value) *reinterpret_cast<std::chrono::milliseconds*>(value) = temp;
+        return true;
+    }},
+    {Options::waitForAcksTimeoutMs, [](const std::string& topic, const cppkafka::ConfigurationOption* option, void* value)->bool{
+        if (!option) return false;
+        std::chrono::milliseconds temp{Configuration::extractCounterValue(
+            topic, ProducerConfiguration::Options::waitForAcksTimeoutMs, *option, (int)TimerValues::Unlimited)};
+        if (value) *reinterpret_cast<std::chrono::milliseconds*>(value) = temp;
+        return true;
+    }}
 };
 
-const Configuration::OptionSet ProducerConfiguration::s_internalTopicOptions;
+const Configuration::OptionMap ProducerConfiguration::s_internalTopicOptions;
 
 ProducerConfiguration::ProducerConfiguration(const std::string& topicName,
                                              OptionList options,
@@ -81,6 +164,12 @@ void ProducerConfiguration::setQueueFullCallback(Callbacks::QueueFullCallback ca
 const Callbacks::QueueFullCallback& ProducerConfiguration::getQueueFullCallback() const
 {
     return _queueFullCallback;
+}
+
+const Configuration::OptionExtractorFunc&
+ProducerConfiguration::extract(const std::string& option)
+{
+    return s_internalOptions.at(option);
 }
 
 }

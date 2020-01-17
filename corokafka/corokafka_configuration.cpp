@@ -212,9 +212,11 @@ const cppkafka::ConfigurationOption* Configuration::findOption(const std::string
     return nullptr;
 }
 
-void Configuration::parseOptions(const std::string& optionsPrefix,
-                                 const OptionSet& allowed,
-                                 OptionList(&optionList)[3])
+void Configuration::parseOptions(const std::string& topic,
+                                 const std::string& optionsPrefix,
+                                 const OptionMap& allowed,
+                                 OptionList(&optionList)[3],
+                                 bool allowRdKafkaOptions)
 {
     OptionList& config = optionList[(int)OptionType::All];
     OptionList& rdKafka = optionList[(int)OptionType::RdKafka];
@@ -224,23 +226,32 @@ void Configuration::parseOptions(const std::string& optionsPrefix,
         for (auto& option : config) {
             trim(const_cast<std::string&>(option.get_key()));
             if (option.get_key().empty()) {
-                throw InvalidOptionException("unknown", "Name is empty");
+                throw InvalidOptionException(topic, "unknown", "Name is empty");
             }
             trim(const_cast<std::string&>(option.get_value()));
             if (option.get_value().empty()) {
-                throw InvalidOptionException(option.get_value(), "Value is empty");
+                throw InvalidOptionException(topic, option.get_value(), "Value is empty");
             }
-            if (StringEqualCompare()(option.get_key(), optionsPrefix, optionsPrefix.length())) {
-                auto it = allowed.find(option.get_key());
-                if (it == allowed.end()) {
-                    throw InvalidOptionException(option.get_key(), "Not found");
+            auto it = allowed.find(option.get_key());
+            if (it == allowed.end()) {
+                //Check if it's an rdkafka option or a misspelled internal option
+                if (StringEqualCompare()(option.get_key(), optionsPrefix, optionsPrefix.length())) {
+                    //Prefix matches therefore it's a misspelled option
+                    throw InvalidOptionException(topic, option.get_key(), "Internal option not found");
                 }
-                //this is an internal option
-                internal.emplace_back(option);
+                else {
+                    //RdKafka option
+                    if (!allowRdKafkaOptions) {
+                        throw InvalidOptionException(topic, option.get_key(), "Unknown RdKafka option");
+                    }
+                    rdKafka.emplace_back(option);
+                }
             }
             else {
-                //rdkafka option
-                rdKafka.emplace_back(option);
+                //validate
+                it->second(topic, &option, nullptr);
+                //this is an internal option
+                internal.emplace_back(option);
             }
         }
     }

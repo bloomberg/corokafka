@@ -81,6 +81,11 @@ enum class TimerValues : char
     Disabled = -2,  ///< Not taking effect
     Unlimited = -1  ///< Blocks indefinitely
 };
+enum class PollStrategy : char
+{
+    Batch,
+    RoundRobin
+};
 
 struct Empty
 {

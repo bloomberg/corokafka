@@ -89,11 +89,13 @@ private:
     const std::chrono::milliseconds& getPollInterval() const;
     ssize_t getMaxMessagePayloadOutputLength() const;
     
+    static const OptionExtractorFunc& extract(const std::string& option);
+    
     std::chrono::milliseconds               _pollInterval{100};
     ssize_t                                 _maxMessagePayloadLength{100};
     quantum::Configuration                  _dispatcherConfig;
     Callbacks::ConnectorLogCallback         _logCallback;
-    static const OptionSet                  s_internalOptions;
+    static const OptionMap                  s_internalOptions;
     static const std::string                s_internalOptionsPrefix;
 };
 

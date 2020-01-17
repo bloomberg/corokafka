@@ -127,6 +127,12 @@ TEST(ConsumerConfiguration, InternalConsumerPollTimeoutMs)
         {{"-2",true},{"1000",false}});
 }
 
+TEST(ConsumerConfiguration, InternalConsumerRoundRobinMinPollTimeoutMs)
+{
+    testConsumerOption<InvalidOptionException>("InvalidOptionException", "internal.consumer.roundrobin.min.poll.timeout.ms",
+        {{"0",true},{"10",false}});
+}
+
 TEST(ConsumerConfiguration, InternalConsumerAutoOffsetPersist)
 {
     testConsumerOption<InvalidOptionException>("InvalidOptionException", "internal.consumer.auto.offset.persist",
@@ -171,8 +177,19 @@ TEST(ConsumerConfiguration, InternalConsumerCommitBackoffIntervalMs)
 
 TEST(ConsumerConfiguration, InternalConsumerCommitMaxBackoffMs)
 {
+    //Negative test
     testConsumerOption<InvalidOptionException>("InvalidOptionException", "internal.consumer.commit.max.backoff.ms",
-        {{"49",true},{"50",false},{"51",false}});
+        {{"100",false},{"101",false}});
+    
+    //Positive (< backoff.interval)
+    ConsumerConfiguration config(topicWithHeaders(),
+                    {{"internal.consumer.commit.backoff.interval.ms", "50"},
+                     {"internal.consumer.commit.max.backoff.ms", "49"},
+                     {"metadata.broker.list", programOptions()._broker},
+                     {"group.id","test-group"},
+                     {ConsumerConfiguration::Options::pauseOnStart, true},
+                     {ConsumerConfiguration::Options::readSize, 1}}, {}, Callbacks::messageReceiverWithHeaders);
+    testConnectorOption<InvalidOptionException>(config, "InvalidOptionException", "internal.consumer.commit.max.backoff.ms", true);
 }
 
 TEST(ConsumerConfiguration, InternalConsumerPollStrategy)
@@ -195,14 +212,36 @@ TEST(ConsumerConfiguration, InternalConsumerBatchPrefetch)
 
 TEST(ConsumerConfiguration, InternalConsumerReceiveCallbackThreadRangeLow)
 {
+    //Negative test
     testConsumerOption<InvalidOptionException>("InvalidOptionException", "internal.consumer.receive.callback.thread.range.low",
-        {{"-1",true},{"0",false},{"1",false},{"5",true}});
+        {{"-1",true},{"0",false},{"1",false},{"4",false}});
+    
+    //Positive
+    ConsumerConfiguration config(topicWithHeaders(),
+                    {{"internal.consumer.receive.callback.thread.range.low", "5"},
+                     {"internal.consumer.receive.callback.thread.range.high", "4"},
+                     {"metadata.broker.list", programOptions()._broker},
+                     {"group.id","test-group"},
+                     {ConsumerConfiguration::Options::pauseOnStart, true},
+                     {ConsumerConfiguration::Options::readSize, 1}}, {}, Callbacks::messageReceiverWithHeaders);
+    testConnectorOption<InvalidOptionException>(config, "InvalidOptionException", "internal.consumer.receive.callback.thread.range.low", true);
 }
 
 TEST(ConsumerConfiguration, InternalConsumerReceiveCallbackThreadRangeHigh)
 {
+    //Negative test
     testConsumerOption<InvalidOptionException>("InvalidOptionException", "internal.consumer.receive.callback.thread.range.high",
-        {{"-1",true},{"0",false},{"1",false},{"5",true}});
+        {{"-1",true},{"0",false},{"1",false},{"4",false}});
+    
+    //Positive
+    ConsumerConfiguration config(topicWithHeaders(),
+                    {{"internal.consumer.receive.callback.thread.range.low", "3"},
+                     {"internal.consumer.receive.callback.thread.range.high", "2"},
+                     {"metadata.broker.list", programOptions()._broker},
+                     {"group.id","test-group"},
+                     {ConsumerConfiguration::Options::pauseOnStart, true},
+                     {ConsumerConfiguration::Options::readSize, 1}}, {}, Callbacks::messageReceiverWithHeaders);
+    testConnectorOption<InvalidOptionException>(config, "InvalidOptionException", "internal.consumer.receive.callback.thread.range.high", true);
 }
 
 TEST(ConsumerConfiguration, InternalConsumerReceiveCallbackExec)
@@ -347,6 +386,9 @@ TEST(Consumer, ReadTopicWithoutHeadersUsingConfig1)
     
     EXPECT_EQ(10, callbackCounters()._offsetCommit);
     EXPECT_TRUE(callbackCounters()._receiverIoThread);
+    EXPECT_EQ(0, callbackCounters()._assign);
+    EXPECT_EQ(0, callbackCounters()._revoke);
+    EXPECT_EQ(0, callbackCounters()._rebalance);
     
     //Check message validity
     EXPECT_EQ(messageWithoutHeadersTracker(), consumerMessageWithoutHeadersTracker());

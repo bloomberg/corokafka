@@ -70,9 +70,8 @@ TEST(ProducerConfiguration, UnknownOption)
 
 TEST(ProducerConfiguration, UnknownInternalOption)
 {
-    ASSERT_THROW(ProducerConfiguration config(topicWithHeaders().topic(),
-        {{"metadata.broker.list", programOptions()._broker},
-         {"internal.producer.unknown.option", "bad"}}, {}), InvalidOptionException);
+    testProducerOption<InvalidOptionException>("InvalidOptionException", "internal.producer.unknown.option",
+        {{"bad",true}});
 }
 
 TEST(ProducerConfiguration, InternalProducerTimeoutMs)
