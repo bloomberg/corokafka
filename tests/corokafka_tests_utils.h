@@ -291,7 +291,7 @@ Connector makeProducerConnector(const Configuration::OptionList& ops, const std:
     config.setPartitionerCallback(Callbacks::partitioner);
     ConfigurationBuilder builder;
     builder(config);
-    return {builder};
+    return {builder, dispatcher()};
 }
 
 template <typename TOPIC, typename RECV>
@@ -312,7 +312,7 @@ Connector makeConsumerConnector(const Configuration::OptionList& ops,
     config.assignInitialPartitions(strategy, std::move(partitions));
     ConfigurationBuilder builder;
     builder(config);
-    return {builder};
+    return {builder, dispatcher()};
 }
 
 

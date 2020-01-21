@@ -67,6 +67,13 @@ struct CallbackCounters
 };
 
 inline
+quantum::Dispatcher& dispatcher()
+{
+    static quantum::Dispatcher _dispatcher({});
+    return _dispatcher;
+}
+
+inline
 CallbackCounters& callbackCounters()
 {
     static CallbackCounters _counters;

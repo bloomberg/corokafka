@@ -51,8 +51,8 @@ TEST(ProducerConfiguration, MissingBrokerList)
     ProducerConfiguration config(topicWithHeaders().topic(), {}, {}); //use all defaults
     ConfigurationBuilder builder;
     builder(config);
-    ASSERT_THROW(Connector connector(builder), InvalidOptionException);
-    try { Connector connector(builder); }
+    ASSERT_THROW(Connector connector(builder, dispatcher()), InvalidOptionException);
+    try { Connector connector(builder, dispatcher()); }
     catch(const InvalidOptionException& ex) {
         ASSERT_STREQ("metadata.broker.list", ex.option());
     }
@@ -65,7 +65,7 @@ TEST(ProducerConfiguration, UnknownOption)
          {"somebadoption", "bad"}}, {});
     ConfigurationBuilder builder;
     builder(config);
-    ASSERT_THROW(Connector connector(builder), InvalidOptionException);
+    ASSERT_THROW(Connector connector(builder, dispatcher()), InvalidOptionException);
 }
 
 TEST(ProducerConfiguration, UnknownInternalOption)
@@ -317,7 +317,7 @@ TEST(Producer, ValidateCallbacks)
     config.setErrorCallback(Callbacks::handleKafkaError);
     ConfigurationBuilder builder;
     builder(config);
-    Connector connector{builder};
+    Connector connector{builder, dispatcher()};
     
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
     
@@ -373,7 +373,7 @@ TEST(Producer, ValidateErrorCallback)
     config.setErrorCallback(Callbacks::handleKafkaError, &opaque);
     ConfigurationBuilder builder;
     builder(config);
-    Connector connector{builder};
+    Connector connector{builder, dispatcher()};
     
     //Send a message (this will not actually send anything because broker is unreachable)
     for (size_t i = 0; i < 1; ++i) {
