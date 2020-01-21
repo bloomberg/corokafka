@@ -30,11 +30,18 @@ env:
     - EXEC=$TEST_DIR/CoroKafkaTests.Linux
 
 after_failure:
-  - COREFILE=$(find $TEST_DIR -maxdepth 1 -name "core*" | head -n 1)
+  - COREFILE=$(find $TRAVIS_BUILD_DIR/cores -maxdepth 1 -name "core.*" -print | head -1)
+  - echo $COREFILE
   - if [[ -f "$COREFILE" ]]; then gdb -c "$COREFILE" $EXEC -ex "thread apply all bt" -ex "set pagination 0" -batch; fi
 
 before_script:
-  - ulimit -c unlimited -s #enable core dumps
+  - ulimit -c
+  - ulimit -a -S
+  - ulimit -a -H
+  - mkdir -p -m 0777 $TRAVIS_BUILD_DIR/cores
+  - sudo sysctl -w kernel.core_pattern=$TRAVIS_BUILD_DIR/cores/core.%e.%p
+  - cat /proc/sys/kernel/core_pattern
+  - service --status-all || true
   - KAFKA_VERSION=2.12-2.4.0
   - RD_KAFKA_VERSION=v1.3.0
   - wget http://apache.cs.utah.edu/kafka/2.4.0/kafka_$KAFKA_VERSION.tgz && tar -xvzf kafka_$KAFKA_VERSION.tgz
@@ -44,6 +51,7 @@ before_script:
   - ./kafka_$KAFKA_VERSION/bin/kafka-topics.sh --create --zookeeper localhost:2181 --topic topic_with_headers --partitions 4 --replication-factor 1
 
 script:
+  - ulimit -c unlimited -S #enable core dumps
   - INSTALL_DIR=/home/travis/build/accelerated/corokafka/install
   - mkdir install
 

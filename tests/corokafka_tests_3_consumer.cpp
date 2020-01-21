@@ -71,8 +71,8 @@ TEST(ConsumerConfiguration, MissingBrokerList)
     ConsumerConfiguration config(topicWithHeaders().topic(), {}, {}); //use all defaults
     ConfigurationBuilder builder;
     builder(config);
-    ASSERT_THROW(Connector connector(builder), InvalidOptionException);
-    try { Connector connector(builder); }
+    ASSERT_THROW(Connector connector(builder, dispatcher()), InvalidOptionException);
+    try { Connector connector(builder, dispatcher()); }
     catch(const InvalidOptionException& ex) {
         ASSERT_STREQ("metadata.broker.list", ex.option());
     }
@@ -83,8 +83,8 @@ TEST(ConsumerConfiguration, MissingGroupId)
     ConsumerConfiguration config(topicWithHeaders().topic(), {{"metadata.broker.list", programOptions()._broker}}, {}); //use all defaults
     ConfigurationBuilder builder;
     builder(config);
-    ASSERT_THROW(Connector connector(builder), InvalidOptionException);
-    try { Connector connector(builder); }
+    ASSERT_THROW(Connector connector(builder, dispatcher()), InvalidOptionException);
+    try { Connector connector(builder, dispatcher()); }
     catch(const InvalidOptionException& ex) {
         ASSERT_STREQ("group.id", ex.option());
     }
@@ -99,7 +99,7 @@ TEST(ConsumerConfiguration, UnknownOption)
          Callbacks::messageReceiverWithHeaders);
     ConfigurationBuilder builder;
     builder(config);
-    ASSERT_THROW(Connector connector(builder), InvalidOptionException);
+    ASSERT_THROW(Connector connector(builder, dispatcher()), InvalidOptionException);
 }
 
 TEST(ConsumerConfiguration, UnknownInternalOption)

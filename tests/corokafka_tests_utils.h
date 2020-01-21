@@ -119,7 +119,7 @@ struct MessageTracker
     }
     void add(Info info) {
         std::lock_guard<std::mutex> lock(_mutex);
-        if (info._message._num == 0) {
+        if (_messages[info._id].empty() || (info._message._num == 0)) {
             //start a new serie
             _messages[info._id].emplace_back();
         }
@@ -291,7 +291,7 @@ Connector makeProducerConnector(const Configuration::OptionList& ops, const std:
     config.setPartitionerCallback(Callbacks::partitioner);
     ConfigurationBuilder builder;
     builder(config);
-    return {builder};
+    return {builder, dispatcher()};
 }
 
 template <typename TOPIC, typename RECV>
@@ -312,7 +312,7 @@ Connector makeConsumerConnector(const Configuration::OptionList& ops,
     config.assignInitialPartitions(strategy, std::move(partitions));
     ConfigurationBuilder builder;
     builder(config);
-    return {builder};
+    return {builder, dispatcher()};
 }
 
 
