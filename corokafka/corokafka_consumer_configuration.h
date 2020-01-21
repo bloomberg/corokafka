@@ -68,6 +68,7 @@ public:
         static constexpr const char* receiveCallbackThreadRangeLow =    "internal.consumer.receive.callback.thread.range.low";
         static constexpr const char* receiveCallbackThreadRangeHigh =   "internal.consumer.receive.callback.thread.range.high";
         static constexpr const char* receiveInvokeThread =              "internal.consumer.receive.invoke.thread";
+        static constexpr const char* roundRobinMinPollTimeoutMs =       "internal.consumer.roundrobin.min.poll.timeout.ms";
         static constexpr const char* skipUnknownHeaders =               "internal.consumer.skip.unknown.headers";
         static constexpr const char* timeoutMs =                        "internal.consumer.timeout.ms";
     };
@@ -191,6 +192,7 @@ public:
 private:
     const TypeErasedDeserializer& getTypeErasedDeserializer() const;
     const Receiver& getTypeErasedReceiver() const;
+    static const OptionExtractorFunc& extract(const std::string& option);
     
     Callbacks::OffsetCommitCallback         _offsetCommitCallback;
     Callbacks::RebalanceCallback            _rebalanceCallback;
@@ -199,8 +201,8 @@ private:
     std::shared_ptr<Receiver>               _receiver;
     cppkafka::TopicPartitionList            _initialPartitionList;
     PartitionStrategy                       _strategy{PartitionStrategy::Dynamic};
-    static const OptionSet                  s_internalOptions;
-    static const OptionSet                  s_internalTopicOptions;
+    static const OptionMap                  s_internalOptions;
+    static const OptionMap                  s_internalTopicOptions;
     static const std::string                s_internalOptionsPrefix;
 };
 

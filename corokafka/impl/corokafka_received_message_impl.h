@@ -145,6 +145,13 @@ void ReceivedMessage<KEY,PAYLOAD,HEADERS>::setOpaque(const void* opaque)
 template <typename KEY, typename PAYLOAD, typename HEADERS>
 cppkafka::Error ReceivedMessage<KEY,PAYLOAD,HEADERS>::commit(const void* opaque)
 {
+    if (!_message) {
+        return RD_KAFKA_RESP_ERR__BAD_MSG;
+    }
+    if (_message.is_eof()) {
+        //nothing to commit
+        return RD_KAFKA_RESP_ERR__PARTITION_EOF;
+    }
     _opaque = opaque;
     if ((_opaque != nullptr) &&
         (_offsetSettings._autoOffsetPersistStrategy == OffsetPersistStrategy::Commit) &&
@@ -203,7 +210,7 @@ PAYLOAD&& ReceivedMessage<KEY,PAYLOAD,HEADERS>::getPayload() &&
 }
 
 template <typename KEY, typename PAYLOAD, typename HEADERS>
-template <size_t I>
+template <size_t I, std::enable_if_t<I<HEADERS::NumHeaders, int>>
 const typename std::tuple_element<I,typename HEADERS::HeaderTypes>::type&
 ReceivedMessage<KEY,PAYLOAD,HEADERS>::getHeaderAt() const &
 {
@@ -216,7 +223,7 @@ ReceivedMessage<KEY,PAYLOAD,HEADERS>::getHeaderAt() const &
 }
 
 template <typename KEY, typename PAYLOAD, typename HEADERS>
-template <size_t I>
+template <size_t I, std::enable_if_t<I<HEADERS::NumHeaders, int>>
 typename std::tuple_element<I,typename HEADERS::HeaderTypes>::type&
 ReceivedMessage<KEY,PAYLOAD,HEADERS>::getHeaderAt() &
 {
@@ -229,7 +236,7 @@ ReceivedMessage<KEY,PAYLOAD,HEADERS>::getHeaderAt() &
 }
 
 template <typename KEY, typename PAYLOAD, typename HEADERS>
-template <size_t I>
+template <size_t I, std::enable_if_t<I<HEADERS::NumHeaders, int>>
 typename std::tuple_element<I,typename HEADERS::HeaderTypes>::type&&
 ReceivedMessage<KEY,PAYLOAD,HEADERS>::getHeaderAt() &&
 {
@@ -242,7 +249,7 @@ ReceivedMessage<KEY,PAYLOAD,HEADERS>::getHeaderAt() &&
 }
 
 template <typename KEY, typename PAYLOAD, typename HEADERS>
-template <size_t I>
+template <size_t I, std::enable_if_t<I<HEADERS::NumHeaders, int>>
 bool ReceivedMessage<KEY,PAYLOAD,HEADERS>::isHeaderValidAt() const
 {
     return _headers.isValidAt(I);
@@ -316,7 +323,7 @@ cppkafka::Error ReceivedMessage<KEY,PAYLOAD,HEADERS>::doCommit()
         }
         if (_message.is_eof()) {
             //nothing to commit
-            return {};
+            return RD_KAFKA_RESP_ERR__PARTITION_EOF;
         }
         if (_offsetSettings._autoOffsetPersistStrategy == OffsetPersistStrategy::Commit) {
             if (_offsetSettings._autoCommitExec== ExecMode::Sync) {

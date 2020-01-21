@@ -18,6 +18,7 @@
 #include <cppkafka/macros.h>
 #include <cmath>
 #include <tuple>
+#include <algorithm>
 
 using namespace std::placeholders;
 
@@ -88,6 +89,10 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
     const Configuration::OptionList& rdKafkaTopicOptions = topicEntry._configuration.getTopicOptions(Configuration::OptionType::RdKafka);
     const Configuration::OptionList& internalOptions = topicEntry._configuration.getOptions(Configuration::OptionType::Internal);
     
+    auto extract = [&topic, &internalOptions](const std::string& name, auto& value)->bool {
+        return ConsumerConfiguration::extract(name)(topic, Configuration::findOption(name, internalOptions), &value);
+    };
+    
     //Validate config
     const cppkafka::ConfigurationOption* brokerList =
         Configuration::findOption(Configuration::RdKafkaOptions::metadataBrokerList, rdKafkaOptions);
@@ -108,19 +113,8 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
     cppkafka::Configuration kafkaConfig(rdKafkaOptions);
     kafkaConfig.set_default_topic_configuration(cppkafka::TopicConfiguration(rdKafkaTopicOptions));
     
-    const cppkafka::ConfigurationOption* autoThrottle =
-        Configuration::findOption(ConsumerConfiguration::Options::autoThrottle, internalOptions);
-    if (autoThrottle) {
-        topicEntry._throttleControl.autoThrottle() =
-            Configuration::extractBooleanValue(topic, ConsumerConfiguration::Options::autoThrottle, *autoThrottle);
-    }
-    
-    const cppkafka::ConfigurationOption* throttleMultiplier =
-        Configuration::findOption(ConsumerConfiguration::Options::autoThrottleMultiplier, internalOptions);
-    if (throttleMultiplier) {
-        topicEntry._throttleControl.throttleMultiplier() =
-            Configuration::extractCounterValue(topic, ConsumerConfiguration::Options::autoThrottleMultiplier, *throttleMultiplier, 1);
-    }
+    extract(ConsumerConfiguration::Options::autoThrottle, topicEntry._throttleControl.autoThrottle());
+    extract(ConsumerConfiguration::Options::autoThrottleMultiplier, topicEntry._throttleControl.throttleMultiplier());
     
     //Set the global callbacks
     if (topicEntry._configuration.getErrorCallback()) {
@@ -152,12 +146,7 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
         topicEntry._preprocessorCallback = std::bind(preprocessorCallback, std::ref(topicEntry), _1);
     }
     
-    const cppkafka::ConfigurationOption* autoPersist =
-        Configuration::findOption(ConsumerConfiguration::Options::autoOffsetPersist, internalOptions);
-    if (autoPersist) {
-        topicEntry._autoOffsetPersist =
-            Configuration::extractBooleanValue(topic, ConsumerConfiguration::Options::autoOffsetPersist, *autoPersist);
-    }
+    extract(ConsumerConfiguration::Options::autoOffsetPersist, topicEntry._autoOffsetPersist);
     
     const cppkafka::ConfigurationOption* persistStrategy =
         Configuration::findOption(ConsumerConfiguration::Options::offsetPersistStrategy, internalOptions);
@@ -181,26 +170,9 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
         }
     }
     
-    const cppkafka::ConfigurationOption* autoPersistOnException =
-        Configuration::findOption(ConsumerConfiguration::Options::autoOffsetPersistOnException, internalOptions);
-    if (autoPersistOnException) {
-        topicEntry._autoOffsetPersistOnException =
-            Configuration::extractBooleanValue(topic, ConsumerConfiguration::Options::autoOffsetPersistOnException, *autoPersistOnException);
-    }
+    extract(ConsumerConfiguration::Options::autoOffsetPersistOnException, topicEntry._autoOffsetPersistOnException);
     
-    const cppkafka::ConfigurationOption* commitExec =
-        Configuration::findOption(ConsumerConfiguration::Options::commitExec, internalOptions);
-    if (commitExec) {
-        if (StringEqualCompare()(commitExec->get_value(), "sync")) {
-            topicEntry._autoCommitExec = ExecMode::Sync;
-        }
-        else if (StringEqualCompare()(commitExec->get_value(), "async")) {
-            topicEntry._autoCommitExec = ExecMode::Async;
-        }
-        else {
-            throw InvalidOptionException(topic, ConsumerConfiguration::Options::commitExec, commitExec->get_value());
-        }
-    }
+    extract(ConsumerConfiguration::Options::commitExec, topicEntry._autoCommitExec);
     
     // Set underlying rdkafka options
     if (topicEntry._autoOffsetPersist) {
@@ -214,18 +186,6 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
         }
     }
     
-    bool roundRobinPolling = false; //default is batch
-    const cppkafka::ConfigurationOption* pollStrategy =
-        Configuration::findOption(ConsumerConfiguration::Options::pollStrategy, internalOptions);
-    if (pollStrategy) {
-        if (StringEqualCompare()(pollStrategy->get_value(), "roundrobin")) {
-            roundRobinPolling = true;
-        }
-        else if (!StringEqualCompare()(pollStrategy->get_value(), "batch")) {
-            throw InvalidOptionException(topic, ConsumerConfiguration::Options::pollStrategy, pollStrategy->get_value());
-        }
-    }
-    
     //=======================================================================================
     //DO NOT UPDATE ANY KAFKA CONFIG OPTIONS BELOW THIS POINT SINCE THE CONSUMER MAKES A COPY
     //=======================================================================================
@@ -233,160 +193,75 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
     //Create a consumer
     topicEntry._consumer.reset(new cppkafka::Consumer(kafkaConfig));
     topicEntry._committer.reset(new cppkafka::BackoffCommitter(*topicEntry._consumer));
-    if (roundRobinPolling) {
-        topicEntry._roundRobin.reset(new cppkafka::RoundRobinPollStrategy(*topicEntry._consumer));
-    }
     
     auto offsetCommitErrorFunc = std::bind(&offsetCommitErrorCallback, std::ref(topicEntry), _1);
     topicEntry._committer->set_error_callback(offsetCommitErrorFunc);
     
     //Set internal config options
-    const cppkafka::ConfigurationOption* skipUnknownHeaders =
-        Configuration::findOption(ConsumerConfiguration::Options::skipUnknownHeaders, internalOptions);
-    if (skipUnknownHeaders) {
-        topicEntry._skipUnknownHeaders =
-            Configuration::extractBooleanValue(topic, ConsumerConfiguration::Options::skipUnknownHeaders, *skipUnknownHeaders);
+    extract(ConsumerConfiguration::Options::skipUnknownHeaders, topicEntry._skipUnknownHeaders);
+    
+    std::chrono::milliseconds timeout;
+    if (extract(ConsumerConfiguration::Options::timeoutMs, timeout)) {
+        topicEntry._consumer->set_timeout(timeout);
     }
     
-    const cppkafka::ConfigurationOption* consumerTimeout =
-        Configuration::findOption(ConsumerConfiguration::Options::timeoutMs, internalOptions);
-    if (consumerTimeout) {
-        topicEntry._consumer->set_timeout(std::chrono::milliseconds(
-            Configuration::extractCounterValue(topic, ConsumerConfiguration::Options::timeoutMs, *consumerTimeout, (int)TimerValues::Unlimited)));
+    extract(ConsumerConfiguration::Options::pollTimeoutMs, topicEntry._pollTimeout);
+    
+    extract(ConsumerConfiguration::Options::roundRobinMinPollTimeoutMs, topicEntry._roundRobinMinPollTimeout);
+    
+    if (extract(ConsumerConfiguration::Options::logLevel, topicEntry._logLevel)) {
+        topicEntry._consumer->set_log_level(topicEntry._logLevel);
     }
     
-    const cppkafka::ConfigurationOption* pollTimeout =
-        Configuration::findOption(ConsumerConfiguration::Options::pollTimeoutMs, internalOptions);
-    if (pollTimeout) {
-        topicEntry._pollTimeout = std::chrono::milliseconds(
-            Configuration::extractCounterValue(topic, ConsumerConfiguration::Options::pollTimeoutMs, *pollTimeout, (int)TimerValues::Unlimited));
+    size_t commitNumRetries;
+    if (extract(ConsumerConfiguration::Options::commitNumRetries, commitNumRetries)) {
+        topicEntry._committer->set_maximum_retries(commitNumRetries);
     }
     
-    const cppkafka::ConfigurationOption* logLevel =
-        Configuration::findOption(ConsumerConfiguration::Options::logLevel, internalOptions);
-    if (logLevel) {
-        cppkafka::LogLevel level = Configuration::extractLogLevel(topic, ConsumerConfiguration::Options::logLevel, logLevel->get_value());
-        topicEntry._consumer->set_log_level(level);
-        topicEntry._logLevel = level;
+    cppkafka::BackoffPerformer::BackoffPolicy backoffStrategy;
+    if (extract(ConsumerConfiguration::Options::commitBackoffStrategy, backoffStrategy)) {
+        topicEntry._committer->set_backoff_policy(backoffStrategy);
     }
     
-    const cppkafka::ConfigurationOption* numRetriesOption =
-        Configuration::findOption(ConsumerConfiguration::Options::commitNumRetries, internalOptions);
-    if (numRetriesOption) {
-        topicEntry._committer->set_maximum_retries(
-            Configuration::extractCounterValue(topic, ConsumerConfiguration::Options::commitNumRetries, *numRetriesOption, 0));
-    }
-    
-    const cppkafka::ConfigurationOption* backoffStrategyOption =
-        Configuration::findOption(ConsumerConfiguration::Options::commitBackoffStrategy, internalOptions);
-    if (backoffStrategyOption) {
-        if (StringEqualCompare()(backoffStrategyOption->get_value(), "linear")) {
-            topicEntry._committer->set_backoff_policy(cppkafka::BackoffPerformer::BackoffPolicy::LINEAR);
-        }
-        else if (StringEqualCompare()(backoffStrategyOption->get_value(), "exponential")) {
-            topicEntry._committer->set_backoff_policy(cppkafka::BackoffPerformer::BackoffPolicy::EXPONENTIAL);
-        }
-        else {
-            throw InvalidOptionException(topic, ConsumerConfiguration::Options::commitBackoffStrategy, backoffStrategyOption->get_value());
-        }
-    }
-    
-    const cppkafka::ConfigurationOption* backoffInterval =
-        Configuration::findOption(ConsumerConfiguration::Options::commitBackoffIntervalMs, internalOptions);
-    std::chrono::milliseconds commitBackoffStep{50};
-    if (backoffInterval) {
-        commitBackoffStep = std::chrono::milliseconds(
-            Configuration::extractCounterValue(topic, ConsumerConfiguration::Options::commitBackoffIntervalMs, *backoffInterval, 1));
+    std::chrono::milliseconds commitBackoffStep{100};
+    if (extract(ConsumerConfiguration::Options::commitBackoffIntervalMs, commitBackoffStep)) {
         topicEntry._committer->set_initial_backoff(commitBackoffStep);
         topicEntry._committer->set_backoff_step(commitBackoffStep);
     }
     
-    const cppkafka::ConfigurationOption* maxBackoff =
-        Configuration::findOption(ConsumerConfiguration::Options::commitMaxBackoffMs, internalOptions);
-    if (maxBackoff) {
-        topicEntry._committer->set_maximum_backoff(std::chrono::milliseconds(
-            Configuration::extractCounterValue(topic, ConsumerConfiguration::Options::commitMaxBackoffMs, *maxBackoff, (int)commitBackoffStep.count())));
-    }
-    
-    const cppkafka::ConfigurationOption* batchSize =
-        Configuration::findOption(ConsumerConfiguration::Options::readSize, internalOptions);
-    if (batchSize) {
-        topicEntry._batchSize =
-            Configuration::extractCounterValue(topic, ConsumerConfiguration::Options::readSize, *batchSize, 1);
-    }
-    
-    const cppkafka::ConfigurationOption* threadRangeLow =
-        Configuration::findOption(ConsumerConfiguration::Options::receiveCallbackThreadRangeLow, internalOptions);
-    if (threadRangeLow) {
-        topicEntry._receiveCallbackThreadRange.first =
-            Configuration::extractCounterValue(topic, ConsumerConfiguration::Options::receiveCallbackThreadRangeLow, *threadRangeLow,
-                topicEntry._receiveCallbackThreadRange.first, topicEntry._receiveCallbackThreadRange.second);
-    }
-    
-    const cppkafka::ConfigurationOption* threadRangeHigh =
-        Configuration::findOption(ConsumerConfiguration::Options::receiveCallbackThreadRangeHigh, internalOptions);
-    if (threadRangeHigh) {
-        topicEntry._receiveCallbackThreadRange.second =
-            Configuration::extractCounterValue(topic, ConsumerConfiguration::Options::receiveCallbackThreadRangeHigh, *threadRangeHigh,
-                topicEntry._receiveCallbackThreadRange.first, topicEntry._receiveCallbackThreadRange.second);
-    }
-    
-    const cppkafka::ConfigurationOption* receiveCallbackExec =
-        Configuration::findOption(ConsumerConfiguration::Options::receiveCallbackExec, internalOptions);
-    if (receiveCallbackExec) {
-        if (StringEqualCompare()(receiveCallbackExec->get_value(), "sync")) {
-            topicEntry._receiveCallbackExec = ExecMode::Sync;
-        }
-        else if (StringEqualCompare()(receiveCallbackExec->get_value(), "async")) {
-            topicEntry._receiveCallbackExec = ExecMode::Async;
-        }
-        else {
-            throw InvalidOptionException(topic, ConsumerConfiguration::Options::receiveCallbackExec, receiveCallbackExec->get_value());
+    std::chrono::milliseconds commitMaxBackoff;
+    if (extract(ConsumerConfiguration::Options::commitMaxBackoffMs, commitMaxBackoff)) {
+        if (commitMaxBackoff < commitBackoffStep) {
+            throw InvalidOptionException(topic, ConsumerConfiguration::Options::commitMaxBackoffMs, std::to_string(commitMaxBackoff.count()));
         }
     }
     
-    const cppkafka::ConfigurationOption* receiveThread =
-        Configuration::findOption(ConsumerConfiguration::Options::receiveInvokeThread, internalOptions);
-    if (receiveThread) {
-        if (StringEqualCompare()(receiveThread->get_value(), "io")) {
-            topicEntry._receiverThread = ThreadType::IO;
-        }
-        else if (StringEqualCompare()(receiveThread->get_value(), "coro")) {
-            topicEntry._receiverThread = ThreadType::Coro;
-            topicEntry._receiveCallbackExec = ExecMode::Sync; //override user setting
-        }
-        else {
-            throw InvalidOptionException(topic, ConsumerConfiguration::Options::receiveInvokeThread, receiveThread->get_value());
-        }
+    extract(ConsumerConfiguration::Options::readSize, topicEntry._batchSize);
+    
+    std::pair<int, int> prev = topicEntry._receiveCallbackThreadRange;
+    extract(ConsumerConfiguration::Options::receiveCallbackThreadRangeLow, topicEntry._receiveCallbackThreadRange.first);
+    if ((topicEntry._receiveCallbackThreadRange.first < prev.first) ||
+        (topicEntry._receiveCallbackThreadRange.first > prev.second)) {
+        throw InvalidOptionException(topic, ConsumerConfiguration::Options::receiveCallbackThreadRangeLow, std::to_string(topicEntry._receiveCallbackThreadRange.first));
+    }
+    extract(ConsumerConfiguration::Options::receiveCallbackThreadRangeHigh, topicEntry._receiveCallbackThreadRange.second);
+    if ((topicEntry._receiveCallbackThreadRange.second < topicEntry._receiveCallbackThreadRange.first) ||
+        (topicEntry._receiveCallbackThreadRange.first > prev.second)) {
+        throw InvalidOptionException(topic, ConsumerConfiguration::Options::receiveCallbackThreadRangeHigh, std::to_string(topicEntry._receiveCallbackThreadRange.second));
+    }
+    
+    extract(ConsumerConfiguration::Options::receiveCallbackExec, topicEntry._receiveCallbackExec);
+    
+    extract(ConsumerConfiguration::Options::receiveInvokeThread, topicEntry._receiverThread);
+    if (topicEntry._receiverThread == ThreadType::Coro) {
+        topicEntry._receiveCallbackExec = ExecMode::Sync; //override user setting
     }
 
-    const cppkafka::ConfigurationOption* batchPrefetch =
-        Configuration::findOption(ConsumerConfiguration::Options::batchPrefetch, internalOptions);
-    if (batchPrefetch) {
-        topicEntry._batchPrefetch =
-            Configuration::extractBooleanValue(topic, ConsumerConfiguration::Options::batchPrefetch, *batchPrefetch);
-    }
+    extract(ConsumerConfiguration::Options::batchPrefetch, topicEntry._batchPrefetch);
     
-    const cppkafka::ConfigurationOption* preprocessMessages =
-        Configuration::findOption(ConsumerConfiguration::Options::preprocessMessages, internalOptions);
-    if (preprocessMessages) {
-        topicEntry._preprocess =
-            Configuration::extractBooleanValue(topic, ConsumerConfiguration::Options::preprocessMessages, *preprocessMessages);
-    }
+    extract(ConsumerConfiguration::Options::preprocessMessages, topicEntry._preprocess);
     
-    const cppkafka::ConfigurationOption* invokeThread =
-        Configuration::findOption(ConsumerConfiguration::Options::preprocessInvokeThread, internalOptions);
-    if (invokeThread) {
-        if (StringEqualCompare()(invokeThread->get_value(), "io")) {
-            topicEntry._preprocessorThread = ThreadType::IO;
-        }
-        else if (StringEqualCompare()(invokeThread->get_value(), "coro")) {
-            topicEntry._preprocessorThread = ThreadType::Coro;
-        }
-        else {
-            throw InvalidOptionException(topic, ConsumerConfiguration::Options::preprocessInvokeThread, invokeThread->get_value());
-        }
-    }
+    extract(ConsumerConfiguration::Options::preprocessInvokeThread, topicEntry._preprocessorThread);
     
     // Set the consumer callbacks
     if (topicEntry._configuration.getRebalanceCallback() ||
@@ -403,11 +278,7 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
         topicEntry._consumer->set_rebalance_error_callback(std::move(rebalanceErrorFunc));
     }
     
-    const cppkafka::ConfigurationOption* pauseOnStart =
-        Configuration::findOption(ConsumerConfiguration::Options::pauseOnStart, internalOptions);
-    if (pauseOnStart) {
-        topicEntry._isPaused =
-            Configuration::extractBooleanValue(topic, ConsumerConfiguration::Options::pauseOnStart, *pauseOnStart);
+    if (extract(ConsumerConfiguration::Options::pauseOnStart, topicEntry._isPaused)) {
         if (topicEntry._isPaused) {
             topicEntry._consumer->pause(topic);
         }
@@ -432,6 +303,13 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
     }
     else {
         topicEntry._consumer->subscribe({topic});
+    }
+    
+    PollStrategy pollStrategy = PollStrategy::Batch;
+    extract(ConsumerConfiguration::Options::pollStrategy, pollStrategy);
+    if (pollStrategy == PollStrategy::RoundRobin) {
+        //This needs to be created after the partitions are assigned to the consumer
+        topicEntry._roundRobin.reset(new cppkafka::RoundRobinPollStrategy(*topicEntry._consumer));
     }
 }
 
@@ -636,6 +514,7 @@ std::vector<std::string> ConsumerManagerImpl::getTopics() const
 void ConsumerManagerImpl::shutdown()
 {
     if (!_shutdownInitiated.test_and_set()) {
+        _shuttingDown = true;
         unsubscribe({});
     }
 }
@@ -801,6 +680,7 @@ void ConsumerManagerImpl::assignmentCallback(
             }
         }
     }
+    topicEntry._configuration.assignInitialPartitions(strategy, topicPartitions); //overwrite original if any
     cppkafka::CallbackInvoker<Callbacks::RebalanceCallback>
         ("assignment", topicEntry._configuration.getRebalanceCallback(), topicEntry._consumer.get())
             (makeMetadata(topicEntry), cppkafka::Error(RD_KAFKA_RESP_ERR__ASSIGN_PARTITIONS), topicPartitions);
@@ -811,6 +691,8 @@ void ConsumerManagerImpl::revocationCallback(
                         const cppkafka::TopicPartitionList& topicPartitions)
 {
     topicEntry._isSubscribed = false;
+    PartitionStrategy strategy = topicEntry._configuration.getPartitionStrategy();
+    topicEntry._configuration.assignInitialPartitions(strategy, {}); //clear assignment
     cppkafka::CallbackInvoker<Callbacks::RebalanceCallback>
         ("revocation", topicEntry._configuration.getRebalanceCallback(), topicEntry._consumer.get())
             (makeMetadata(topicEntry), cppkafka::Error(RD_KAFKA_RESP_ERR__REVOKE_PARTITIONS), const_cast<cppkafka::TopicPartitionList&>(topicPartitions));
@@ -881,19 +763,17 @@ int ConsumerManagerImpl::messageRoundRobinReceiveTask(quantum::ThreadPromise<Mes
 {
     try {
         int batchSize = entry._batchSize;
-        std::chrono::milliseconds timeoutPerMessage(entry._pollTimeout.count()/entry._batchSize);
+        std::chrono::milliseconds timeout = (entry._pollTimeout.count() == (int)TimerValues::Disabled) ?
+                                             entry._consumer->get_timeout() : entry._pollTimeout;
+        std::chrono::milliseconds timeoutPerRound = std::max(timeout/(int64_t)entry._batchSize,
+                                                             entry._roundRobinMinPollTimeout);
         while (batchSize--) {
-            if (entry._pollTimeout.count() == (int)TimerValues::Disabled) {
-                cppkafka::Message message = entry._roundRobin->poll();
-                if (message) {
-                    promise->push(std::move(message));
-                }
+            if (!entry._isSubscribed) {
+                break;
             }
-            else {
-                cppkafka::Message message = entry._roundRobin->poll(timeoutPerMessage);
-                if (message) {
-                    promise->push(std::move(message));
-                }
+            cppkafka::Message message = entry._roundRobin->poll(timeoutPerRound);
+            if (message) {
+                promise->push(std::move(message));
             }
         }
     }
@@ -1039,10 +919,14 @@ std::vector<bool> ConsumerManagerImpl::executePreprocessorCallbacks(
         futures.emplace_back(ctx->postAsyncIo(ioQueueId, false,
             [&entry, &skipMessages, batchIndex, batchSize, inputIt]() mutable ->int
         {
-            for (size_t j = batchIndex; j < (batchIndex + batchSize) && entry._preprocess; ++j, ++inputIt) {
-                skipMessages[j] = entry._preprocessorCallback(cppkafka::TopicPartition(inputIt->get_topic(),
-                                                              inputIt->get_partition(),
-                                                              inputIt->get_offset()));
+            for (size_t j = batchIndex;
+                 j < (batchIndex + batchSize) && entry._preprocess;
+                 ++j, ++inputIt) {
+                if (!inputIt->get_error()) {
+                    skipMessages[j] = entry._preprocessorCallback(cppkafka::TopicPartition(inputIt->get_topic(),
+                                                                                           inputIt->get_partition(),
+                                                                                           inputIt->get_offset()));
+                }
             }
             return 0;
         }));
@@ -1097,7 +981,8 @@ ConsumerManagerImpl::deserializeBatchCoro(quantum::VoidContextPtr ctx,
             for (size_t j = batchIndex; j < (batchIndex + batchSize); ++j, ++inputIt) {
                 if (entry._configuration.getPreprocessorCallback() &&
                     entry._preprocess &&
-                    (entry._preprocessorThread == ThreadType::Coro)) {
+                    (entry._preprocessorThread == ThreadType::Coro) &&
+                    !inputIt->get_error()) {
                     // Run the preprocessor on the coroutine thread
                     skipMessages[j] = entry._preprocessorCallback(cppkafka::TopicPartition(inputIt->get_topic(),
                                                                   inputIt->get_partition(),

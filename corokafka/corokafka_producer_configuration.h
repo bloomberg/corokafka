@@ -38,6 +38,7 @@ namespace corokafka {
 class ProducerConfiguration : public TopicConfiguration
 {
     friend class TopicConfiguration;
+    friend class ProducerManagerImpl;
 public:
     /**
      * @brief Internal CoroKafka-specific options for the producer. They are used to control this
@@ -110,11 +111,13 @@ public:
      */
     const Callbacks::QueueFullCallback& getQueueFullCallback() const;
 private:
+    static const OptionExtractorFunc& extract(const std::string& option);
+    
     Callbacks::DeliveryReportCallback           _deliveryReportCallback;
     Callbacks::PartitionerCallback              _partitionerCallback;
     Callbacks::QueueFullCallback                _queueFullCallback;
-    static const OptionSet                      s_internalOptions;
-    static const OptionSet                      s_internalTopicOptions;
+    static const OptionMap                      s_internalOptions;
+    static const OptionMap                      s_internalTopicOptions;
     static const std::string                    s_internalOptionsPrefix;
 };
 

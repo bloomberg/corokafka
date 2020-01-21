@@ -47,7 +47,6 @@ struct Headers
     template <size_t I>
     using HeaderType = typename std::tuple_element<I, Headers>::type;
     static constexpr size_t NumHeaders = sizeof...(T);
-    
     static constexpr bool isSerializable() { return forAll<IsSerializable<T>::value...>(); }
     
     /**
@@ -67,8 +66,6 @@ struct Headers
 private:
     std::vector<std::string> _names;
 };
-
-using NoHeaders = Headers<NullHeader>;
 
 /**
  * @brief Helper function to make a Headers object from a list of Header objects.

@@ -21,6 +21,7 @@
 #include <set>
 #include <initializer_list>
 #include <limits>
+#include <functional>
 
 namespace Bloomberg {
 namespace corokafka {
@@ -78,7 +79,10 @@ protected:
         static constexpr const char* autoCommitIntervalMs =     "auto.commit.interval.ms";
     };
     
-    using OptionSet = std::set<std::string, StringLessCompare>;
+    using OptionExtractorFunc = std::function<bool(const std::string& topic,
+                                                   const cppkafka::ConfigurationOption*,
+                                                   void*)>;
+    using OptionMap = std::map<std::string, OptionExtractorFunc, StringLessCompare>;
     
     Configuration() = default;
     Configuration(OptionList options);
@@ -87,9 +91,11 @@ protected:
     
     static const cppkafka::ConfigurationOption* findOption(const std::string& name,
                                                            const OptionList& config);
-    static void parseOptions(const std::string& optionsPrefix,
-                             const OptionSet& allowed,
-                             OptionList(&optionList)[3]);
+    static void parseOptions(const std::string& topic,
+                             const std::string& optionsPrefix,
+                             const OptionMap& allowed,
+                             OptionList(&optionList)[3],
+                             bool allowRdKafkaOptions = true);
     
     static bool extractBooleanValue(const std::string& topic,
                                     const char* optionName,

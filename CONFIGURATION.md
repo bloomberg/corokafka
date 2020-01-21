@@ -17,16 +17,17 @@ The following configuration options are complementary to the RdKafka [options](h
 | :------- | :---: | :-----: | :---------- |
 | internal.consumer.pause.on.start | true, false | false | Start the consumer in paused state. User needs to call `resume()` to consume. |
 | internal.consumer.timeout.ms | \>= -1 | 1000 | Sets the timeout on any operations requiring a timeout such as poll, query offsets, etc. Set to **-1** for infinite timeout. |
-| internal.consumer.poll.timeout.ms | \>= -1 | N/A | If set, overrides the 'internal.consumer.timeout.ms' default setting for polling only. Note that in the case where **internal.consumer.poll.strategy=roundrobin**, the actual timeout per message will be **internal.consumer.poll.timeout.ms/internal.consumer.read.size**. Set to **-1** for infinite timeout. |
+| internal.consumer.poll.timeout.ms | \>= -1 | N/A | If set, overrides the 'internal.consumer.timeout.ms' default setting for polling only. Set to **-1** for infinite timeout. |
 | internal.consumer.auto.offset.persist | true, false | false | Enables auto-commit/auto-store inside the `ReceivedMessage` destructor. |
 | internal.consumer.auto.offset.persist.on.exception | true, false | false | Dictates if the offset persist should be aborted as a result of an exception. This could allow the application to reprocess a message following an exception. This is only valid if **internal.consumer.auto.offset.persist=true**. |
 | internal.consumer.offset.persist.strategy | commit, store | store | Determines if offsets are committed or stored locally. Some rdkafka settings will be changed according to **note 2** below. If **store** is chosen, **auto.commit.interval.ms > 0** must be set. |
 | internal.consumer.commit.exec | sync, async | async | Dictates if offset commits should be synchronous or asynchronous. |
 | internal.consumer.commit.num.retries | \>= 0 | MAX_UINT | Sets the number of times to retry committing an offset before giving up. |
 | internal.consumer.commit.backoff.strategy | linear, exponential | linear | Back-off strategy when initial commit fails. |
-| internal.consumer.commit.backoff.interval.ms | \> 0 | 50 | Time in ms between retries. |
+| internal.consumer.commit.backoff.interval.ms | \> 0 | 100 | Time in ms between retries. |
 | internal.consumer.commit.max.backoff.ms | \>= **internal.consumer.commit.backoff.interval.ms** | 1000 | Maximum back-off time for retries. If set, this has higher precedence than **internal.consumer.commit.num.retries**. |
-| internal.consumer.poll.strategy | batch, roundrobin | batch | Determines how messages are read from rdkafka queues. The **batch** strategy is to read the entire batch of messages from the main consumer queue and is more _performant_. If **roundrobin** strategy is selected, messages are read in round-robin fashion from each partition at a time.|
+| internal.consumer.poll.strategy | batch, roundrobin | batch | Determines how messages are read from rdkafka queues. The **batch** strategy is to read the entire batch of messages from the main consumer queue and is more _performant_. If **roundrobin** strategy is selected, messages are read in round-robin fashion from each partition at a time. In this mode, the **timeout.ms** and **poll.timeout.ms** are divided by the **read.size** up to a minimum of **roundrobin.min.timeout.ms**. |
+| internal.consumer.roundrobin.min.poll.timeout.ms | \> 0 | 10 | Minimum poll timeout when consuming messages in round-robin mode. |
 | internal.consumer.read.size | \> 0 | 100 | Number of messages to read on each poll interval. See `ConnectorConfiguration::setPollInterval()` for more details.|
 | internal.consumer.batch.prefetch | true, false | false | If **internal.consumer.poll.strategy=batch**, start pre-fetching the next batch while processing the current batch. This increases performance but may cause additional burden on the broker. |
 | internal.consumer.receive.callback.thread.range.low | [0, \<quantum_IO_threads\>) | 0 | Specifies the lowest thread id on which receive callbacks will be called. See **note 1** below for more details. |

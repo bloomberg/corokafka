@@ -81,6 +81,11 @@ enum class TimerValues : char
     Disabled = -2,  ///< Not taking effect
     Unlimited = -1  ///< Blocks indefinitely
 };
+enum class PollStrategy : char
+{
+    Batch,
+    RoundRobin
+};
 
 struct Empty
 {
@@ -100,8 +105,9 @@ struct is_empty<Empty>
 
 ssize_t& maxMessageBuilderOutputLength();
 
-struct TopicEntry
+struct Interruptible
 {
+    bool _shuttingDown{false};
 };
 
 void handleException(const std::exception &ex,
