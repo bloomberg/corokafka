@@ -58,10 +58,10 @@ public:
      * @note This method will only work if the consumer was been previously 'unsubscribed'. All the original
      *       configuration settings will remain the same, including PartitionStrategy (Static or Dynamic).
      *       If a partitionList is not provided, the values specified via ConsumerConfiguration::assignInitialPartitions()
-     *       shall be used with offsets set to RD_KAFKA_OFFSET_STORED.
+     *       shall be used with offsets set to RD_KAFKA_OFFSET_INVALID.
      */
     void subscribe(const std::string& topic,
-                   cppkafka::TopicPartitionList partitionList = {});
+                   const cppkafka::TopicPartitionList& partitionList = {});
     
     /**
      * @brief Unsubscribe from this topic.
@@ -145,6 +145,8 @@ protected:
     virtual ~ConsumerManager();
     
     void poll();
+    
+    void pollEnd();
     
 private:
     std::unique_ptr<ConsumerManagerImpl>  _impl;

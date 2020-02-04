@@ -17,13 +17,14 @@
 #define BLOOMBERG_COROKAFKA_UTILS_H
 
 #include <corokafka/utils/corokafka_json_builder.h>
-#include <cppkafka/cppkafka.h>
+#include <corokafka/third_party/cppkafka/cppkafka.h>
 #include <quantum/quantum.h>
 #include <functional>
 #include <algorithm>
 #include <ctype.h>
 #include <vector>
 #include <chrono>
+#include <atomic>
 
 //======================================================================================================================
 //                                               Disjunction port
@@ -83,8 +84,9 @@ enum class TimerValues : char
 };
 enum class PollStrategy : char
 {
-    Batch,
-    RoundRobin
+    Batch,          ///< Reads messages in batches
+    RoundRobin,     ///< Reads messages from each partition at a time, in round-robin fashion
+    Serial          ///< Default consumer. Reads messages as they arrive.
 };
 
 struct Empty
@@ -107,7 +109,7 @@ ssize_t& maxMessageBuilderOutputLength();
 
 struct Interruptible
 {
-    bool _shuttingDown{false};
+    std::atomic<bool> _shuttingDown{false};
 };
 
 void handleException(const std::exception &ex,
@@ -375,6 +377,8 @@ struct ProducerMessageBuilder : public cppkafka::ConcreteMessageBuilder<T>
     ProducerMessageBuilder() : cppkafka::ConcreteMessageBuilder<T>("") {}
     using cppkafka::ConcreteMessageBuilder<T>::ConcreteMessageBuilder;
 };
+
+using IoTracker = std::shared_ptr<int>;
 
 } //namespace corokafka
 } //namespace Bloomberg

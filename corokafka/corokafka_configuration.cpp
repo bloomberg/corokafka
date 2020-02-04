@@ -71,7 +71,7 @@ const std::string& Configuration::getJsonSchema()
                         "uniqueItems": true
                     },
                     "offset": {
-                        "description": "A partition offset. Values are: -1000(stored),-1(begin),-2(end),>=0(exact or relative)",
+                        "description": "A partition offset. Values are: -1000(stored),-1(end),-2(begin),>=0(exact or relative)",
                         "type":"number",
                         "default":-1000
                     },

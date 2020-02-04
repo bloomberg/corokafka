@@ -33,8 +33,6 @@ namespace corokafka {
  */
 class ConnectorConfiguration : public Configuration
 {
-    friend class Configuration;
-    friend class ConnectorImpl;
 public:
     /**
      * @brief Internal CoroKafka-specific options for the connector.
@@ -44,6 +42,7 @@ public:
     {
         static constexpr const char* pollIntervalMs =           "internal.connector.poll.interval.ms";
         static constexpr const char* maxPayloadOutputLength =   "internal.connector.max.payload.output.length";
+        static constexpr const char* shutdownIoWaitTimeoutMs =  "internal.connector.shutdown.io.wait.timeout.ms";
     };
     
     /**
@@ -85,14 +84,21 @@ public:
     const Callbacks::ConnectorLogCallback& getLogCallback() const;
     
 private:
+    friend class Configuration;
+    friend class ConnectorImpl;
+    friend class ProducerManagerImpl;
+    friend class ConsumerManagerImpl;
+    
     void init();
     const std::chrono::milliseconds& getPollInterval() const;
     ssize_t getMaxMessagePayloadOutputLength() const;
+    const std::chrono::milliseconds& getShutdownIoWaitTimeout() const;
     
     static const OptionExtractorFunc& extract(const std::string& option);
     
     std::chrono::milliseconds               _pollInterval{100};
     ssize_t                                 _maxMessagePayloadLength{100};
+    std::chrono::milliseconds               _shutdownIoWaitTimeoutMs{2000};
     quantum::Configuration                  _dispatcherConfig;
     Callbacks::ConnectorLogCallback         _logCallback;
     static const OptionMap                  s_internalOptions;

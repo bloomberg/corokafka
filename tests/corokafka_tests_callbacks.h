@@ -34,7 +34,6 @@ struct CallbackCounters
         _preprocessor = 0;
         _opaque = nullptr;
         _receiverIoThread = true;
-        _preprocessorIoThread = true;
         _forceSkip = false;
     }
     
@@ -62,7 +61,6 @@ struct CallbackCounters
     
     void* _opaque{nullptr};
     bool _receiverIoThread{true};
-    bool _preprocessorIoThread{true};
     bool _forceSkip{false};
 };
 
@@ -104,7 +102,7 @@ struct Callbacks
     static void handleStats(const Metadata &metadata,
                             const std::string &json);
     
-    static bool messagePreprocessor(cppkafka::TopicPartition hint);
+    static bool messagePreprocessor(const cppkafka::Message& rawMessage);
     
     // ============================================== PRODUCER =========================================
     static void handleDeliveryReport(const ProducerMetadata &metadata,

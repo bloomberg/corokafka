@@ -1,6 +1,11 @@
-include(GoogleTest)
 set(TEST_TARGET ${PROJECT_NAME}Tests)
+message(STATUS "Adding target '${TEST_TARGET}' to build output")
 file(GLOB SOURCE_FILES *.cpp)
+
+if (COROKAFKA_TESTS_PRINT_DEBUG)
+    add_definitions(-D__COROKAFKA_TESTS_PRINT_DEBUG__)
+endif()
+
 add_executable(${TEST_TARGET} ${SOURCE_FILES})
 set_target_properties(${TEST_TARGET}
     PROPERTIES
@@ -11,13 +16,22 @@ set_target_properties(${TEST_TARGET}
 # Find program options component
 find_package(Boost 1.61 REQUIRED COMPONENTS program_options)
 
+# Depends if find_package was successful in MODULE or CONFIG mode.
+if (TARGET GTest::GTest)
+    # Target defined by MODULE mode
+    set(GTEST_TARGET GTest)
+else()
+    # Target defined by CONFIG mode
+    set(GTEST_TARGET gtest)
+endif()
+
 if (COROKAFKA_BUILD_TESTS_FROM_INSTALL_TREE)
     # Find CoroKafka
     find_package(CoroKafka REQUIRED)
     target_link_libraries(${TEST_TARGET}
         CoroKafka::corokafka
         Boost::program_options
-        GTest::GTest)
+        GTest::${GTEST_TARGET})
 else()
     add_dependencies(${TEST_TARGET} ${PROJECT_TARGET_NAME})
     target_include_directories(${TEST_TARGET} BEFORE PRIVATE
@@ -29,6 +43,7 @@ else()
         ${CPPKAFKA_INCLUDE_DIR}
         ${RDKAFKA_INCLUDE_DIR}
         ${Boost_INCLUDE_DIRS}
+        ${GTEST_INCLUDE_DIRS}
     )
     target_link_libraries(${TEST_TARGET}
         ${PROJECT_TARGET_NAME}
@@ -36,7 +51,7 @@ else()
         ${RDKAFKA_LIBRARY}
         Boost::context
         Boost::program_options
-        GTest::GTest
+        GTest::${GTEST_TARGET}
         pthread
         rt
         ssl

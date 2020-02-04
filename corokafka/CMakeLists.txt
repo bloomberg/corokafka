@@ -9,6 +9,7 @@ file(GLOB SOURCE_FILES
     detail/*.cpp
     impl/*.cpp
     utils/*.cpp
+    third_party/cppkafka/*.cpp
 )
 
 set(PKG_DIR             "${CMAKE_BINARY_DIR}/package")

@@ -20,14 +20,14 @@ Configuration::OptionList syncConfig = {
 
 Configuration::OptionList syncUnorderedConfig = {
     {"enable.idempotence", false},
-    {ProducerConfiguration::Options::payloadPolicy, "copy"},
+    {ProducerConfiguration::Options::payloadPolicy, "passthrough"},
     {ProducerConfiguration::Options::preserveMessageOrder, "false"},
     {ProducerConfiguration::Options::waitForAcksTimeoutMs, -1}
 };
 
 Configuration::OptionList syncIdempotentConfig = {
     {"enable.idempotence", true},
-    {ProducerConfiguration::Options::payloadPolicy, "copy"},
+    {ProducerConfiguration::Options::payloadPolicy, "passthrough"},
     {ProducerConfiguration::Options::preserveMessageOrder, "true"},
     {ProducerConfiguration::Options::waitForAcksTimeoutMs, -1}
 };
@@ -102,7 +102,7 @@ TEST(ProducerConfiguration, InternalProducerPreserveMessageOrder)
 TEST(ProducerConfiguration, InternalProducerMaxQueueLength)
 {
     testProducerOption<InvalidOptionException>("InvalidOptionException", "internal.producer.max.queue.length",
-        {{"bad",true},{"0",true},{"1",false},{"2",false}});
+        {{"bad",true},{"-2",true},{"-1",false},{"0",false},{"1",false}});
 }
 
 TEST(ProducerConfiguration, InternalProducerWaitForAcksTimeoutMs)
@@ -142,6 +142,12 @@ TEST(ProducerConfiguration, InternalProducerQueueFullNotification)
         {{"bad",true},{"edgeTriggered",false},{"oncePerMessage",false},{" eachOccurence ",false}});
 }
 
+TEST(ProducerConfiguration, InternalProducerPollIoThreadId)
+{
+    testProducerOption<InvalidOptionException>("InvalidOptionException", "internal.producer.poll.io.thread.id",
+        {{"-2",true},{"-1",false},{"0",false},{"1",false}});
+}
+
 TEST(Producer, SendSyncWithoutHeaders)
 {
     Connector connector = makeProducerConnector(syncConfig, programOptions()._topicWithoutHeaders);
@@ -152,8 +158,8 @@ TEST(Producer, SendSyncWithoutHeaders)
         Message message{(int)i, getSenderStr(id)};
         messageWithoutHeadersTracker().add({id, message});
         if (programOptions()._kafkaType == KafkaType::Producer) {
-            int num = connector.producer().send(topicWithoutHeaders(), nullptr, (Key) id, message);
-            ASSERT_GT(num, 0);
+            auto dr = connector.producer().send(topicWithoutHeaders(), nullptr, (Key) id, message);
+            ASSERT_GT(dr.getNumBytesWritten(), 0);
         }
     }
 }
@@ -170,8 +176,8 @@ TEST(Producer, SendSyncWithHeaders)
         Message message{(int)i, getSenderStr(id)};
         messageTracker().add({id, header1, header2, message});
         if (programOptions()._kafkaType == KafkaType::Producer) {
-            int num = connector.producer().send(topicWithHeaders(), nullptr, header1._senderId, message, header1, header2);
-            ASSERT_GT(num, 0);
+            auto dr = connector.producer().send(topicWithHeaders(), nullptr, header1._senderId, message, header1, header2);
+            ASSERT_GT(dr.getNumBytesWritten(), 0);
         }
     }
 }
@@ -187,8 +193,8 @@ TEST(Producer, SendSyncSkippingOneHeader)
         Message message{(int)i, getSenderStr(id)};
         messageTracker().add({id, header1, message});
         if (programOptions()._kafkaType == KafkaType::Producer) {
-            int num = connector.producer().send(topicWithHeaders(), nullptr, header1._senderId, message, header1, NullHeader{});
-            ASSERT_GT(num, 0);
+            auto dr = connector.producer().send(topicWithHeaders(), nullptr, header1._senderId, message, header1, NullHeader{});
+            ASSERT_GT(dr.getNumBytesWritten(), 0);
         }
     }
 }
@@ -203,8 +209,8 @@ TEST(Producer, SendSyncSkippingBothHeaders)
         Message message{(int)i, getSenderStr(id)};
         messageTracker().add({id, message});
         if (programOptions()._kafkaType == KafkaType::Producer) {
-            int num = connector.producer().send(topicWithHeaders(), nullptr, (Key)id, message, NullHeader{}, NullHeader{});
-            ASSERT_GT(num, 0);
+            auto dr = connector.producer().send(topicWithHeaders(), nullptr, (Key)id, message, NullHeader{}, NullHeader{});
+            ASSERT_GT(dr.getNumBytesWritten(), 0);
         }
     }
 }
@@ -221,8 +227,8 @@ TEST(Producer, SendSyncUnorderedWithHeaders)
         Message message{(int)i, getSenderStr(id)};
         messageTracker().add({id, header1, header2, message});
         if (programOptions()._kafkaType == KafkaType::Producer) {
-            int num = connector.producer().send(topicWithHeaders(), nullptr, header1._senderId, message, header1, header2);
-            ASSERT_GT(num, 0);
+            auto dr = connector.producer().send(topicWithHeaders(), nullptr, header1._senderId, message, header1, header2);
+            ASSERT_GT(dr.getNumBytesWritten(), 0);
         }
     }
 }
@@ -239,8 +245,8 @@ TEST(Producer, SendSyncIdempotent)
         Message message{(int)i, getSenderStr(id)};
         messageTracker().add({id, header1, header2, message});
         if (programOptions()._kafkaType == KafkaType::Producer) {
-            int num = connector.producer().send(topicWithHeaders(), nullptr, header1._senderId, message, header1, header2);
-            ASSERT_GT(num, 0);
+            auto dr = connector.producer().send(topicWithHeaders(), nullptr, header1._senderId, message, header1, header2);
+            ASSERT_GT(dr.getNumBytesWritten(), 0);
         }
     }
 }
@@ -329,8 +335,8 @@ TEST(Producer, ValidateCallbacks)
         Message message{(int)i, getSenderStr(id)};
         messageTracker().add({id, header1, header2, message});
         if (programOptions()._kafkaType == KafkaType::Producer) {
-            int num = connector.producer().send(topicWithHeaders(), &opaque, header1._senderId, message, header1, header2);
-            ASSERT_GT(num, 0);
+            auto dr = connector.producer().send(topicWithHeaders(), &opaque, header1._senderId, message, header1, header2);
+            ASSERT_GT(dr.getNumBytesWritten(), 0);
         }
     }
     for (size_t i = MaxMessages/2; i < MaxMessages; ++i) {
@@ -367,9 +373,10 @@ TEST(Producer, ValidateErrorCallback)
     int opaque;
     Configuration::OptionList options = syncConfig;
     options.push_back({"metadata.broker.list", "bad:1111"});
-    options.push_back({"retries",0});
-    options.push_back({"api.version.request",true});
-    ProducerConfiguration config(programOptions()._topicWithHeaders, options, {});
+    options.push_back({"retries", 0});
+    options.push_back({"api.version.request", true});
+    Configuration::OptionList topicOptions = {{"message.timeout.ms", 2000}};
+    ProducerConfiguration config(programOptions()._topicWithHeaders, options, topicOptions);
     config.setErrorCallback(Callbacks::handleKafkaError, &opaque);
     ConfigurationBuilder builder;
     builder(config);
@@ -380,8 +387,8 @@ TEST(Producer, ValidateErrorCallback)
         Header1 header1{(uint16_t)SenderId::Callbacks, "test:consumer", "test:producer"};
         Header2 header2{std::chrono::system_clock::now()};
         Message message{(int)i, "Validating error callback"};
-        int num = connector.producer().send(topicWithHeaders(), nullptr, header1._senderId, message, header1, header2);
-        ASSERT_GT(num, 0);
+        auto dr = connector.producer().send(topicWithHeaders(), nullptr, header1._senderId, message, header1, header2);
+        ASSERT_NE(0, dr.getError().get_error());
     }
     
     //assert

@@ -40,8 +40,6 @@ public:
     
 private:
     using ConfigMap = ConfigurationBuilder::ConfigMap<ConsumerConfiguration>;
-    using DeserializedMessage = std::tuple<boost::any, boost::any, HeaderPack, DeserializerError>;
-    using MessageTuple = std::tuple<cppkafka::Message, quantum::CoroContext<DeserializedMessage>::Ptr>;
     using ReceivedBatch = std::vector<std::tuple<cppkafka::Message, DeserializedMessage>>;
     
     ConsumerManagerImpl(quantum::Dispatcher& dispatcher,
@@ -60,30 +58,32 @@ private:
     void resume(const std::string& topic);
     
     void subscribe(const std::string& topic,
-                   cppkafka::TopicPartitionList partitionList);
+                   const cppkafka::TopicPartitionList& partitionList);
+    
+    void subscribe(const std::string& topic,
+                   ConsumerTopicEntry& topicEntry,
+                   const cppkafka::TopicPartitionList& partitionList);
     
     void unsubscribe(const std::string& topic);
     
     cppkafka::Error commit(const cppkafka::TopicPartition& topicPartition,
-                 const void* opaque,
-                 bool forceSync);
+                           const void* opaque,
+                           bool forceSync);
     
     cppkafka::Error commit(const cppkafka::TopicPartitionList& topicPartitions,
-                 const void* opaque,
-                 bool forceSync);
+                           const void* opaque,
+                           bool forceSync);
     
     cppkafka::Error commitImpl(ConsumerTopicEntry& topicEntry,
-                     const cppkafka::TopicPartitionList& topicPartitions,
-                     const void* opaque,
-                     bool forceSync);
+                               const cppkafka::TopicPartitionList& topicPartitions,
+                               const void* opaque,
+                               bool forceSync);
     
     void shutdown();
     
     void poll();
     
-    void setConsumerBatchSize(size_t size);
-    
-    size_t getConsumerBatchSize() const;
+    void pollEnd();
     
     const ConsumerConfiguration& getConfiguration(const std::string& topic) const;
     
@@ -96,7 +96,7 @@ private:
                                const std::string& reason);
     static void errorCallback(ConsumerTopicEntry& topicEntry,
                               cppkafka::KafkaHandleBase& handle,
-                              int error,
+                              cppkafka::Error error,
                               const std::string& reason,
                               const cppkafka::Message* opaque);
     static void throttleCallback(ConsumerTopicEntry& topicEntry,
@@ -119,7 +119,7 @@ private:
     static bool offsetCommitErrorCallback(ConsumerTopicEntry& topicEntry,
                                           cppkafka::Error error);
     static bool preprocessorCallback(ConsumerTopicEntry& topicEntry,
-                                     cppkafka::TopicPartition hint);
+                                     const cppkafka::Message& rawMessage);
     static void assignmentCallback(ConsumerTopicEntry& topicEntry,
                                    cppkafka::TopicPartitionList& topicPartitions);
     static void revocationCallback(ConsumerTopicEntry& topicEntry,
@@ -129,7 +129,7 @@ private:
     //log + error callback wrapper
     static void report(ConsumerTopicEntry& topicEntry,
                        cppkafka::LogLevel level,
-                       int error,
+                       cppkafka::Error error,
                        const std::string& reason,
                        const cppkafka::Message* message);
     
@@ -137,57 +137,40 @@ private:
                           const std::chrono::steady_clock::time_point& now);
     
     //Coroutines and async IO
-    static std::vector<cppkafka::Message> messageBatchReceiveTask(ConsumerTopicEntry& entry);
+    static MessageBatch messageBatchReceiveTask(ConsumerTopicEntry& entry, IoTracker);
     static int messageRoundRobinReceiveTask(quantum::ThreadPromise<MessageContainer>::Ptr promise,
-                                            ConsumerTopicEntry& entry);
-    static DeserializedMessage deserializeCoro(
-                                quantum::VoidContextPtr ctx,
-                                ConsumerTopicEntry& entry,
-                                const cppkafka::Message& kafkaMessage);
-    static std::vector<bool> executePreprocessorCallbacks(
-                                  quantum::VoidContextPtr ctx,
-                                  ConsumerTopicEntry& entry,
-                                  const std::vector<cppkafka::Message>& messages);
-    static std::vector<DeserializedMessage> deserializeBatchCoro(
-                                    quantum::VoidContextPtr ctx,
-                                    ConsumerTopicEntry& entry,
-                                    const std::vector<cppkafka::Message>& messages);
-    static std::deque<MessageTuple> pollCoro(
-                        quantum::VoidContextPtr ctx,
-                        ConsumerTopicEntry& entry);
-    static int processorCoro(quantum::VoidContextPtr ctx,
-                             ConsumerTopicEntry& entry);
+                                            ConsumerTopicEntry& entry,
+                                            IoTracker);
+    static int messageSerialReceiveTask(quantum::ThreadPromise<MessageContainer>::Ptr promise,
+                                        ConsumerTopicEntry& entry,
+                                        IoTracker);
+    static int pollCoro(quantum::VoidContextPtr ctx,
+                        ConsumerTopicEntry& entry,
+                        IoTracker);
+    static int processMessage(quantum::VoidContextPtr ctx,
+                              ConsumerTopicEntry& entry,
+                              cppkafka::Message&& kafkaMessage);
     static int invokeReceiver(ConsumerTopicEntry& entry,
                               cppkafka::Message&& kafkaMessage,
-                              DeserializedMessage&& deserializedMessage);
-    static int receiverTask(ConsumerTopicEntry& entry,
-                            cppkafka::Message&& kafkaMessage,
-                            DeserializedMessage&& deserializedMessage);
+                              IoTracker);
 
     // Batch processing coroutines and callbacks
-    static void processMessageBatchOnIoThreads(quantum::VoidContextPtr ctx,
-                                               ConsumerTopicEntry& entry,
-                                               std::vector<cppkafka::Message>&& raw,
-                                               std::vector<DeserializedMessage>&& deserializedMessages);
+    static void processMessageBatch(quantum::VoidContextPtr ctx,
+                                    ConsumerTopicEntry& entry,
+                                    MessageBatch&& kafkaMessages);
     static int pollBatchCoro(quantum::VoidContextPtr ctx,
-                             ConsumerTopicEntry& entry);
-    static int receiverMultipleBatchesTask(ConsumerTopicEntry& entry,
-                                           ReceivedBatch&& messageBatch);
-    static int invokeSingleBatchReceiver(ConsumerTopicEntry& entry,
-                                     std::vector<cppkafka::Message>&& rawMessages,
-                                     std::vector<DeserializedMessage>&& deserializedMessages);
-    static int receiverSingleBatchTask(ConsumerTopicEntry& entry,
-                                       std::vector<cppkafka::Message>&& rawMessages,
-                                       std::vector<DeserializedMessage>&& deserializedMessages);
-    static bool preprocessorTask(ConsumerTopicEntry& entry,
-                                 const cppkafka::Message& kafkaMessage);
+                             ConsumerTopicEntry& entry,
+                             IoTracker);
+    static int receiveMessageBatch(ConsumerTopicEntry& entry,
+                                   MessageBatch&& rawMessages,
+                                   IoTracker);
     //Misc methods
     void setup(const std::string& topic, ConsumerTopicEntry& topicEntry);
     static void exceptionHandler(const std::exception& ex,
                                  const ConsumerTopicEntry& topicEntry);
     static ConsumerMetadata makeMetadata(const ConsumerTopicEntry& topicEntry);
     static int mapPartitionToQueue(int partition,
-                                     const std::pair<int,int>& range);
+                                   const ConsumerTopicEntry& topicEntry);
     static DeserializedMessage
     deserializeMessage(ConsumerTopicEntry& entry,
                        const cppkafka::Message& kafkaMessage);
@@ -201,12 +184,22 @@ private:
                                          
     Consumers::iterator findConsumer(const std::string& topic);
     Consumers::const_iterator findConsumer(const std::string& topic) const;
+    bool hasNewMessages(ConsumerTopicEntry& entry) const;
+    
+    struct DeserializeVisitor : boost::static_visitor<DeserializedMessage> {
+       DeserializedMessage operator()(DeserializedMessage& msg) const {
+           return std::move(msg);
+       }
+       DeserializedMessage operator()(quantum::CoroContext<DeserializedMessage>::Ptr& future) const {
+           return future ? future->get(quantum::local::context()) : DeserializedMessage{};
+       }
+    };
     
     // Members
     quantum::Dispatcher&        _dispatcher;
     Consumers                   _consumers;
-    size_t                      _batchSize;
     std::atomic_flag            _shutdownInitiated{0};
+    std::chrono::milliseconds   _shutdownIoWaitTimeoutMs;
 };
 
 }}

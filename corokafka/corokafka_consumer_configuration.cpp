@@ -27,35 +27,35 @@ const Configuration::OptionMap ConsumerConfiguration::s_internalOptions = {
     {Options::autoOffsetPersist,
      [](const std::string& topic, const cppkafka::ConfigurationOption* option, void* value)->bool{
         if (!option) return false;
-        bool temp = Configuration::extractBooleanValue(topic, ConsumerConfiguration::Options::autoOffsetPersist, *option);
+        bool temp = Configuration::extractBooleanValue(topic, Options::autoOffsetPersist, *option);
         if (value) *reinterpret_cast<bool*>(value) = temp;
         return true;
      }},
      {Options::autoOffsetPersistOnException,
      [](const std::string& topic, const cppkafka::ConfigurationOption* option, void* value)->bool{
         if (!option) return false;
-        bool temp = Configuration::extractBooleanValue(topic, ConsumerConfiguration::Options::autoOffsetPersistOnException, *option);
+        bool temp = Configuration::extractBooleanValue(topic, Options::autoOffsetPersistOnException, *option);
         if (value) *reinterpret_cast<bool*>(value) = temp;
         return true;
      }},
     {Options::autoThrottle,
      [](const std::string& topic, const cppkafka::ConfigurationOption* option, void* value)->bool{
         if (!option) return false;
-        bool temp = Configuration::extractBooleanValue(topic, ConsumerConfiguration::Options::autoThrottle, *option);
+        bool temp = Configuration::extractBooleanValue(topic, Options::autoThrottle, *option);
         if (value) *reinterpret_cast<bool*>(value) = temp;
         return true;
      }},
     {Options::autoThrottleMultiplier,
      [](const std::string& topic, const cppkafka::ConfigurationOption* option, void* value)->bool{
         if (!option) return false;
-        ssize_t temp = Configuration::extractCounterValue(topic, ConsumerConfiguration::Options::autoThrottleMultiplier, *option, 1);
+        ssize_t temp = Configuration::extractCounterValue(topic, Options::autoThrottleMultiplier, *option, 1);
         if (value) *reinterpret_cast<uint16_t*>(value) = temp;
         return true;
      }},
     {Options::batchPrefetch,
      [](const std::string& topic, const cppkafka::ConfigurationOption* option, void* value)->bool{
         if (!option) return false;
-        bool temp = Configuration::extractBooleanValue(topic, ConsumerConfiguration::Options::batchPrefetch, *option);
+        bool temp = Configuration::extractBooleanValue(topic, Options::batchPrefetch, *option);
         if (value) *reinterpret_cast<bool*>(value) = temp;
         return true;
      }},
@@ -70,7 +70,7 @@ const Configuration::OptionMap ConsumerConfiguration::s_internalOptions = {
            temp = cppkafka::BackoffPerformer::BackoffPolicy::EXPONENTIAL;
         }
         else {
-            throw InvalidOptionException(topic, ConsumerConfiguration::Options::commitBackoffStrategy, option->get_value());
+            throw InvalidOptionException(topic, Options::commitBackoffStrategy, option->get_value());
         }
         if (value) *reinterpret_cast<cppkafka::BackoffPerformer::BackoffPolicy*>(value) = temp;
         return true;
@@ -78,7 +78,7 @@ const Configuration::OptionMap ConsumerConfiguration::s_internalOptions = {
     {Options::commitBackoffIntervalMs,
      [](const std::string& topic, const cppkafka::ConfigurationOption* option, void* value)->bool{
         if (!option) return false;
-        std::chrono::milliseconds temp{Configuration::extractCounterValue(topic, ConsumerConfiguration::Options::commitBackoffIntervalMs, *option, 1)};
+        std::chrono::milliseconds temp{Configuration::extractCounterValue(topic, Options::commitBackoffIntervalMs, *option, 1)};
         if (value) *reinterpret_cast<std::chrono::milliseconds*>(value) = temp;
         return true;
      }},
@@ -93,7 +93,7 @@ const Configuration::OptionMap ConsumerConfiguration::s_internalOptions = {
             temp = ExecMode::Async;
         }
         else {
-            throw InvalidOptionException(topic, ConsumerConfiguration::Options::commitExec, option->get_value());
+            throw InvalidOptionException(topic, Options::commitExec, option->get_value());
         }
         if (value) *reinterpret_cast<ExecMode*>(value) = temp;
         return true;
@@ -101,21 +101,21 @@ const Configuration::OptionMap ConsumerConfiguration::s_internalOptions = {
     {Options::commitMaxBackoffMs,
      [](const std::string& topic, const cppkafka::ConfigurationOption* option, void* value)->bool{
         if (!option) return false;
-        std::chrono::milliseconds temp{Configuration::extractCounterValue(topic, ConsumerConfiguration::Options::commitMaxBackoffMs, *option, 1)};
+        std::chrono::milliseconds temp{Configuration::extractCounterValue(topic, Options::commitMaxBackoffMs, *option, 1)};
         if (value) *reinterpret_cast<std::chrono::milliseconds*>(value) = temp;
         return true;
      }},
     {Options::commitNumRetries,
      [](const std::string& topic, const cppkafka::ConfigurationOption* option, void* value)->bool{
         if (!option) return false;
-        ssize_t temp = Configuration::extractCounterValue(topic, ConsumerConfiguration::Options::commitNumRetries, *option, 0);
+        ssize_t temp = Configuration::extractCounterValue(topic, Options::commitNumRetries, *option, 0);
         if (value) *reinterpret_cast<size_t*>(value) = temp;
         return true;
      }},
     {Options::logLevel,
      [](const std::string& topic, const cppkafka::ConfigurationOption* option, void* value)->bool{
         if (!option) return false;
-        cppkafka::LogLevel temp = Configuration::extractLogLevel(topic, ConsumerConfiguration::Options::logLevel, option->get_value());
+        cppkafka::LogLevel temp = Configuration::extractLogLevel(topic, Options::logLevel, option->get_value());
         if (value) *reinterpret_cast<cppkafka::LogLevel*>(value) = temp;
         return true;
      }},
@@ -132,13 +132,13 @@ const Configuration::OptionMap ConsumerConfiguration::s_internalOptions = {
             oss << std::hex << "Current RdKafka version " << RD_KAFKA_VERSION
                 << " does not support this functionality. Must be greater than "
                 << RD_KAFKA_STORE_OFFSETS_SUPPORT_VERSION;
-            throw FeatureNotSupportedException(topic, ConsumerConfiguration::Options::offsetPersistStrategy, oss.str());
+            throw FeatureNotSupportedException(topic, Options::offsetPersistStrategy, oss.str());
 #else
             temp = OffsetPersistStrategy::Store;
 #endif
         }
         else {
-            throw InvalidOptionException(topic, ConsumerConfiguration::Options::offsetPersistStrategy, option->get_value());
+            throw InvalidOptionException(topic, Options::offsetPersistStrategy, option->get_value());
         }
         if (value) *reinterpret_cast<OffsetPersistStrategy*>(value) = temp;
         return true;
@@ -146,10 +146,28 @@ const Configuration::OptionMap ConsumerConfiguration::s_internalOptions = {
     {Options::pauseOnStart,
      [](const std::string& topic, const cppkafka::ConfigurationOption* option, void* value)->bool{
         if (!option) return false;
-        bool temp = Configuration::extractBooleanValue(topic, ConsumerConfiguration::Options::pauseOnStart, *option);
+        bool temp = Configuration::extractBooleanValue(topic, Options::pauseOnStart, *option);
         if (value) *reinterpret_cast<bool*>(value) = temp;
         return true;
      }},
+     {Options::preserveMessageOrder, [](const std::string& topic, const cppkafka::ConfigurationOption* option, void* value)->bool {
+        if (!option) return false;
+        bool temp = Configuration::extractBooleanValue(topic, Options::preserveMessageOrder, *option);
+        if (value) *reinterpret_cast<bool*>(value) = temp;
+        return true;
+    }},
+     {Options::pollIoThreadId, [](const std::string& topic, const cppkafka::ConfigurationOption* option, void* value)->bool {
+        if (!option) return false;
+        ssize_t temp = Configuration::extractCounterValue(topic, Options::pollIoThreadId, *option, (int)quantum::IQueue::QueueId::Any);
+        if (value) *reinterpret_cast<int*>(value) = temp;
+        return true;
+    }},
+    {Options::processCoroThreadId, [](const std::string& topic, const cppkafka::ConfigurationOption* option, void* value)->bool {
+        if (!option) return false;
+        ssize_t temp = Configuration::extractCounterValue(topic, Options::processCoroThreadId, *option, (int)quantum::IQueue::QueueId::Any);
+        if (value) *reinterpret_cast<int*>(value) = temp;
+        return true;
+    }},
     {Options::pollStrategy,
      [](const std::string& topic, const cppkafka::ConfigurationOption* option, void* value)->bool{
         if (!option) return false;
@@ -160,8 +178,11 @@ const Configuration::OptionMap ConsumerConfiguration::s_internalOptions = {
         else if (StringEqualCompare()(option->get_value(), "batch")) {
             temp = PollStrategy::Batch;
         }
+        else if (StringEqualCompare()(option->get_value(), "serial")) {
+            temp = PollStrategy::Serial;
+        }
         else {
-            throw InvalidOptionException(topic, ConsumerConfiguration::Options::pollStrategy, option->get_value());
+            throw InvalidOptionException(topic, Options::pollStrategy, option->get_value());
         }
         if (value) *reinterpret_cast<PollStrategy*>(value) = temp;
         return true;
@@ -170,37 +191,21 @@ const Configuration::OptionMap ConsumerConfiguration::s_internalOptions = {
      [](const std::string& topic, const cppkafka::ConfigurationOption* option, void* value)->bool{
         if (!option) return false;
         std::chrono::milliseconds temp{Configuration::extractCounterValue
-            (topic, ConsumerConfiguration::Options::pollTimeoutMs, *option, (int)TimerValues::Unlimited)};
+            (topic, Options::pollTimeoutMs, *option, (int)TimerValues::Unlimited)};
         if (value) *reinterpret_cast<std::chrono::milliseconds*>(value) = temp;
         return true;
      }},
     {Options::preprocessMessages,
      [](const std::string& topic, const cppkafka::ConfigurationOption* option, void* value)->bool{
         if (!option) return false;
-        bool temp = Configuration::extractBooleanValue(topic, ConsumerConfiguration::Options::preprocessMessages, *option);
+        bool temp = Configuration::extractBooleanValue(topic, Options::preprocessMessages, *option);
         if (value) *reinterpret_cast<bool*>(value) = temp;
-        return true;
-     }},
-    {Options::preprocessInvokeThread,
-     [](const std::string& topic, const cppkafka::ConfigurationOption* option, void* value)->bool{
-        if (!option) return false;
-        ThreadType temp;
-        if (StringEqualCompare()(option->get_value(), "io")) {
-            temp = ThreadType::IO;
-        }
-        else if (StringEqualCompare()(option->get_value(), "coro")) {
-            temp = ThreadType::Coro;
-        }
-        else {
-            throw InvalidOptionException(topic, ConsumerConfiguration::Options::preprocessInvokeThread, option->get_value());
-        }
-        if (value) *reinterpret_cast<ThreadType*>(value) = temp;
         return true;
      }},
     {Options::readSize,
      [](const std::string& topic, const cppkafka::ConfigurationOption* option, void* value)->bool{
         if (!option) return false;
-        ssize_t temp = Configuration::extractCounterValue(topic, ConsumerConfiguration::Options::readSize, *option, 1);
+        ssize_t temp = Configuration::extractCounterValue(topic, Options::readSize, *option, -1);
         if (value) *reinterpret_cast<size_t*>(value) = temp;
         return true;
      }},
@@ -215,7 +220,7 @@ const Configuration::OptionMap ConsumerConfiguration::s_internalOptions = {
             temp = ExecMode::Async;
         }
         else {
-            throw InvalidOptionException(topic, ConsumerConfiguration::Options::receiveCallbackExec, option->get_value());
+            throw InvalidOptionException(topic, Options::receiveCallbackExec, option->get_value());
         }
         if (value) *reinterpret_cast<ExecMode*>(value) = temp;
         return true;
@@ -223,14 +228,14 @@ const Configuration::OptionMap ConsumerConfiguration::s_internalOptions = {
     {Options::receiveCallbackThreadRangeLow,
      [](const std::string& topic, const cppkafka::ConfigurationOption* option, void* value)->bool{
         if (!option) return false;
-        int temp = Configuration::extractCounterValue(topic, ConsumerConfiguration::Options::receiveCallbackThreadRangeLow, *option, 0);
+        int temp = Configuration::extractCounterValue(topic, Options::receiveCallbackThreadRangeLow, *option, 0);
         if (value) *reinterpret_cast<int*>(value) = temp;
         return true;
      }},
     {Options::receiveCallbackThreadRangeHigh,
      [](const std::string& topic, const cppkafka::ConfigurationOption* option, void* value)->bool{
         if (!option) return false;
-        int temp = Configuration::extractCounterValue(topic, ConsumerConfiguration::Options::receiveCallbackThreadRangeHigh, *option, 0);
+        int temp = Configuration::extractCounterValue(topic, Options::receiveCallbackThreadRangeHigh, *option, 0);
         if (value) *reinterpret_cast<int*>(value) = temp;
         return true;
      }},
@@ -245,29 +250,29 @@ const Configuration::OptionMap ConsumerConfiguration::s_internalOptions = {
             temp = ThreadType::Coro;
         }
         else {
-            throw InvalidOptionException(topic, ConsumerConfiguration::Options::receiveInvokeThread, option->get_value());
+            throw InvalidOptionException(topic, Options::receiveInvokeThread, option->get_value());
         }
         if (value) *reinterpret_cast<ThreadType*>(value) = temp;
         return true;
      }},
-    {Options::roundRobinMinPollTimeoutMs,
+    {Options::minRoundRobinPollTimeoutMs,
      [](const std::string& topic, const cppkafka::ConfigurationOption* option, void* value)->bool{
         if (!option) return false;
-        std::chrono::milliseconds temp{Configuration::extractCounterValue(topic, ConsumerConfiguration::Options::roundRobinMinPollTimeoutMs, *option, 1)};
+        std::chrono::milliseconds temp{Configuration::extractCounterValue(topic, Options::minRoundRobinPollTimeoutMs, *option, 1)};
         if (value) *reinterpret_cast<std::chrono::milliseconds*>(value) = temp;
         return true;
      }},
     {Options::skipUnknownHeaders,
      [](const std::string& topic, const cppkafka::ConfigurationOption* option, void* value)->bool{
         if (!option) return false;
-        bool temp = Configuration::extractBooleanValue(topic, ConsumerConfiguration::Options::skipUnknownHeaders, *option);
+        bool temp = Configuration::extractBooleanValue(topic, Options::skipUnknownHeaders, *option);
         if (value) *reinterpret_cast<bool*>(value) = temp;
         return true;
      }},
     {Options::timeoutMs,
      [](const std::string& topic, const cppkafka::ConfigurationOption* option, void* value)->bool{
         if (!option) return false;
-        std::chrono::milliseconds temp{Configuration::extractCounterValue(topic, ConsumerConfiguration::Options::timeoutMs, *option, (int)TimerValues::Unlimited)};
+        std::chrono::milliseconds temp{Configuration::extractCounterValue(topic, Options::timeoutMs, *option, (int)TimerValues::Unlimited)};
         if (value) *reinterpret_cast<std::chrono::milliseconds*>(value) = temp;
         return true;
      }}

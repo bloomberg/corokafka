@@ -44,16 +44,21 @@ void Callbacks::handleStats(const Metadata &metadata,
     callbackCounters()._stats++;
 }
 
-bool Callbacks::messagePreprocessor(cppkafka::TopicPartition toppar)
+bool Callbacks::messagePreprocessor(const cppkafka::Message& rawMessage)
 {
     callbackCounters()._preprocessor++;
-    callbackCounters()._preprocessorIoThread = quantum::local::context() == nullptr;
-    return callbackCounters()._forceSkip;
+    return !callbackCounters()._forceSkip;
 }
 
 void Callbacks::handleDeliveryReport(const ProducerMetadata &metadata,
                                      const SentMessage &msg)
 {
+#ifdef __COROKAFKA_TESTS_PRINT_DEBUG__
+    std::cout << "Got delivery report for message: "
+              << msg.getTopic() << ":"
+              << msg.getPartition() << ":"
+              << msg.getPartition() << std::endl;
+#endif
     callbackCounters()._deliveryReport++;
     callbackCounters()._opaque = msg.getOpaque();
 }
@@ -105,6 +110,13 @@ void Callbacks::handleOffsetCommit(const ConsumerMetadata &metadata,
 void processMessages(TopicWithHeaders::ReceivedMessageType&& message)
 {
     if (message.isHeaderValidAt<0>() && message.isHeaderValidAt<1>()) {
+#ifdef __COROKAFKA_TESTS_PRINT_DEBUG__
+        auto time = std::chrono::system_clock::now();
+        std::cout << "Got message " << message.getHeaderAt<0>()._senderId << " after "
+          << std::chrono::duration_cast<std::chrono::milliseconds>(time-message.getHeaderAt<1>()._timestamp).count() << "(ms)"
+          << " partition: " << message.getPartition()
+          << " offset: " << message.getOffset() << std::endl;
+#endif
         MessageTracker::Info info{(SenderId)message.getHeaderAt<0>()._senderId,
                                       message.getHeaderAt<0>(),
                                       message.getHeaderAt<1>(),
@@ -148,6 +160,9 @@ void Callbacks::messageReceiverWithHeaders(TopicWithHeaders::ReceivedMessageType
         return;
     }
     if (message.isEof()) {
+#ifdef __COROKAFKA_TESTS_PRINT_DEBUG__
+        std::cout << "GOT EOF for partition: " << message.getPartition() << std::endl;
+#endif
         callbackCounters()._eof++;
         return;
     }
@@ -156,7 +171,6 @@ void Callbacks::messageReceiverWithHeaders(TopicWithHeaders::ReceivedMessageType
         return;
     }
     processMessages(std::move(message));
-    std::this_thread::sleep_for(std::chrono::milliseconds(150));
 }
 
 void Callbacks::messageReceiverWithHeadersManualCommit(TopicWithHeaders::ReceivedMessageType message)

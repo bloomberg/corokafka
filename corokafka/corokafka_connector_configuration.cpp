@@ -38,7 +38,14 @@ const Configuration::OptionMap ConnectorConfiguration::s_internalOptions = {
         ssize_t temp = Configuration::extractCounterValue({}, Options::maxPayloadOutputLength, *option, -1);
         if (value) *reinterpret_cast<ssize_t*>(value) = temp;
         return true;
-    }}
+    }},
+    {Options::shutdownIoWaitTimeoutMs,
+     [](const std::string& topic, const cppkafka::ConfigurationOption* option, void* value)->bool{
+        if (!option) return false;
+        std::chrono::milliseconds temp{Configuration::extractCounterValue({}, Options::shutdownIoWaitTimeoutMs, *option, 0)};
+        if (value) *reinterpret_cast<std::chrono::milliseconds*>(value) = temp;
+        return true;
+    }},
 };
 
 ConnectorConfiguration::ConnectorConfiguration(OptionList options) :
@@ -61,6 +68,8 @@ void ConnectorConfiguration::init()
         ({}, Configuration::getOption(Options::pollIntervalMs), &_pollInterval);
     extract(Options::maxPayloadOutputLength)
         ({}, Configuration::getOption(Options::maxPayloadOutputLength), &_maxMessagePayloadLength);
+    extract(Options::shutdownIoWaitTimeoutMs)
+        ({}, Configuration::getOption(Options::shutdownIoWaitTimeoutMs), &_shutdownIoWaitTimeoutMs);
 }
 
 void ConnectorConfiguration::setDispatcherConfiguration(quantum::Configuration config)
@@ -76,6 +85,11 @@ const std::chrono::milliseconds& ConnectorConfiguration::getPollInterval() const
 ssize_t ConnectorConfiguration::getMaxMessagePayloadOutputLength() const
 {
     return _maxMessagePayloadLength;
+}
+
+const std::chrono::milliseconds& ConnectorConfiguration::getShutdownIoWaitTimeout() const
+{
+    return _shutdownIoWaitTimeoutMs;
 }
 
 const quantum::Configuration& ConnectorConfiguration::getDispatcherConfiguration() const

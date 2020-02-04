@@ -53,11 +53,14 @@ public:
         static constexpr const char* logLevel =                     "internal.producer.log.level";
         static constexpr const char* maxQueueLength =               "internal.producer.max.queue.length";
         static constexpr const char* payloadPolicy =                "internal.producer.payload.policy";
+        static constexpr const char* pollIoThreadId =               "internal.producer.poll.io.thread.id";
         static constexpr const char* preserveMessageOrder =         "internal.producer.preserve.message.order";
         static constexpr const char* queueFullNotification =        "internal.producer.queue.full.notification";
         static constexpr const char* retries =                      "internal.producer.retries";
         static constexpr const char* timeoutMs =                    "internal.producer.timeout.ms";
         static constexpr const char* waitForAcksTimeoutMs =         "internal.producer.wait.for.acks.timeout.ms";
+        static constexpr const char* syncProducerThreadRangeLow =   "internal.producer.sync.producer.thread.range.low";
+        static constexpr const char* syncProducerThreadRangeHigh =  "internal.producer.sync.producer.thread.range.high";
     };
     
     /**

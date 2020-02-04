@@ -24,7 +24,11 @@
 #include <corokafka/corokafka_consumer_configuration.h>
 #include <corokafka/corokafka_throttle_control.h>
 #include <corokafka/corokafka_connector_configuration.h>
+#ifndef COROKAFKA_DO_NOT_USE_MODIFIED_CPPKAFKA
+#include <corokafka/third_party/cppkafka/round_robin_poll_strategy.h>
+#endif
 #include <quantum/quantum.h>
+#include <boost/variant.hpp>
 
 namespace Bloomberg {
 namespace corokafka {
@@ -32,56 +36,83 @@ namespace corokafka {
 using ConsumerType = cppkafka::Consumer;
 using ConsumerPtr = std::unique_ptr<ConsumerType>;
 using CommitterPtr = std::unique_ptr<cppkafka::BackoffCommitter>;
-using PollingStrategyPtr = std::unique_ptr<cppkafka::RoundRobinPollStrategy>;
+using RoundRobinPollStrategyPtr = std::unique_ptr<cppkafka::RoundRobinPollStrategy>;
+using DeserializedMessage = std::tuple<boost::any, boost::any, HeaderPack, DeserializerError>;
+using MessageBatch = std::vector<cppkafka::Message>;
+using Batches = std::vector<MessageBatch>;
 
-struct ConsumerTopicEntry {
+enum class Field : int {
+    Key = 0,
+    Payload = 1,
+    Headers = 2,
+    Error = 3
+};
+
+struct ConsumerTopicEntry : public Interruptible {
     ConsumerTopicEntry(ConsumerPtr consumer,
-               const ConnectorConfiguration& connectorConfiguration,
-               const ConsumerConfiguration& configuration,
-               int numIoThreads,
-               std::pair<int,int> coroQueueIdRangeForAny) :
+                       const ConnectorConfiguration& connectorConfiguration,
+                       const ConsumerConfiguration& configuration,
+                       int numIoThreads,
+                       std::pair<int,int> coroQueueIdRangeForAny) :
         _connectorConfiguration(connectorConfiguration),
         _configuration(configuration),
         _consumer(std::move(consumer)),
+        _partitionAssignment(_configuration.getInitialPartitionAssignment()),
         _coroQueueIdRangeForAny(coroQueueIdRangeForAny),
-        _receiveCallbackThreadRange(0, numIoThreads-1)
+        _numIoThreads(numIoThreads),
+        _receiveCallbackThreadRange(0, numIoThreads-1),
+        _ioTracker(std::make_shared<int>(0))
     {}
     ConsumerTopicEntry(ConsumerPtr consumer,
-               const ConnectorConfiguration& connectorConfiguration,
-               ConsumerConfiguration&& configuration,
-               int numIoThreads,
-               std::pair<int,int> coroQueueIdRangeForAny) :
+                       const ConnectorConfiguration& connectorConfiguration,
+                       ConsumerConfiguration&& configuration,
+                       int numIoThreads,
+                       std::pair<int,int> coroQueueIdRangeForAny) :
         _connectorConfiguration(connectorConfiguration),
         _configuration(std::move(configuration)),
         _consumer(std::move(consumer)),
+        _partitionAssignment(_configuration.getInitialPartitionAssignment()),
         _coroQueueIdRangeForAny(coroQueueIdRangeForAny),
-        _receiveCallbackThreadRange(0, numIoThreads-1)
+        _numIoThreads(numIoThreads),
+        _receiveCallbackThreadRange(0, numIoThreads-1),
+        _ioTracker(std::make_shared<int>(0))
     {}
     ConsumerTopicEntry(const ConsumerTopicEntry&) = delete;
     ConsumerTopicEntry(ConsumerTopicEntry&& other) :
         _connectorConfiguration(other._connectorConfiguration),
         _configuration(std::move(other._configuration)),
         _consumer(std::move(other._consumer)),
-        _coroQueueIdRangeForAny(other._coroQueueIdRangeForAny),
-        _receiveCallbackThreadRange(other._receiveCallbackThreadRange)
+        _partitionAssignment(std::move(other._partitionAssignment)),
+        _coroQueueIdRangeForAny(std::move(other._coroQueueIdRangeForAny)),
+        _numIoThreads(std::move(other._numIoThreads)),
+        _receiveCallbackThreadRange(std::move(other._receiveCallbackThreadRange)),
+        _ioTracker(std::move(other._ioTracker))
     {}
     
     //Members
     const ConnectorConfiguration&   _connectorConfiguration;
-    ConsumerConfiguration           _configuration;
+    const ConsumerConfiguration     _configuration;
     ConsumerPtr                     _consumer;
+    cppkafka::Queue                 _eventQueue; //queue event polling
+    cppkafka::TopicPartitionList    _partitionAssignment;
     CommitterPtr                    _committer;
-    PollingStrategyPtr              _roundRobin;
+    RoundRobinPollStrategyPtr       _roundRobinStrategy;
+    PollStrategy                    _pollStrategy{PollStrategy::Serial};
     mutable OffsetMap               _offsets;
-    std::atomic<bool>               _isPaused{false};
+    Metadata::OffsetWatermarkList   _watermarks;
+    bool                            _enableWatermarkCheck{false};
+    std::atomic_bool                _isPaused{false};
     bool                            _setOffsetsOnStart{true};
-    bool                            _isSubscribed{true};
+    bool                            _isSubscribed{false};
     bool                            _skipUnknownHeaders{true};
-    quantum::ThreadContext<int>::Ptr _pollFuture{nullptr};
-    size_t                          _batchSize{100};
+    quantum::ThreadContextPtr<int>  _pollFuture{nullptr};
+    ssize_t                         _readSize{100};
+    quantum::IQueue::QueueId        _processCoroThreadId{quantum::IQueue::QueueId::Any};
+    quantum::IQueue::QueueId        _pollIoThreadId{quantum::IQueue::QueueId::Any};
     std::chrono::milliseconds       _pollTimeout{(int)TimerValues::Disabled};
-    std::chrono::milliseconds       _roundRobinMinPollTimeout{10};
+    std::chrono::milliseconds       _minRoundRobinPollTimeout{10};
     std::pair<int,int>              _coroQueueIdRangeForAny;
+    int                             _numIoThreads;
     std::pair<int,int>              _receiveCallbackThreadRange;
     ExecMode                        _receiveCallbackExec{ExecMode::Async};
     ThreadType                      _receiverThread{ThreadType::IO};
@@ -89,13 +120,14 @@ struct ConsumerTopicEntry {
     bool                            _autoOffsetPersistOnException{false};
     OffsetPersistStrategy           _autoOffsetPersistStrategy{OffsetPersistStrategy::Store};
     ExecMode                        _autoCommitExec{ExecMode::Async};
-    bool                            _batchPrefetch{false};
     cppkafka::LogLevel              _logLevel{cppkafka::LogLevel::LogInfo};
-    quantum::ICoroFuture<std::vector<cppkafka::Message>>::Ptr _messagePrefetchFuture;
+    bool                            _batchPrefetch{false};
+    quantum::ICoroFuture<MessageBatch>::Ptr   _batchPrefetchFuture;
     Callbacks::PreprocessorCallback _preprocessorCallback;
-    bool                            _preprocess{true};
-    ThreadType                      _preprocessorThread{ThreadType::IO};
+    bool                            _preprocess{false};
     ThrottleControl                 _throttleControl;
+    bool                            _preserveMessageOrder{false};
+    IoTracker                       _ioTracker;
 };
 
 }}

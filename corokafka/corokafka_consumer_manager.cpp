@@ -61,9 +61,9 @@ void ConsumerManager::resume(const std::string& topic)
 }
 
 void ConsumerManager::subscribe(const std::string& topic,
-                                cppkafka::TopicPartitionList partitionList)
+                                const cppkafka::TopicPartitionList& partitionList)
 {
-    _impl->subscribe(topic, std::move(partitionList));
+    _impl->subscribe(topic, partitionList);
 }
 
 void ConsumerManager::unsubscribe(const std::string& topic)
@@ -93,6 +93,11 @@ void ConsumerManager::shutdown()
 void ConsumerManager::poll()
 {
     _impl->poll();
+}
+
+void ConsumerManager::pollEnd()
+{
+    _impl->pollEnd();
 }
 
 const ConsumerConfiguration& ConsumerManager::getConfiguration(const std::string& topic) const

@@ -41,13 +41,11 @@ class ConnectorImpl : public ProducerManager,
     void shutdown(bool drain,
                   std::chrono::milliseconds drainTimeout);
     void poll();
-    void post();
     
     // members
     const ConnectorConfiguration    _config;
     quantum::Dispatcher&            _dispatcher;
     std::thread                     _pollThread;
-    std::thread                     _postThread;
     std::atomic_flag                _shutdownInitiated{0};
 
 };

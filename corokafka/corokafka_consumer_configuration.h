@@ -50,25 +50,27 @@ public:
         static constexpr const char* autoOffsetPersistOnException =     "internal.consumer.auto.offset.persist.on.exception";
         static constexpr const char* autoThrottle =                     "internal.consumer.auto.throttle";
         static constexpr const char* autoThrottleMultiplier =           "internal.consumer.auto.throttle.multiplier";
-        static constexpr const char* batchPrefetch =                    "internal.consumer.batch.prefetch";
         static constexpr const char* commitBackoffStrategy =            "internal.consumer.commit.backoff.strategy";
         static constexpr const char* commitBackoffIntervalMs =          "internal.consumer.commit.backoff.interval.ms";
         static constexpr const char* commitExec =                       "internal.consumer.commit.exec";
         static constexpr const char* commitMaxBackoffMs =               "internal.consumer.commit.max.backoff.ms";
         static constexpr const char* commitNumRetries =                 "internal.consumer.commit.num.retries";
         static constexpr const char* logLevel =                         "internal.consumer.log.level";
+        static constexpr const char* batchPrefetch =                    "internal.consumer.batch.prefetch";
         static constexpr const char* offsetPersistStrategy =            "internal.consumer.offset.persist.strategy";
         static constexpr const char* pauseOnStart =                     "internal.consumer.pause.on.start";
+        static constexpr const char* pollIoThreadId =                   "internal.consumer.poll.io.thread.id";
         static constexpr const char* pollStrategy =                     "internal.consumer.poll.strategy";
         static constexpr const char* pollTimeoutMs =                    "internal.consumer.poll.timeout.ms";
         static constexpr const char* preprocessMessages =               "internal.consumer.preprocess.messages";
-        static constexpr const char* preprocessInvokeThread =           "internal.consumer.preprocess.invoke.thread";
+        static constexpr const char* preserveMessageOrder =             "internal.consumer.preserve.message.order";
+        static constexpr const char* processCoroThreadId =              "internal.consumer.process.coro.thread.id";
         static constexpr const char* readSize =                         "internal.consumer.read.size";
         static constexpr const char* receiveCallbackExec =              "internal.consumer.receive.callback.exec";
         static constexpr const char* receiveCallbackThreadRangeLow =    "internal.consumer.receive.callback.thread.range.low";
         static constexpr const char* receiveCallbackThreadRangeHigh =   "internal.consumer.receive.callback.thread.range.high";
         static constexpr const char* receiveInvokeThread =              "internal.consumer.receive.invoke.thread";
-        static constexpr const char* roundRobinMinPollTimeoutMs =       "internal.consumer.roundrobin.min.poll.timeout.ms";
+        static constexpr const char* minRoundRobinPollTimeoutMs =       "internal.consumer.min.roundrobin.poll.timeout.ms";
         static constexpr const char* skipUnknownHeaders =               "internal.consumer.skip.unknown.headers";
         static constexpr const char* timeoutMs =                        "internal.consumer.timeout.ms";
     };
@@ -162,7 +164,9 @@ public:
     /**
      * @brief Set the preprocessor callback. This will be called before a message is de-serialized.
      * @param callback The callback.
-     * @note The callback should return 'true' if the message should be skipped.
+     * @note The callback should return 'false' if the message should be skipped. When a message
+     *       is marked for skipping, it will not be deserialized and ReceivedMessage::skip() will
+     *       be true so it can either be logged or discarded inside the receiver callback.
      */
     void setPreprocessorCallback(Callbacks::PreprocessorCallback callback);
     
