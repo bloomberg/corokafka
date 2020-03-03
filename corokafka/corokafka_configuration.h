@@ -72,11 +72,16 @@ protected:
     struct RdKafkaOptions
     {
         static constexpr const char* metadataBrokerList =       "metadata.broker.list";
+        //consumer
         static constexpr const char* groupId =                  "group.id";
-        static constexpr const char* maxInFlight =              "max.in.flight";
         static constexpr const char* enableAutoOffsetStore =    "enable.auto.offset.store";
         static constexpr const char* enableAutoCommit =         "enable.auto.commit";
         static constexpr const char* autoCommitIntervalMs =     "auto.commit.interval.ms";
+        //producer
+        static constexpr const char* maxInFlight =              "max.in.flight";
+        static constexpr const char* messageSendMaxRetries =    "message.send.max.retries";
+        static constexpr const char* enableIdempotence =        "enable.idempotence";
+        static constexpr const char* enablePartitionEof =       "enable.partition.eof";
     };
     
     using OptionExtractorFunc = std::function<bool(const std::string& topic,

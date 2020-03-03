@@ -48,19 +48,24 @@ public:
      * @param payload The message payload.
      * @param headers The header pack for this message in order of definition in the TopicTraits.
      * @param opaque An opaque data pointer which will be returned inside the delivery callback.
-     * @return The number of bytes sent.
+     * @return A message delivery report.
+     * @remark This call will block for the duration of the 'internal.producer.wait.for.acks.timeout.ms'.
+     *         Contrary to post(), this will create an IO operation on the internal dispatcher. Depending
+     *         on poll settings and system load, better synchronous performance could be achieved by
+     *         calling post().get() which won't overload the IO thread pool.
      * @remark If the application uses *only* synchronous sends, better performance can be achieved by setting
      *         'internal.producer.payload.policy = passthrough', which will prevent the payload from being copied
      *         inside RdKafka.
      * @remark To guarantee strict message ordering, set 'internal.producer.preserve.message.order = true' which will
-     *         also set the rdkafka option 'max.in.flight = 1' as it may cause re-ordering or packets.
+     *         also set the RdKafka option 'max.in.flight = 1' and 'message.send.max.retries=0' as it
+     *         may cause re-ordering or packets. Alternatively one can set 'enable.idempotence=true'.
      */
     template <typename TOPIC, typename K, typename P, typename ...H>
-    int send(const TOPIC& topic,
-             const void* opaque,
-             const K& key,
-             const P& payload,
-             const H&...headers);
+    DeliveryReport send(const TOPIC& topic,
+                        const void* opaque,
+                        const K& key,
+                        const P& payload,
+                        const H&...headers);
     
     /**
      * @brief Asynchronous send. No message delivery guarantee is made and messages are sent in batches unless
@@ -73,11 +78,12 @@ public:
      * @param payload The message payload.
      * @param headers The header pack for this message.
      * @param opaque An opaque data pointer which will be returned inside the delivery callback or the returned future.
+     * @return A future containing a message delivery report.
      * @remark To guarantee strict message ordering, set 'internal.producer.preserve.message.order = true' which will
-     *         also set the rdkafka option 'max.in.flight = 1' as it may cause re-ordering or packets.
+     *         also set the RdKafka option 'max.in.flight = 1' and 'message.send.max.retries=0' as it
+     *         may cause re-ordering or packets. Alternatively one can set 'enable.idempotence=true'.
      * @remark A message delivery can be tracked by registering a delivery report callback or by blocking on the
      *         returned future. Note that both these methods can be used jointly if needed.
-     * @return A future containing a message delivery report.
      * @warning This method will make an extra copy of the message.
      */
     template <typename TOPIC, typename K, typename P, typename ...H>
@@ -91,10 +97,21 @@ public:
     /**
      * @brief Wait for all pending 'posted' messages to be ack-ed by the broker.
      * @param topic The topic to wait for.
-     * @param timeout The maximum time to wait for. (==0 waits forever)
+     * @warning This function may throw. The time to wait is the internal producer specified time
+     *          'internal.producer.wait.for.acks.timeout.ms' or if not specified,
+     *          the 'internal.producer.timeout.ms'
      */
-    void waitForAcks(const std::string& topic,
-                     std::chrono::milliseconds timeout = std::chrono::milliseconds::zero());
+    bool waitForAcks(const std::string& topic);
+    
+    /**
+     * @brief Wait for all pending 'posted' messages to be ack-ed by the broker.
+     * @param topic The topic to wait for.
+     * @param timeout The maximum time to wait for (-1 waits forever).
+     * @returns true if succeeded, false if timed-out before all the acks arrived.
+     * @warning This function may throw.
+     */
+    bool waitForAcks(const std::string& topic,
+                     std::chrono::milliseconds timeout);
     
     /**
      * @brief Gracefully shut down all producers and wait until all buffered messages are sent.
@@ -129,17 +146,6 @@ public:
      */
     void resetQueueFullTrigger(const std::string& topic);
     
-    /**
-     * @brief Enables or disables parallel message fan-out to IO threads. Disabled by default.
-     * @note When enabled messages are distributed among all IO threads on a per-topic basis.
-     *       When disabled, messages are produced sequentially after serialization.
-     * @note This setting only affects async producers (i.e. post() methods). This method can be set/reset anytime.
-     * @warning This should be typically used when some producers get backed-up, in which case posting the
-     *          messages sequentially would also impact other producers. The fan-out lets other producers
-     *          work independently.
-     */
-     void enableMessageFanout(bool value);
-    
 protected:
     using ConfigMap = ConfigurationBuilder::ConfigMap<ProducerConfiguration>;
     
@@ -154,7 +160,7 @@ protected:
     virtual ~ProducerManager();
     
     void poll();
-    void post();
+    void pollEnd();
     
 private:
     std::unique_ptr<ProducerManagerImpl>  _impl;
@@ -162,7 +168,7 @@ private:
 
 // Implementations
 template <typename TOPIC, typename K, typename P, typename ...H>
-int
+DeliveryReport
 ProducerManager::send(const TOPIC& topic,
                       const void* opaque,
                       const K& key,

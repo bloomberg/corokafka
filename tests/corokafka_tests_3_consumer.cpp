@@ -21,14 +21,18 @@ Configuration::OptionList config1 = {
     {"enable.auto.commit", true}, //automatically commit stored offset every 100ms
     {"auto.offset.reset","beginning"},
     {"auto.commit.interval.ms", 100},
+    {ConsumerConfiguration::Options::timeoutMs, 10},
     {ConsumerConfiguration::Options::pauseOnStart, true},
     {ConsumerConfiguration::Options::readSize, 100},
     {ConsumerConfiguration::Options::pollStrategy, "batch"},
     {ConsumerConfiguration::Options::offsetPersistStrategy, "store"},
     {ConsumerConfiguration::Options::commitExec, "sync"},
     {ConsumerConfiguration::Options::autoOffsetPersist, "true"},
-    {ConsumerConfiguration::Options::receiveInvokeThread, "io"},
-    {ConsumerConfiguration::Options::preprocessMessages, "false"}
+    {ConsumerConfiguration::Options::receiveInvokeThread, "coro"},
+    {ConsumerConfiguration::Options::preprocessMessages, "false"},
+    {ConsumerConfiguration::Options::receiveCallbackThreadRangeLow, 1},
+    {ConsumerConfiguration::Options::receiveCallbackThreadRangeHigh, 1},
+    {ConsumerConfiguration::Options::preserveMessageOrder, true},
 };
 
 Configuration::OptionList config2 = {
@@ -39,13 +43,13 @@ Configuration::OptionList config2 = {
     {"auto.commit.interval.ms", 100},
     {ConsumerConfiguration::Options::pauseOnStart, false},
     {ConsumerConfiguration::Options::readSize, 100},
-    {ConsumerConfiguration::Options::pollStrategy, "batch"},
+    {ConsumerConfiguration::Options::pollStrategy, "roundrobin"},
     {ConsumerConfiguration::Options::offsetPersistStrategy, "commit"},
     {ConsumerConfiguration::Options::commitExec, "async"},
     {ConsumerConfiguration::Options::autoOffsetPersist, "false"},
     {ConsumerConfiguration::Options::receiveInvokeThread, "coro"},
     {ConsumerConfiguration::Options::preprocessMessages, "true"},
-    {ConsumerConfiguration::Options::preprocessInvokeThread, "io"}
+    {ConsumerConfiguration::Options::preserveMessageOrder, true},
 };
 
 //same as group 2 but pre-processing done on coroutine thread & round-robin
@@ -61,9 +65,27 @@ Configuration::OptionList config3 = {
     {ConsumerConfiguration::Options::offsetPersistStrategy, "commit"},
     {ConsumerConfiguration::Options::commitExec, "async"},
     {ConsumerConfiguration::Options::autoOffsetPersist, "false"},
+    {ConsumerConfiguration::Options::receiveInvokeThread, "io"},
+    {ConsumerConfiguration::Options::preprocessMessages, "true"},
+    {ConsumerConfiguration::Options::preserveMessageOrder, true},
+};
+
+//same as config 2 but poll strategy is serial
+Configuration::OptionList config4 = {
+    {"enable.partition.eof", true},
+    {"enable.auto.offset.store", false},
+    {"enable.auto.commit", false}, //do not auto-commit. The application will do it.
+    {"auto.offset.reset","beginning"},
+    {"auto.commit.interval.ms", 100},
+    {ConsumerConfiguration::Options::pauseOnStart, false},
+    {ConsumerConfiguration::Options::readSize, 100},
+    {ConsumerConfiguration::Options::pollStrategy, "serial"},
+    {ConsumerConfiguration::Options::offsetPersistStrategy, "commit"},
+    {ConsumerConfiguration::Options::commitExec, "async"},
+    {ConsumerConfiguration::Options::autoOffsetPersist, "false"},
     {ConsumerConfiguration::Options::receiveInvokeThread, "coro"},
     {ConsumerConfiguration::Options::preprocessMessages, "true"},
-    {ConsumerConfiguration::Options::preprocessInvokeThread, "coro"}
+    {ConsumerConfiguration::Options::preserveMessageOrder, true},
 };
 
 TEST(ConsumerConfiguration, MissingBrokerList)
@@ -129,7 +151,7 @@ TEST(ConsumerConfiguration, InternalConsumerPollTimeoutMs)
 
 TEST(ConsumerConfiguration, InternalConsumerRoundRobinMinPollTimeoutMs)
 {
-    testConsumerOption<InvalidOptionException>("InvalidOptionException", "internal.consumer.roundrobin.min.poll.timeout.ms",
+    testConsumerOption<InvalidOptionException>("InvalidOptionException", "internal.consumer.min.roundrobin.poll.timeout.ms",
         {{"0",true},{"10",false}});
 }
 
@@ -195,13 +217,13 @@ TEST(ConsumerConfiguration, InternalConsumerCommitMaxBackoffMs)
 TEST(ConsumerConfiguration, InternalConsumerPollStrategy)
 {
     testConsumerOption<InvalidOptionException>("InvalidOptionException", "internal.consumer.poll.strategy",
-        {{"bad",true},{"batch",false},{"roundRobin",false}});
+        {{"bad",true},{"batch",false},{"roundRobin",false},{"serial", false}});
 }
 
 TEST(ConsumerConfiguration, InternalConsumerReadSize)
 {
     testConsumerOption<InvalidOptionException>("InvalidOptionException", "internal.consumer.read.size",
-        {{"0",true},{"1",false},{"2",false}});
+        {{"-2",true},{"-1",false},{"1",false}});
 }
 
 TEST(ConsumerConfiguration, InternalConsumerBatchPrefetch)
@@ -287,10 +309,10 @@ TEST(ConsumerConfiguration, InternalConsumerPreprocessMessages)
         {{"bad",true},{"true",false},{"false",false}});
 }
 
-TEST(ConsumerConfiguration, InternalConsumerPreprocessInvokeThread)
+TEST(ConsumerConfiguration, InternalConsumerPreserveMessageOrder)
 {
-    testConsumerOption<InvalidOptionException>("InvalidOptionException", "internal.consumer.preprocess.invoke.thread",
-        {{"bad",true},{"io",false},{"coro",false}});
+    testConsumerOption<InvalidOptionException>("InvalidOptionException", "internal.consumer.preserve.message.order",
+        {{"bad",true},{" true ",false},{"false",false},{"FALSE",false}});
 }
 
 TEST(Consumer, ValidatePauseOnStart)
@@ -310,7 +332,7 @@ TEST(Consumer, ValidatePauseOnStart)
     
     //make sure the receiver callback nor the rebalance callbacks have been invoked
     EXPECT_EQ(0, callbackCounters()._receiver);
-    EXPECT_EQ(0, callbackCounters()._assign);
+    EXPECT_EQ(1, callbackCounters()._assign);
     EXPECT_EQ(0, callbackCounters()._revoke);
     EXPECT_EQ(0, callbackCounters()._rebalance);
     EXPECT_EQ(0, callbackCounters()._preprocessor);
@@ -325,12 +347,13 @@ TEST(Consumer, ValidatePauseOnStart)
     EXPECT_EQ(4, callbackCounters()._eof);
     EXPECT_EQ(0, callbackCounters()._messageErrors);
     EXPECT_EQ(4, callbackCounters()._receiver);
-    EXPECT_EQ(0, callbackCounters()._assign);
+    EXPECT_EQ(1, callbackCounters()._assign);
     EXPECT_EQ(0, callbackCounters()._revoke);
     EXPECT_EQ(0, callbackCounters()._rebalance);
     EXPECT_EQ(0, callbackCounters()._preprocessor);
     
     callbackCounters().reset();
+    dispatcher().drain();
 }
 
 TEST(Consumer, ValidateDynamicAssignment)
@@ -354,8 +377,8 @@ TEST(Consumer, ValidateDynamicAssignment)
         EXPECT_EQ(0, callbackCounters()._messageErrors);
         EXPECT_EQ(4, callbackCounters()._receiver);
         EXPECT_EQ(1, callbackCounters()._assign);
-        EXPECT_EQ(0, callbackCounters()._revoke);
         EXPECT_EQ(0, callbackCounters()._rebalance);
+        callbackCounters().reset();
     }
     int loops = maxLoops;
     while (callbackCounters()._revoke == 0 && loops--) {
@@ -383,10 +406,10 @@ TEST(Consumer, ReadTopicWithoutHeadersUsingConfig1)
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
     std::this_thread::sleep_for(std::chrono::seconds(1));
-    
+    EXPECT_EQ(4, callbackCounters()._eof);
     EXPECT_EQ(10, callbackCounters()._offsetCommit);
-    EXPECT_TRUE(callbackCounters()._receiverIoThread);
-    EXPECT_EQ(0, callbackCounters()._assign);
+    EXPECT_FALSE(callbackCounters()._receiverIoThread);
+    EXPECT_EQ(1, callbackCounters()._assign);
     EXPECT_EQ(0, callbackCounters()._revoke);
     EXPECT_EQ(0, callbackCounters()._rebalance);
     
@@ -406,6 +429,7 @@ TEST(Consumer, ReadTopicWithoutHeadersUsingConfig1)
     //clear everything
     callbackCounters().reset();
     consumerMessageWithoutHeadersTracker().clear();
+    dispatcher().drain();
 }
 
 TEST(Consumer, ReadTopicWithHeadersUsingConfig2)
@@ -424,8 +448,8 @@ TEST(Consumer, ReadTopicWithHeadersUsingConfig2)
     while (callbackCounters()._eof < 4 && loops--) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
+    EXPECT_EQ(4, callbackCounters()._eof);
     EXPECT_EQ(messageTracker().totalMessages(), callbackCounters()._preprocessor);
-    EXPECT_TRUE(callbackCounters()._preprocessorIoThread);
     EXPECT_EQ(messageTracker().totalMessages(), callbackCounters()._receiver-callbackCounters()._eof);
     EXPECT_FALSE(callbackCounters()._receiverIoThread);
     
@@ -443,6 +467,7 @@ TEST(Consumer, ReadTopicWithHeadersUsingConfig2)
     //clear everything
     callbackCounters().reset();
     consumerMessageTracker().clear();
+    dispatcher().drain();
 }
 
 TEST(Consumer, ReadTopicWithHeadersUsingConfig3)
@@ -461,8 +486,46 @@ TEST(Consumer, ReadTopicWithHeadersUsingConfig3)
     while (callbackCounters()._eof < 4 && loops--) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
+    EXPECT_EQ(4, callbackCounters()._eof);
     EXPECT_EQ(messageTracker().totalMessages(), callbackCounters()._preprocessor);
-    EXPECT_FALSE(callbackCounters()._preprocessorIoThread);
+    EXPECT_EQ(messageTracker().totalMessages(), callbackCounters()._receiver-callbackCounters()._eof);
+    EXPECT_TRUE(callbackCounters()._receiverIoThread);
+    
+    //Check message validity
+    EXPECT_EQ(messageTracker(), consumerMessageTracker());
+    
+    //Check async commits
+    loops = maxLoops;
+    while ((size_t)callbackCounters()._offsetCommit < messageTracker().totalMessages() && loops--) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+    EXPECT_EQ(messageTracker().totalMessages(), callbackCounters()._offsetCommit);
+    EXPECT_EQ(callbackCounters()._offsetCommitPartitions, consumerMessageTracker()._offsets);
+    
+    //clear everything
+    callbackCounters().reset();
+    consumerMessageTracker().clear();
+    dispatcher().drain();
+}
+
+TEST(Consumer, ReadTopicWithHeadersUsingConfig4)
+{
+    Connector connector = makeConsumerConnector(
+        config4,
+        getNewGroupName(),
+        topicWithHeaders(),
+        Callbacks::messageReceiverWithHeadersManualCommit,
+        PartitionStrategy::Static,
+        {{programOptions()._topicWithHeaders, 0, (int)OffsetPoint::AtBeginning},
+         {programOptions()._topicWithHeaders, 1, (int)OffsetPoint::AtBeginning},
+         {programOptions()._topicWithHeaders, 2, (int)OffsetPoint::AtBeginning},
+         {programOptions()._topicWithHeaders, 3, (int)OffsetPoint::AtBeginning}});
+    int loops = maxLoops;
+    while (callbackCounters()._eof < 4 && loops--) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+    EXPECT_EQ(4, callbackCounters()._eof);
+    EXPECT_EQ(messageTracker().totalMessages(), callbackCounters()._preprocessor);
     EXPECT_EQ(messageTracker().totalMessages(), callbackCounters()._receiver-callbackCounters()._eof);
     EXPECT_FALSE(callbackCounters()._receiverIoThread);
     
@@ -480,6 +543,7 @@ TEST(Consumer, ReadTopicWithHeadersUsingConfig3)
     //clear everything
     callbackCounters().reset();
     consumerMessageTracker().clear();
+    dispatcher().drain();
 }
 
 TEST(Consumer, SkipMessagesWithRelativeOffsetUsingConfig2)
@@ -502,6 +566,7 @@ TEST(Consumer, SkipMessagesWithRelativeOffsetUsingConfig2)
     while (callbackCounters()._eof < 4 && loops--) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
+    EXPECT_EQ(4, callbackCounters()._eof);
     EXPECT_EQ(totalMessages, callbackCounters()._preprocessor);
     EXPECT_EQ(totalMessages+4, callbackCounters()._receiver); //including EOFs
     EXPECT_EQ(totalMessages, callbackCounters()._skip);
@@ -510,6 +575,7 @@ TEST(Consumer, SkipMessagesWithRelativeOffsetUsingConfig2)
     //clear everything
     callbackCounters().reset();
     consumerMessageTracker().clear();
+    dispatcher().drain();
 }
 
 }

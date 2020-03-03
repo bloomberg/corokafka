@@ -32,10 +32,10 @@ OffsetManager::OffsetManager(corokafka::ConsumerManager& consumerManager) :
         if (commitExec && StringEqualCompare()(commitExec->get_value(), "sync")) {
             syncCommit = true;
         }
-        corokafka::Metadata::OffsetWatermarkList watermarks = consumerManager.getMetadata(topic).queryOffsetWatermarks();
-        for (const corokafka::OffsetWatermark& watermark : watermarks) {
-            OffsetsRanges& ranges = partitionMap[watermark._partition];
-            ranges._beginOffset = ranges._currentOffset = watermark._watermark._low;
+        cppkafka::TopicPartitionList committedOffsets = consumerManager.getMetadata(topic).queryCommittedOffsets();
+        for (const cppkafka::TopicPartition partition : committedOffsets) {
+            OffsetsRanges& ranges = partitionMap[partition.get_partition()];
+            ranges._beginOffset = ranges._currentOffset = partition.get_offset();
             ranges._syncCommit = syncCommit;
         }
     }
@@ -189,7 +189,7 @@ cppkafka::Error OffsetManager::forceCommitCurrentOffset(bool forceSync)
 }
 
 Range<int64_t> OffsetManager::insertOffset(OffsetsRanges& ranges,
-                                                      int64_t offset)
+                                           int64_t offset)
 {
     Range<int64_t> range(-1,-1);
     quantum::Mutex::Guard guard(quantum::local::context(), ranges._mutex);

@@ -16,6 +16,7 @@
 #ifndef BLOOMBERG_COROKAFKA_INTERVAL_SET_H
 #define BLOOMBERG_COROKAFKA_INTERVAL_SET_H
 
+#include <corokafka/utils/corokafka_json_builder.h>
 #include <algorithm>
 #include <map>
 #include <ostream>
@@ -276,7 +277,11 @@ template<class T>
 std::ostream &
 operator<<(std::ostream &out, const Range<T>& r)
 {
-    out << "{ \"begin\": " << r.first << ", \"end\": " << r.second << " }";
+    JsonBuilder json(out);
+    json.startMember("interval");
+    json.tag("begin", r.first).
+         tag("end", r.second);
+    json.endMember().end();
     return out;
 }
 
@@ -284,12 +289,14 @@ template<class T>
 std::ostream &
 operator<<(std::ostream &out, IntervalSet<T> const &is)
 {
-    out << "{ \"intervals\": [ ";
+    JsonBuilder json(out);
+    bool isArray{true};
+    json.startMember("intervals", isArray);
     for (typename IntervalSet<T>::ConstIterator it = is.begin(); it != is.end(); it++) {
-        if (it != is.begin()) out << ", ";
-        out << Range<T>(*it);
+        json.tag("begin", it->first, JsonBuilder::Brace::Start).
+             tag("end", it->second, JsonBuilder::Brace::End);
     }
-    out << " ] }";
+    json.endMember().end();
     return out;
 }
 

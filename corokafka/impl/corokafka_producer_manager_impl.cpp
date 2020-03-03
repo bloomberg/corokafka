@@ -34,12 +34,17 @@ using namespace std::placeholders;
 ProducerManagerImpl::ProducerManagerImpl(quantum::Dispatcher& dispatcher,
                                          const ConnectorConfiguration& connectorConfiguration,
                                          const ConfigMap& configs) :
-    _dispatcher(dispatcher)
+    _dispatcher(dispatcher),
+    _shutdownInitiated{0},
+    _shutdownIoWaitTimeoutMs(connectorConfiguration.getShutdownIoWaitTimeout())
 {
     //Create a producer for each topic and apply the appropriate configuration
     for (const auto& entry : configs) {
         // Process each configuration
-        auto it = _producers.emplace(entry.first, ProducerTopicEntry(nullptr, connectorConfiguration, entry.second));
+        auto it = _producers.emplace(entry.first, ProducerTopicEntry(nullptr,
+                                                                     connectorConfiguration,
+                                                                     entry.second,
+                                                                     _dispatcher.getNumIoThreads()));
         try {
             setup(entry.first, it.first->second);
         }
@@ -56,12 +61,16 @@ ProducerManagerImpl::ProducerManagerImpl(quantum::Dispatcher& dispatcher,
                                          const ConnectorConfiguration& connectorConfiguration,
                                          ConfigMap&& configs) :
     _dispatcher(dispatcher),
-    _shutdownInitiated{0}
+    _shutdownInitiated{0},
+    _shutdownIoWaitTimeoutMs(connectorConfiguration.getShutdownIoWaitTimeout())
 {
     // Create a producer for each topic and apply the appropriate configuration
     for (auto&& entry : configs) {
         // Process each configuration
-        auto it = _producers.emplace(entry.first, ProducerTopicEntry(nullptr, connectorConfiguration, std::move(entry.second)));
+        auto it = _producers.emplace(entry.first, ProducerTopicEntry(nullptr,
+                                                                     connectorConfiguration,
+                                                                     std::move(entry.second),
+                                                                     _dispatcher.getNumIoThreads()));
         try {
             setup(entry.first, it.first->second);
         }
@@ -79,33 +88,17 @@ ProducerManagerImpl::~ProducerManagerImpl()
     shutdown();
 }
 
-void ProducerManagerImpl::produceMessage(const ProducerTopicEntry& entry,
-                                         const ProducerMessageBuilder<ByteArray>& builder)
+bool ProducerManagerImpl::isFlushNonBlocking(const ProducerTopicEntry& topicEntry)
 {
-    if (entry._waitForAcksTimeout.count() == (int)TimerValues::Disabled) {
-        //async send
-        entry._producer->produce(builder);
-    }
-    else if (entry._waitForAcksTimeout.count() == (int)TimerValues::Unlimited) {
-        //full blocking sync send
-        entry._producer->sync_produce(builder);
-    }
-    else {
-        //block until ack arrives or timeout
-        entry._producer->produce(builder);
-        entry._producer->wait_for_acks(entry._waitForAcksTimeout);
-    }
+    return ((topicEntry._flushWaitForAcksTimeout == std::chrono::milliseconds::zero()) &&
+             !topicEntry._forceSyncFlush &&
+             !topicEntry._preserveMessageOrder);
 }
 
 void ProducerManagerImpl::flush(const ProducerTopicEntry& entry)
 {
-    if ((entry._flushWaitForAcksTimeout.count() == (int)TimerValues::Disabled) &&
-        !entry._forceSyncFlush) {
-        //async flush
-        entry._producer->async_flush();
-    }
-    else if (entry._flushWaitForAcksTimeout.count() == (int)TimerValues::Unlimited) {
-        //full blocking flush
+    if (entry._forceSyncFlush) {
+        //block indefinitely
         entry._producer->flush(entry._preserveMessageOrder);
     }
     else {
@@ -134,6 +127,18 @@ void ProducerManagerImpl::setup(const std::string& topic, ProducerTopicEntry& to
     //Set the rdkafka configuration options
     cppkafka::Configuration kafkaConfig(rdKafkaOptions);
     cppkafka::TopicConfiguration topicConfig(rdKafkaTopicOptions);
+    
+    std::pair<int, int> prev = topicEntry._syncProducerThreadRange;
+    extract(ProducerConfiguration::Options::syncProducerThreadRangeLow, topicEntry._syncProducerThreadRange.first);
+    if ((topicEntry._syncProducerThreadRange.first < prev.first) ||
+        (topicEntry._syncProducerThreadRange.first > prev.second)) {
+        throw InvalidOptionException(topic, ProducerConfiguration::Options::syncProducerThreadRangeLow, std::to_string(topicEntry._syncProducerThreadRange.first));
+    }
+    extract(ProducerConfiguration::Options::syncProducerThreadRangeHigh, topicEntry._syncProducerThreadRange.second);
+    if ((topicEntry._syncProducerThreadRange.second < topicEntry._syncProducerThreadRange.first) ||
+        (topicEntry._syncProducerThreadRange.first > prev.second)) {
+        throw InvalidOptionException(topic, ProducerConfiguration::Options::syncProducerThreadRangeHigh, std::to_string(topicEntry._syncProducerThreadRange.second));
+    }
     
     extract(ProducerConfiguration::Options::autoThrottle, topicEntry._throttleControl.autoThrottle());
     extract(ProducerConfiguration::Options::autoThrottleMultiplier, topicEntry._throttleControl.throttleMultiplier());
@@ -166,9 +171,23 @@ void ProducerManagerImpl::setup(const std::string& topic, ProducerTopicEntry& to
     
     extract(ProducerConfiguration::Options::maxQueueLength, topicEntry._maxQueueLength);
     extract(ProducerConfiguration::Options::preserveMessageOrder, topicEntry._preserveMessageOrder);
-    if (topicEntry._preserveMessageOrder) {
-        // change rdkafka settings
-        kafkaConfig.set(Configuration::RdKafkaOptions::maxInFlight, 1);  //limit one request at a time
+    bool isIdempotent = false;
+    auto option = topicEntry._configuration.getOption(Configuration::RdKafkaOptions::enableIdempotence);
+    if (option) {
+        isIdempotent = Configuration::extractBooleanValue(topic,
+                                                          Configuration::RdKafkaOptions::enableIdempotence,
+                                                          *option);
+    }
+    if (topicEntry._preserveMessageOrder && !isIdempotent) {
+        // change rdkafka settings (if not specified by application)
+        int maxInFlight;
+        if (!topicEntry._configuration.getOption(Configuration::RdKafkaOptions::maxInFlight)) {
+            kafkaConfig.set(Configuration::RdKafkaOptions::maxInFlight, 1);  //limit one request at a time
+        }
+        int messageRetries;
+        if (!topicEntry._configuration.getOption(Configuration::RdKafkaOptions::messageSendMaxRetries)) {
+            kafkaConfig.set(Configuration::RdKafkaOptions::messageSendMaxRetries, 0);  //don't retry since corokafka will
+        }
     }
     
     kafkaConfig.set_default_topic_configuration(topicConfig);
@@ -200,7 +219,19 @@ void ProducerManagerImpl::setup(const std::string& topic, ProducerTopicEntry& to
     }
     
     extract(ProducerConfiguration::Options::waitForAcksTimeoutMs, topicEntry._waitForAcksTimeout);
+    if (topicEntry._waitForAcksTimeout.count() == (int)TimerValues::Disabled) {
+        topicEntry._waitForAcksTimeout = topicEntry._producer->get_producer().get_timeout();
+    }
+    
     extract(ProducerConfiguration::Options::flushWaitForAcksTimeoutMs, topicEntry._flushWaitForAcksTimeout);
+    if (topicEntry._flushWaitForAcksTimeout.count() == (int)TimerValues::Disabled) {
+        topicEntry._flushWaitForAcksTimeout = topicEntry._producer->get_producer().get_timeout();
+    }
+    
+    extract(ProducerConfiguration::Options::pollIoThreadId, topicEntry._pollIoThreadId);
+    if ((int)topicEntry._pollIoThreadId >= _dispatcher.getNumIoThreads()) {
+        throw InvalidOptionException(topic, ProducerConfiguration::Options::pollIoThreadId, "Value is out of bounds");
+    }
     
     // Set the buffered producer callbacks
     auto produceSuccessFunc = std::bind(
@@ -255,30 +286,37 @@ std::vector<std::string> ProducerManagerImpl::getTopics() const
     return topics;
 }
 
-void ProducerManagerImpl::waitForAcks(const std::string& topic,
-                                      std::chrono::milliseconds timeout)
+bool ProducerManagerImpl::waitForAcks(const std::string& topic)
 {
     auto it = findProducer(topic);
-    if (timeout.count() <= 0) {
-        it->second._producer->wait_for_acks();
-    }
-    else {
-        it->second._producer->wait_for_acks(timeout);
-    }
+    return it->second._producer->wait_for_acks(it->second._waitForAcksTimeout);
+}
+
+bool ProducerManagerImpl::waitForAcks(const std::string& topic,
+                                      std::chrono::milliseconds timeout)
+{
+    return findProducer(topic)->second._producer->wait_for_acks(timeout);
 }
 
 void ProducerManagerImpl::shutdown()
 {
     if (!_shutdownInitiated.test_and_set())
     {
-        {
-            std::unique_lock<std::mutex> lock(_messageQueueMutex);
-            _shuttingDown = true;
-        }
-        _emptyCondition.notify_one(); //awake the posting thread
-        // wait for all pending flushes to complete
-        for (auto&& entry : _producers) {
-            flush(entry.second);
+        _shuttingDown = true;
+        //see if we have any IO left
+        auto sleepInterval = _shutdownIoWaitTimeoutMs/10;
+        while (_shutdownIoWaitTimeoutMs.count() > 0) {
+            bool hasIo = false;
+            for (auto &&entry : _producers) {
+                if (entry.second._ioTracker.use_count() > 1) {
+                    hasIo = true;
+                    break;
+                }
+            }
+            if (!hasIo) break;
+            //wait and decrement
+            std::this_thread::sleep_for(sleepInterval);
+            _shutdownIoWaitTimeoutMs -= sleepInterval;
         }
     }
 }
@@ -286,59 +324,45 @@ void ProducerManagerImpl::shutdown()
 void ProducerManagerImpl::poll()
 {
     auto now = std::chrono::steady_clock::now();
-    for (auto&& entry : _producers) {
+    for (auto&& producer : _producers) {
+        ProducerTopicEntry& entry = producer.second;
+        entry._shuttingDown.store(_shuttingDown.load());
         // Adjust throttling if necessary
-        adjustThrottling(entry.second, now);
-        bool doPoll = !entry.second._pollFuture ||
-                      (entry.second._pollFuture->waitFor(std::chrono::milliseconds(0)) == std::future_status::ready);
-        if (doPoll) {
-            // Start a poll task
-            entry.second._pollFuture = _dispatcher.postAsyncIo((int)quantum::IQueue::QueueId::Any,
-                                                               true,
-                                                               pollTask,
-                                                               entry.second);
+        adjustThrottling(entry, now);
+        bool pollMessages = !entry._pollFuture ||
+                            (entry._pollFuture->waitFor(std::chrono::milliseconds::zero()) == std::future_status::ready);
+        if (pollMessages) {
+            if (entry._producer->get_buffer_size() == 0) {
+                // No messages left so just poll for events (this won't congest the IO threads)
+                try {
+                    entry._producer->wait_for_acks(std::chrono::milliseconds::zero());
+                }
+                catch (const std::exception& ex) {
+                    exceptionHandler(ex, entry);
+                }
+            }
+            else if (isFlushNonBlocking(entry)) {
+                //poll directly on this thread
+                flushTask(entry, IoTracker{});
+            }
+            else {
+                // Start a poll task and flush messages out synchronously
+                entry._pollFuture = _dispatcher.postAsyncIo((int) entry._pollIoThreadId,
+                                                            false,
+                                                            flushTask,
+                                                            entry,
+                                                            IoTracker(entry._ioTracker));
+            }
         }
     }
 }
 
-void ProducerManagerImpl::post()
+void ProducerManagerImpl::pollEnd()
 {
-    std::deque<MessageFuture> tempQueue;
-    {
-        std::unique_lock<std::mutex> lock(_messageQueueMutex);
-        _emptyCondition.wait(lock, [this]()->bool { return !_messageQueue.empty() || _shuttingDown; });
-        if (_shuttingDown) {
-            return;
-        }
-        std::swap(tempQueue, _messageQueue);
-    }
-    // Send serialized messages
-    int numIoThreads = _dispatcher.getNumIoThreads();
-    for (auto&& future : tempQueue) {
-        try {
-            BuilderTuple builderTuple(future->get()); //may throw FutureException if serialization failed
-            ProducerTopicEntry& topicEntry = *std::get<0>(builderTuple);
-            ProducerMessageBuilder<ByteArray>& builder = std::get<1>(builderTuple);
-            if (builder.topic().empty()) {
-                //Failed to serialize
-                continue; // Skip this message
-            }
-            if (_messageFanout) {
-                if (topicEntry._topicHash == 0) {
-                    topicEntry._topicHash = std::hash<std::string>()(topicEntry._configuration.getTopic());
-                }
-                _dispatcher.postAsyncIo((int)topicEntry._topicHash % numIoThreads,
-                                        false,
-                                        produceTask,
-                                        topicEntry,
-                                        std::move(builder));
-            }
-            else {
-                produceTaskSync(topicEntry, std::get<1>(builderTuple));
-            }
-        }
-        catch (...) {
-            // Skip this message
+    for (auto&& entry : _producers) {
+        if (entry.second._pollFuture) {
+            //wait until poll task has completed
+            entry.second._pollFuture->get();
         }
     }
 }
@@ -347,11 +371,6 @@ void ProducerManagerImpl::resetQueueFullTrigger(const std::string& topic)
 {
     auto it = findProducer(topic);
     it->second._queueFullTrigger = true;
-}
-
-void ProducerManagerImpl::enableMessageFanout(bool value)
-{
-    _messageFanout = value;
 }
 
 // Callbacks
@@ -372,13 +391,13 @@ void ProducerManagerImpl::errorCallback2(
                         int error,
                         const std::string& reason)
 {
-    errorCallback(topicEntry, handle, error, reason, nullptr);
+    errorCallback(topicEntry, handle, (rd_kafka_resp_err_t)error, reason, nullptr);
 }
 
 void ProducerManagerImpl::errorCallback(
                         ProducerTopicEntry& topicEntry,
                         cppkafka::KafkaHandleBase& handle,
-                        int error,
+                        cppkafka::Error error,
                         const std::string& reason,
                         const void* sendOpaque)
 {
@@ -386,7 +405,7 @@ void ProducerManagerImpl::errorCallback(
                               topicEntry._configuration.getErrorCallbackOpaque() : sendOpaque;
     cppkafka::CallbackInvoker<Callbacks::ErrorCallback>
         ("error", topicEntry._configuration.getErrorCallback(), &handle)
-            (makeMetadata(topicEntry), cppkafka::Error((rd_kafka_resp_err_t)error), reason, const_cast<void*>(errorOpaque));
+            (makeMetadata(topicEntry), error, reason, const_cast<void*>(errorOpaque));
 }
 
 void ProducerManagerImpl::throttleCallback(
@@ -462,7 +481,7 @@ bool ProducerManagerImpl::flushFailureCallback(
 {
     std::ostringstream oss;
     oss << "Failed to enqueue message " << builder;
-    report(topicEntry, cppkafka::LogLevel::LogErr, error.get_error(), oss.str(), nullptr);
+    report(topicEntry, cppkafka::LogLevel::LogErr, error, oss.str(), nullptr);
     return ((error.get_error() != RD_KAFKA_RESP_ERR_MSG_SIZE_TOO_LARGE) &&
             (error.get_error() != RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION) &&
             (error.get_error() != RD_KAFKA_RESP_ERR__UNKNOWN_TOPIC));
@@ -495,7 +514,7 @@ void ProducerManagerImpl::queueFullCallback(ProducerTopicEntry& topicEntry,
 
 void ProducerManagerImpl::report(ProducerTopicEntry& topicEntry,
                                  cppkafka::LogLevel level,
-                                 int error,
+                                 cppkafka::Error error,
                                  const std::string& reason,
                                  const void* sendOpaque)
 {
@@ -516,53 +535,13 @@ void ProducerManagerImpl::adjustThrottling(ProducerTopicEntry& topicEntry,
     }
 }
 
-int ProducerManagerImpl::pollTask(ProducerTopicEntry& entry)
+int ProducerManagerImpl::flushTask(ProducerTopicEntry& entry, IoTracker)
 {
     try {
         flush(entry);
         return 0;
     }
     catch (const std::exception& ex) {
-        exceptionHandler(ex, entry);
-        return -1;
-    }
-}
-
-int ProducerManagerImpl::produceTask(ProducerTopicEntry& entry,
-                                     ProducerMessageBuilder<ByteArray>&& builder)
-{
-    try {
-        if (entry._preserveMessageOrder) {
-            // Save to local buffer so we can flush synchronously later
-            entry._producer->add_message(builder);
-        }
-        else {
-            // Post directly to internal RdKafka outbound queue
-            produceMessage(entry, builder);
-        }
-        return 0;
-    }
-    catch (const std::exception& ex) {
-        exceptionHandler(ex, entry);
-        return -1;
-    }
-}
-
-int ProducerManagerImpl::produceTaskSync(ProducerTopicEntry& entry,
-                                         const ProducerMessageBuilder<ByteArray>& builder)
-{
-    try {
-        if (entry._preserveMessageOrder) {
-            // Save to local buffer so we can flush synchronously later
-            entry._producer->add_message(builder);
-        }
-        else {
-            // Post directly to internal RdKafka outbound queue
-            produceMessage(entry, builder);
-        }
-        return 0;
-    }
-    catch(const std::exception& ex) {
         exceptionHandler(ex, entry);
         return -1;
     }
@@ -582,12 +561,17 @@ ProducerMetadata ProducerManagerImpl::makeMetadata(const ProducerTopicEntry& top
 const void* ProducerManagerImpl::setPackedOpaqueFuture(const cppkafka::Message& kafkaMessage)
 {
     std::unique_ptr<PackedOpaque> packedOpaque(static_cast<PackedOpaque*>(kafkaMessage.get_user_data()));
-    packedOpaque->second.set(DeliveryReport(cppkafka::TopicPartition(kafkaMessage.get_topic(),
-                                                                     kafkaMessage.get_partition(),
-                                                                     kafkaMessage.get_offset()),
-                                            kafkaMessage.get_payload().get_size(),
-                                            kafkaMessage.get_error(),
-                                            packedOpaque->first));
+    try {
+        packedOpaque->second.set(DeliveryReport(cppkafka::TopicPartition(kafkaMessage.get_topic(),
+                                                                         kafkaMessage.get_partition(),
+                                                                         kafkaMessage.get_offset()),
+                                                kafkaMessage.get_payload().get_size(),
+                                                kafkaMessage.get_error(),
+                                                packedOpaque->first));
+    }
+    catch (...) {
+        return packedOpaque->first;
+    }
     return packedOpaque->first;
 }
 
@@ -621,6 +605,26 @@ ProducerManagerImpl::findProducer(const std::string& topic) const
         throw TopicException(topic, "Not found");
     }
     return it;
+}
+
+int32_t ProducerManagerImpl::mapKeyToQueue(const uint8_t* obj,
+                                           size_t len,
+                                           const ProducerTopicEntry& topicEntry)
+{
+    //FNV-1a hash
+    static const long long prime = 1099511628211;
+    static const long long offset = 0xcbf29ce484222325;
+    unsigned long long result = offset;
+    for (auto it = obj; it != obj+len; ++it) {
+        result = result ^ *it;
+        result = result * prime;
+    }
+    int rangeSize = topicEntry._syncProducerThreadRange.second - topicEntry._syncProducerThreadRange.first + 1;
+    if ((topicEntry._numIoThreads == rangeSize) && !topicEntry._preserveMessageOrder) {
+        return (int)quantum::IQueue::QueueId::Any; //pick any queue
+    }
+    //select specific queue
+    return (result % rangeSize) + topicEntry._syncProducerThreadRange.first;
 }
 
 }

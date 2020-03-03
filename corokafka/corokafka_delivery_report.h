@@ -16,7 +16,7 @@
 #ifndef BLOOMBERG_COROKAFKA_DELIVERY_REPORT_H
 #define BLOOMBERG_COROKAFKA_DELIVERY_REPORT_H
 
-#include <cppkafka/cppkafka.h>
+#include <corokafka/corokafka_utils.h>
 
 namespace Bloomberg {
 namespace corokafka {

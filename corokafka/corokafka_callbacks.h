@@ -68,7 +68,7 @@ struct Callbacks {
                                                  cppkafka::Error error,
                                                  cppkafka::TopicPartitionList& topicPartitions)>;
     
-    using PreprocessorCallback = std::function<bool(const cppkafka::TopicPartition& hint)>;
+    using PreprocessorCallback = std::function<bool(const cppkafka::Message& rawMessage)>;
     
     template <typename TOPIC>
     using ReceiverCallback = std::function<void(typename TOPIC::ReceivedMessageType)>;

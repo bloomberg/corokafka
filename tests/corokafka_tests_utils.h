@@ -6,9 +6,20 @@
 #include <gtest/gtest.h>
 #include <utility>
 #include <vector>
-#include <optional>
 #include <map>
 #include <mutex>
+#if (__cplusplus < 201703L)
+    #include <experimental/optional>
+    template <typename T>
+    using Optional = std::experimental::fundamentals_v1::optional<T>;
+    using NullOptType = std::experimental::fundamentals_v1::nullopt_t;
+#else
+    #include <optional>
+    template <typename T>
+    using Optional = std::optional<T>;
+    using NullOptType = std::nullopt_t;
+#endif
+constexpr NullOptType NullOpt { NullOptType::_Construct::_Token };
 
 namespace Bloomberg {
 namespace corokafka {
@@ -98,8 +109,8 @@ struct MessageTracker
         SenderId                _id;
         int                     _partition{0};
         int                     _offset{(int)OffsetPoint::Invalid};
-        std::optional<Header1>  _header1;
-        std::optional<Header2>  _header2;
+        Optional<Header1>       _header1;
+        Optional<Header2>       _header2;
         Message                 _message;
     };
     
@@ -290,7 +301,10 @@ Connector makeProducerConnector(const Configuration::OptionList& ops, const std:
     ProducerConfiguration config(topic, options, {});
     config.setPartitionerCallback(Callbacks::partitioner);
     ConfigurationBuilder builder;
-    builder(config);
+    ConnectorConfiguration connConfig({
+        {ConnectorConfiguration::Options::pollIntervalMs, 10}
+    });
+    builder(config)(connConfig);
     return {builder, dispatcher()};
 }
 
@@ -310,8 +324,11 @@ Connector makeConsumerConnector(const Configuration::OptionList& ops,
     config.setOffsetCommitCallback(Callbacks::handleOffsetCommit);
     config.setRebalanceCallback(Callbacks::handleRebalance);
     config.assignInitialPartitions(strategy, std::move(partitions));
+    ConnectorConfiguration connConfig({
+        {ConnectorConfiguration::Options::pollIntervalMs, 10}
+    });
     ConfigurationBuilder builder;
-    builder(config);
+    builder(config)(connConfig);
     return {builder, dispatcher()};
 }
 

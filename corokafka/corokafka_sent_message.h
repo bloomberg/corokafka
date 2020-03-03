@@ -17,7 +17,7 @@
 #define BLOOMBERG_COROKAFKA_SENT_MESSAGE_H
 
 #include <corokafka/corokafka_message.h>
-#include <cppkafka/macros.h>
+#include <corokafka/corokafka_utils.h>
 
 namespace Bloomberg {
 namespace corokafka {

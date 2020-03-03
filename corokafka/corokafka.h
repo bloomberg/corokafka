@@ -49,6 +49,10 @@
 #include <corokafka/corokafka_type_erased_deserializer.h>
 #include <corokafka/corokafka_utils.h>
 #include <corokafka/detail/corokafka_macros.h>
+#include <corokafka/third_party/cppkafka/buffered_producer.h>
+#include <corokafka/third_party/cppkafka/cppkafka.h>
+#include <corokafka/third_party/cppkafka/poll_strategy_base.h>
+#include <corokafka/third_party/cppkafka/round_robin_poll_strategy.h>
 #include <corokafka/utils/corokafka_interval_set.h>
 #include <corokafka/utils/corokafka_json_builder.h>
 #include <corokafka/utils/corokafka_offset_manager.h>

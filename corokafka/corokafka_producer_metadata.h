@@ -18,6 +18,9 @@
 
 #include <corokafka/corokafka_metadata.h>
 #include <corokafka/corokafka_message.h>
+#ifndef COROKAFKA_DO_NOT_USE_MODIFIED_CPPKAFKA
+#include <corokafka/third_party/cppkafka/buffered_producer.h>
+#endif
 
 namespace Bloomberg {
 namespace corokafka {

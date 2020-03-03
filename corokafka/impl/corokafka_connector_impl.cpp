@@ -28,8 +28,7 @@ ConnectorImpl::ConnectorImpl(const ConfigurationBuilder& builder,
     ConsumerManager(dispatcher, _config, builder.consumerConfigurations()),
     _config(builder.connectorConfiguration()),
     _dispatcher(dispatcher),
-    _pollThread(std::bind(&ConnectorImpl::poll, this)),
-    _postThread(std::bind(&ConnectorImpl::post, this))
+    _pollThread(std::bind(&ConnectorImpl::poll, this))
 {
     maxMessageBuilderOutputLength() = _config.getMaxMessagePayloadOutputLength();
 }
@@ -40,8 +39,7 @@ ConnectorImpl::ConnectorImpl(ConfigurationBuilder&& builder,
     ConsumerManager(dispatcher, _config, std::move(builder.consumerConfigurations())),
     _config(std::move(builder.connectorConfiguration())),
     _dispatcher(dispatcher),
-    _pollThread(std::bind(&ConnectorImpl::poll, this)),
-    _postThread(std::bind(&ConnectorImpl::post, this))
+    _pollThread(std::bind(&ConnectorImpl::poll, this))
 {
     maxMessageBuilderOutputLength() = _config.getMaxMessagePayloadOutputLength();
 }
@@ -67,18 +65,6 @@ void ConnectorImpl::shutdown(bool drain,
             }
         }
         
-        // Wait on the posting thread
-        try {
-            _postThread.join();
-        }
-        catch (const std::system_error& ex) {
-            if (_config.getLogCallback()) {
-                std::ostringstream oss;
-                oss << "Joining on post thread failed with error: " << ex.what();
-                _config.getLogCallback()(cppkafka::LogLevel::LogErr, "corokafka", oss.str());
-            }
-        }
-        
         if (drain) {
             if (drainTimeout.count() < 0) {
                 drainTimeout = std::chrono::milliseconds::zero();
@@ -90,7 +76,7 @@ void ConnectorImpl::shutdown(bool drain,
 
 void ConnectorImpl::poll()
 {
-    while(!_shuttingDown) {
+    while (!_shuttingDown) {
         auto start = std::chrono::high_resolution_clock::now();
         try {
             ProducerManager::poll(); //flush the producers
@@ -109,22 +95,8 @@ void ConnectorImpl::poll()
             std::this_thread::sleep_for(_config.getPollInterval()-duration);
         }
     }
-}
-
-void ConnectorImpl::post()
-{
-    while(!_shuttingDown) {
-        try {
-            ProducerManager::post(); //flush the internal async producer queue
-        }
-        catch (const std::exception& ex) {
-            if (_config.getLogCallback()) {
-                std::ostringstream oss;
-                oss << "Caught exception while posting: " << ex.what();
-                _config.getLogCallback()(cppkafka::LogLevel::LogErr, "corokafka", oss.str());
-            }
-        }
-    }
+    ProducerManager::pollEnd();
+    ConsumerManager::pollEnd();
 }
 
 }}

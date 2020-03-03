@@ -93,7 +93,7 @@ private:
     
     template <typename PARTITIONS>
     cppkafka::Error commit(const PARTITIONS& partitions,
-                           bool sync);
+                           bool forceSync);
     // Members
     corokafka::ConsumerManager&     _consumerManager;
     TopicMap                        _topicMap;
@@ -123,19 +123,9 @@ private:
 // Implementations
 template <typename PARTITIONS>
 cppkafka::Error OffsetManager::commit(const PARTITIONS& partitions,
-                                      bool sync)
+                                      bool forceSync)
 {
-    auto ctx = quantum::local::context();
-    if (sync && ctx) {
-        //post to IO thread pool and yield
-        return ctx->postAsyncIo([this, &partitions, sync]()->cppkafka::Error {
-            return _consumerManager.commit(partitions, nullptr, sync);
-        })->get(ctx);
-    }
-    else {
-        //Async commit so we don't need to dispatch
-        return _consumerManager.commit(partitions, nullptr, sync);
-    }
+    return _consumerManager.commit(partitions, nullptr, forceSync);
 }
 
 }}
