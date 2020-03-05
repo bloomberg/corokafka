@@ -199,7 +199,7 @@ private:
     quantum::Dispatcher&        _dispatcher;
     Consumers                   _consumers;
     std::atomic_flag            _shutdownInitiated{0};
-    std::chrono::milliseconds   _shutdownIoWaitTimeoutMs;
+    std::chrono::milliseconds   _shutdownIoWaitTimeoutMs{2000};
 };
 
 }}

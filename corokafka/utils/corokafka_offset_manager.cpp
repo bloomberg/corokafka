@@ -15,6 +15,7 @@
 */
 #include <corokafka/utils/corokafka_offset_manager.h>
 #include <corokafka/corokafka_utils.h>
+#include <corokafka/corokafka_metadata.h>
 
 namespace Bloomberg {
 namespace corokafka {
@@ -27,17 +28,94 @@ OffsetManager::OffsetManager(corokafka::ConsumerManager& consumerManager) :
     for (auto&& topic : topics) {
         bool syncCommit = false;
         PartitionMap& partitionMap = _topicMap[topic];
-        const cppkafka::ConfigurationOption* commitExec =
-            consumerManager.getConfiguration(topic).getOption(ConsumerConfiguration::Options::commitExec);
+        const ConsumerConfiguration& config = consumerManager.getConfiguration(topic);
+        //Check if we are committing synchronously
+        const cppkafka::ConfigurationOption* commitExec = config.getOption(ConsumerConfiguration::Options::commitExec);
         if (commitExec && StringEqualCompare()(commitExec->get_value(), "sync")) {
             syncCommit = true;
         }
-        cppkafka::TopicPartitionList committedOffsets = consumerManager.getMetadata(topic).queryCommittedOffsets();
-        for (const cppkafka::TopicPartition partition : committedOffsets) {
-            OffsetsRanges& ranges = partitionMap[partition.get_partition()];
-            ranges._beginOffset = ranges._currentOffset = partition.get_offset();
-            ranges._syncCommit = syncCommit;
+        bool autoResetAtEnd = true;
+        const cppkafka::ConfigurationOption* offsetReset = config.getOption("auto.offset.reset");
+        if (offsetReset && StringEqualCompare()(commitExec->get_value(), "smallest")) {
+            autoResetAtEnd = false;
         }
+        else if (offsetReset && StringEqualCompare()(commitExec->get_value(), "earliest")) {
+            autoResetAtEnd = false;
+        }
+        else if (offsetReset && StringEqualCompare()(commitExec->get_value(), "beginning")) {
+            autoResetAtEnd = false;
+        }
+        ConsumerMetadata metadata = consumerManager.getMetadata(topic);
+        cppkafka::TopicPartitionList committedOffsets = metadata.queryCommittedOffsets();
+        Metadata::OffsetWatermarkList watermarks = metadata.queryOffsetWatermarks();
+        const cppkafka::TopicPartitionList& assignment = metadata.getPartitionAssignment();
+
+        //Get initial partition assignment
+        for (const cppkafka::TopicPartition& toppar : assignment) {
+            setStartingOffset(toppar.get_offset(),
+                              partitionMap[toppar.get_partition()],
+                              findPartition(committedOffsets, toppar.get_partition()),
+                              findWatermark(watermarks, toppar.get_partition()),
+                              syncCommit,
+                              autoResetAtEnd);
+        }
+    }
+}
+
+const cppkafka::TopicPartition& OffsetManager::findPartition(const cppkafka::TopicPartitionList& partitions, int partition)
+{
+    static cppkafka::TopicPartition notFound;
+    for (const auto& toppar : partitions) {
+        if (toppar.get_partition() == partition) {
+            return toppar;
+        }
+    }
+    return notFound;
+}
+
+const OffsetWatermark& OffsetManager::findWatermark(const Metadata::OffsetWatermarkList& watermarks, int partition)
+{
+    static OffsetWatermark notFound;
+    for (const auto& watermark : watermarks) {
+        if (watermark._partition == partition) {
+            return watermark;
+        }
+    }
+    return notFound;
+}
+
+void OffsetManager::setStartingOffset(int64_t offset,
+                                      OffsetsRanges &ranges,
+                                      const cppkafka::TopicPartition& committedOffset,
+                                      const OffsetWatermark& watermark,
+                                      bool syncCommit,
+                                      bool autoResetAtEnd)
+{
+    switch (offset) {
+        case cppkafka::TopicPartition::Offset::OFFSET_STORED:
+        case cppkafka::TopicPartition::Offset::OFFSET_INVALID:
+            //populate from committed offsets if any, otherwise from watermark
+            if (committedOffset.get_offset() >= 0) {
+                ranges._beginOffset = ranges._currentOffset = committedOffset.get_offset() + 1;
+            }
+            else {
+                ranges._beginOffset = ranges._currentOffset =
+                        autoResetAtEnd ? watermark._watermark._high + 1 : watermark._watermark._low + 1;
+            }
+            break;
+        case cppkafka::TopicPartition::Offset::OFFSET_BEGINNING:
+            ranges._beginOffset = ranges._currentOffset = watermark._watermark._low + 1;
+            break;
+        case cppkafka::TopicPartition::Offset::OFFSET_END:
+            ranges._beginOffset = ranges._currentOffset = watermark._watermark._high + 1;
+            break;
+        default:
+            if (offset < RD_KAFKA_OFFSET_TAIL_BASE) {
+                //rewind from high watermark
+                ranges._beginOffset = ranges._currentOffset =
+                        watermark._watermark._high - (RD_KAFKA_OFFSET_TAIL_BASE - offset) + 1;
+            }
+            break;
     }
 }
 

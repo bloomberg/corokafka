@@ -64,7 +64,7 @@ struct ProducerTopicEntry : public Interruptible {
     {}
     ProducerTopicEntry(const ProducerTopicEntry&) = delete;
     ProducerTopicEntry(ProducerTopicEntry&& other) :
-        _connectorConfiguration(other._connectorConfiguration),
+        _connectorConfiguration(std::move(other._connectorConfiguration)),
         _configuration(std::move(other._configuration)),
         _producer(std::move(other._producer)),
         _numIoThreads(std::move(other._numIoThreads)),
@@ -72,7 +72,7 @@ struct ProducerTopicEntry : public Interruptible {
         _ioTracker(std::move(other._ioTracker))
     {}
     
-    const ConnectorConfiguration&       _connectorConfiguration;
+    const ConnectorConfiguration        _connectorConfiguration;
     const ProducerConfiguration         _configuration;
     ProducerPtr                         _producer;
     int                                 _numIoThreads;

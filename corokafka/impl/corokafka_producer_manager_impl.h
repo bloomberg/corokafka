@@ -186,7 +186,7 @@ private:
     Producers                   _producers;
     std::atomic_flag            _shutdownInitiated{0};
     std::deque<MessageFuture>   _messageQueue;
-    std::chrono::milliseconds   _shutdownIoWaitTimeoutMs;
+    std::chrono::milliseconds   _shutdownIoWaitTimeoutMs{2000};
 };
 
 template <typename BufferType>

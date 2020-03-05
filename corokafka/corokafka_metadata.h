@@ -23,15 +23,16 @@ namespace Bloomberg {
 namespace corokafka {
 
 struct OffsetWatermark {
+    OffsetWatermark() = default;
     OffsetWatermark(int partition,
                     cppkafka::KafkaHandleBase::OffsetTuple watermark) :
         _partition(partition),
        _watermark{std::get<0>(watermark), std::get<1>(watermark)}
     {}
-    int _partition;
+    int _partition{RD_KAFKA_PARTITION_UA};
     struct {
-        int64_t _low;
-        int64_t _high;
+        int64_t _low{RD_KAFKA_OFFSET_INVALID};
+        int64_t _high{RD_KAFKA_OFFSET_INVALID};
     } _watermark;
 };
 

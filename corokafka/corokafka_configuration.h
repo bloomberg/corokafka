@@ -83,7 +83,7 @@ protected:
         static constexpr const char* enableIdempotence =        "enable.idempotence";
         static constexpr const char* enablePartitionEof =       "enable.partition.eof";
     };
-    
+
     using OptionExtractorFunc = std::function<bool(const std::string& topic,
                                                    const cppkafka::ConfigurationOption*,
                                                    void*)>;

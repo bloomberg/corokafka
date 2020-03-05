@@ -138,6 +138,7 @@ public:
      * @remark This call is blocking until it succeeds or the last retry failed.
      * @remark If commit() is not called explicitly, it will be called by ~ReceivedMessage() if
      *         'internal.consumer.auto.offset.persist=true'.
+     * @remark This will actually commit (or store) the message offset + 1.
      */
     cppkafka::Error commit(const void* opaque = nullptr);
     /**
