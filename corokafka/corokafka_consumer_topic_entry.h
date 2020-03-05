@@ -79,7 +79,7 @@ struct ConsumerTopicEntry : public Interruptible {
     {}
     ConsumerTopicEntry(const ConsumerTopicEntry&) = delete;
     ConsumerTopicEntry(ConsumerTopicEntry&& other) :
-        _connectorConfiguration(other._connectorConfiguration),
+        _connectorConfiguration(std::move(other._connectorConfiguration)),
         _configuration(std::move(other._configuration)),
         _consumer(std::move(other._consumer)),
         _partitionAssignment(std::move(other._partitionAssignment)),
@@ -90,7 +90,7 @@ struct ConsumerTopicEntry : public Interruptible {
     {}
     
     //Members
-    const ConnectorConfiguration&   _connectorConfiguration;
+    const ConnectorConfiguration    _connectorConfiguration;
     const ConsumerConfiguration     _configuration;
     ConsumerPtr                     _consumer;
     cppkafka::Queue                 _eventQueue; //queue event polling

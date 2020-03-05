@@ -5,6 +5,8 @@ namespace Bloomberg {
 namespace corokafka {
 namespace tests {
 
+std::shared_ptr<OffsetManager> offsetManagerPtr;
+
 //callback implementations
 void Callbacks::handleKafkaError(const Metadata& metadata,
                                  cppkafka::Error error,
@@ -99,6 +101,8 @@ void Callbacks::handleOffsetCommit(const ConsumerMetadata &metadata,
     callbackCounters()._offsetCommit++;
     for (auto&& part : topicPartitions) {
         if (part.get_offset() != (int)OffsetPoint::Invalid) {
+            //We decrement by one since RdKafka always commits the message offset + 1.
+            //Otherwise we won't be able to match the received message offsets and the committed ones.
             callbackCounters()._offsetCommitPartitions[part] = part.get_offset()-1;
         }
     }
@@ -175,7 +179,17 @@ void Callbacks::messageReceiverWithHeaders(TopicWithHeaders::ReceivedMessageType
 
 void Callbacks::messageReceiverWithHeadersManualCommit(TopicWithHeaders::ReceivedMessageType message)
 {
-    message.commit();
+    if (message && !message.isEof()) {
+        message.commit();
+    }
+    messageReceiverWithHeaders(std::move(message));
+}
+
+void Callbacks::messageReceiverWithHeadersUsingCommitGuard(TopicWithHeaders::ReceivedMessageType message)
+{
+    if (message && !message.isEof()) {
+        OffsetCommitGuard guard(*offsetManagerPtr, message, true);
+    }
     messageReceiverWithHeaders(std::move(message));
 }
 

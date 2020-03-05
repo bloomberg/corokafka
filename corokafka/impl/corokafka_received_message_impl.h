@@ -327,7 +327,17 @@ cppkafka::Error ReceivedMessage<KEY,PAYLOAD,HEADERS>::doCommit()
         }
         if (_offsetSettings._autoOffsetPersistStrategy == OffsetPersistStrategy::Commit) {
             if (_offsetSettings._autoCommitExec== ExecMode::Sync) {
-                _committer.commit(_message);
+                auto ctx = quantum::local::context();
+                if (ctx) {
+                    //Start an IO task and wait on it to complete
+                    ctx->postAsyncIo([this]()->int{
+                        _committer.commit(_message);
+                        return 0;
+                    })->get(ctx);
+                }
+                else {
+                    _committer.commit(_message);
+                }
             }
             else { // async
                 _committer.get_consumer().async_commit(_message);

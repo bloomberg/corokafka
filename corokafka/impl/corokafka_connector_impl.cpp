@@ -24,8 +24,8 @@ namespace corokafka {
 
 ConnectorImpl::ConnectorImpl(const ConfigurationBuilder& builder,
                              quantum::Dispatcher& dispatcher) :
-    ProducerManager(dispatcher, _config, builder.producerConfigurations()),
-    ConsumerManager(dispatcher, _config, builder.consumerConfigurations()),
+    ProducerManager(dispatcher, builder.connectorConfiguration(), builder.producerConfigurations()),
+    ConsumerManager(dispatcher, builder.connectorConfiguration(), builder.consumerConfigurations()),
     _config(builder.connectorConfiguration()),
     _dispatcher(dispatcher),
     _pollThread(std::bind(&ConnectorImpl::poll, this))
@@ -35,8 +35,8 @@ ConnectorImpl::ConnectorImpl(const ConfigurationBuilder& builder,
 
 ConnectorImpl::ConnectorImpl(ConfigurationBuilder&& builder,
                              quantum::Dispatcher& dispatcher) :
-    ProducerManager(dispatcher, _config, std::move(builder.producerConfigurations())),
-    ConsumerManager(dispatcher, _config, std::move(builder.consumerConfigurations())),
+    ProducerManager(dispatcher, builder.connectorConfiguration(), std::move(builder.producerConfigurations())),
+    ConsumerManager(dispatcher, builder.connectorConfiguration(), std::move(builder.consumerConfigurations())),
     _config(std::move(builder.connectorConfiguration())),
     _dispatcher(dispatcher),
     _pollThread(std::bind(&ConnectorImpl::poll, this))

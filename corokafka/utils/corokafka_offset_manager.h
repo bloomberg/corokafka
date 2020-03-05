@@ -18,12 +18,17 @@
 
 #include <corokafka/utils/corokafka_interval_set.h>
 #include <corokafka/corokafka_consumer_manager.h>
+#include <corokafka/corokafka_received_message.h>
 #include <quantum/quantum.h>
 #include <unordered_map>
 
 namespace Bloomberg {
 namespace corokafka {
 
+/// @brief The OffsetManager class helps commit offsets in a concurrent environment
+///        by guaranteeing gapless ordering. When offsets are consumed on multiple
+///        threads, some messages may be processed out-of-order and committing them
+///        before others may result in message loss should a crash occur.
 class OffsetManager
 {
 public:
@@ -38,11 +43,19 @@ public:
     OffsetManager(corokafka::ConsumerManager& consumerManager);
     
     /// @brief Saves an offset to be committed later and potentially commits a range of offsets if it became available.
-    /// @param offset The offset to be saved.
-    /// @param ctx A coroutine synchronization context if this method is called from within a coroutine.
+    /// @param offset The partition containing the offset to be saved.
     /// @param forceSync Force synchronous commits regardless of 'internal.consumer.commit.exec' consumer setting.
     /// @returns Error.
     cppkafka::Error saveOffset(const cppkafka::TopicPartition& offset,
+                               bool forceSync = false) noexcept;
+
+    /// @brief Saves an offset to be committed later and potentially commits a range of offsets if it became available.
+    /// @param message The message whose offset we want to commit.
+    /// @param forceSync Force synchronous commits regardless of 'internal.consumer.commit.exec' consumer setting.
+    /// @returns Error.
+    /// @remark Note that this will actually commit ReceivedMessage::getOffset()+1
+    template <typename KEY, typename PAYLOAD, typename HEADERS>
+    cppkafka::Error saveOffset(const ReceivedMessage<KEY,PAYLOAD,HEADERS>& message,
                                bool forceSync = false) noexcept;
     
     /// @brief Returns the smallest offset which is yet to be committed.
@@ -63,7 +76,7 @@ public:
     /// @warning Messages may be lost if the committed offsets were not yet complete and the application crashes.
     cppkafka::Error forceCommit(bool forceSync = false);
     cppkafka::Error forceCommit(const cppkafka::TopicPartition& partition,
-                                 bool forceSync = false);
+                                bool forceSync = false);
     
     /// @brief Commit the lowest offset range as if by calling `saveOffset(getCurrentOffset(partition))`. This will
     ///        either commit the current offset or any range resulting by merging with the current offset.
@@ -73,7 +86,7 @@ public:
     /// @warning Messages may be lost if the committed offsets were not yet complete and the application crashes.
     cppkafka::Error forceCommitCurrentOffset(bool forceSync = false);
     cppkafka::Error forceCommitCurrentOffset(const cppkafka::TopicPartition& partition,
-                                              bool forceSync = false);
+                                             bool forceSync = false);
 private:
     using OffsetMap = IntervalSet<int64_t>;
     using InsertReturnType = OffsetMap::InsertReturnType;
@@ -89,34 +102,74 @@ private:
     using TopicMap = std::unordered_map<std::string, PartitionMap>;
     
     Range<int64_t> insertOffset(OffsetsRanges& ranges,
-                                           int64_t offset);
+                                int64_t offset);
     
     template <typename PARTITIONS>
     cppkafka::Error commit(const PARTITIONS& partitions,
                            bool forceSync);
+
+    void setStartingOffset(int64_t offset,
+                           OffsetsRanges &ranges,
+                           const cppkafka::TopicPartition& committedOffset,
+                           const OffsetWatermark& watermark,
+                           bool syncCommit,
+                           bool autoResetEnd);
+
+    const cppkafka::TopicPartition& findPartition(const cppkafka::TopicPartitionList& partitions,
+                                                  int partition);
+    const OffsetWatermark& findWatermark(const Metadata::OffsetWatermarkList& watermarks,
+                                         int partition);
+
     // Members
     corokafka::ConsumerManager&     _consumerManager;
     TopicMap                        _topicMap;
 };
 
+// Implementation
+template <typename KEY, typename PAYLOAD, typename HEADERS>
+cppkafka::Error OffsetManager::saveOffset(const ReceivedMessage<KEY,PAYLOAD,HEADERS>& message,
+                                          bool forceSync) noexcept {
+    return saveOffset({message.getTopic(), message.getPartition(), message.getOffset()+1}, forceSync);
+}
+
+/// @brief RAII-type class for committing an offset within a scope.
 class OffsetCommitGuard
 {
 public:
+    /// @brief Saves an offset locally to be committed when this object goes out of scope.
+    /// @param om The offset manager reference.
+    /// @param offset The offset to be committed.
+    /// @param forceSync Force synchronous commit even though the setting for this topic is async.
     OffsetCommitGuard(OffsetManager& om,
-                      const cppkafka::TopicPartition& offset,
+                      cppkafka::TopicPartition offset,
                       bool forceSync = false) :
         _om(om),
-        _offset(offset),
+        _offset(std::move(offset)),
         _forceSync(forceSync)
     {}
 
+    /// @brief Saves an offset locally to be committed when this object goes out of scope.
+    /// @param om The offset manager reference.
+    /// @param message The message whose offset we want to commit.
+    /// @param forceSync Force synchronous commit even though the setting for this topic is async.
+    /// @remark Note that this will actually commit ReceivedMessage::getOffset()+1
+    template <typename KEY, typename PAYLOAD, typename HEADERS>
+    OffsetCommitGuard(OffsetManager& om,
+                      const ReceivedMessage<KEY,PAYLOAD,HEADERS>& message,
+                      bool forceSync = false) :
+            _om(om),
+            _offset(message.getTopic(), message.getPartition(), message.getOffset()+1),
+            _forceSync(forceSync)
+    {}
+
+    /// @brief Destructor. This will attempt to commit the offset.
     ~OffsetCommitGuard()
     {
         _om.saveOffset(_offset, _forceSync);
     }
 private:
     OffsetManager&                      _om;
-    const cppkafka::TopicPartition&     _offset;
+    const cppkafka::TopicPartition      _offset;
     bool                                _forceSync;
 };
 

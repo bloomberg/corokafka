@@ -5,6 +5,7 @@
 #include <corokafka_tests_topics.h>
 #include <map>
 #include <atomic>
+#include <memory>
 
 namespace Bloomberg {
 namespace corokafka {
@@ -46,7 +47,7 @@ struct CallbackCounters
     int _deliveryReport{0};
     int _partitioner{0};
     int _queueFull{0};
-    int _offsetCommit{0};
+    std::atomic_int _offsetCommit{0};
     std::map<cppkafka::TopicPartition, int> _offsetCommitPartitions;
     int _assign{0};
     int _revoke{0};
@@ -124,6 +125,8 @@ struct Callbacks
     static void messageReceiverWithHeaders(TopicWithHeaders::ReceivedMessageType message);
     
     static void messageReceiverWithHeadersManualCommit(TopicWithHeaders::ReceivedMessageType message);
+
+    static void messageReceiverWithHeadersUsingCommitGuard(TopicWithHeaders::ReceivedMessageType message);
     
     static void messageReceiverWithoutHeaders(TopicWithoutHeaders::ReceivedMessageType message);
     
@@ -131,6 +134,8 @@ struct Callbacks
                                 cppkafka::Error error,
                                 cppkafka::TopicPartitionList& topicPartitions);
 };
+
+extern std::shared_ptr<OffsetManager> offsetManagerPtr;
 
 }}}
 

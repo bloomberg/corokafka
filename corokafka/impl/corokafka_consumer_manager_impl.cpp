@@ -483,11 +483,7 @@ cppkafka::Error ConsumerManagerImpl::commit(const cppkafka::TopicPartition& topi
                                             const void* opaque,
                                             bool forceSync)
 {
-    auto it = _consumers.find(topicPartition.get_topic());
-    if (it == _consumers.end()) {
-        return RD_KAFKA_RESP_ERR_UNKNOWN_TOPIC_OR_PART;
-    }
-    return commitImpl(it->second, cppkafka::TopicPartitionList{topicPartition}, opaque, forceSync);
+    return commit(cppkafka::TopicPartitionList{topicPartition}, opaque, forceSync);
 }
 
 cppkafka::Error ConsumerManagerImpl::commit(const cppkafka::TopicPartitionList& topicPartitions,
@@ -1102,9 +1098,9 @@ void ConsumerManagerImpl::processMessageBatch(quantum::VoidContextPtr ctx,
     if (kafkaMessages.empty()) {
         return; //nothing to do
     }
-    const int numThreads = entry._receiveCallbackThreadRange.second -
-                           entry._receiveCallbackThreadRange.first + 1;
     if (entry._receiverThread == ThreadType::IO) {
+        const int numThreads = entry._receiveCallbackThreadRange.second -
+                               entry._receiveCallbackThreadRange.first + 1;
         if (numThreads == 1) {
             // optimization: no need to spend time on message distribution for a single io queue
             int queueId = mapPartitionToQueue(kafkaMessages.front().get_partition(), entry);
