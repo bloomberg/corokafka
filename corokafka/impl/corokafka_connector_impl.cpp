@@ -66,9 +66,6 @@ void ConnectorImpl::shutdown(bool drain,
         }
         
         if (drain) {
-            if (drainTimeout.count() < 0) {
-                drainTimeout = std::chrono::milliseconds::zero();
-            }
             _dispatcher.drain(drainTimeout, true);
         }
     }
