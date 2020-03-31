@@ -992,7 +992,7 @@ void BufferedProducer<BufferType, Allocator>::do_add_message(BuilderType&& build
     if (queue_kind == QueueKind::Produce &&
         flush_action == FlushAction::DoFlush &&
         (max_buffer_size_ >= 0) &&
-        (max_buffer_size_ <= (ssize_t)get_buffer_size())) {
+        (max_buffer_size_ <= static_cast<ssize_t>(get_buffer_size()))) {
         if (flush_method_ == FlushMethod::Sync) {
             flush();
         }

@@ -26,7 +26,7 @@ ConsumerConfiguration::ConsumerConfiguration(const TOPIC& topic,
                                              Callbacks::ReceiverCallback<TOPIC> receiver) :
     TopicConfiguration(KafkaType::Consumer, topic.topic(), std::move(options), std::move(topicOptions)),
     _typeErasedDeserializer(topic),
-    _receiver(new ConcreteReceiver<TOPIC>(std::move(receiver)))
+    _receiver(std::make_shared<ConcreteReceiver<TOPIC>>(std::move(receiver)))
 {
     static_assert(TOPIC::isSerializable(), "Topic contains types which are not serializable");
 }
@@ -38,21 +38,9 @@ ConsumerConfiguration::ConsumerConfiguration(const TOPIC& topic,
                                              Callbacks::ReceiverCallback<TOPIC> receiver) :
     TopicConfiguration(KafkaType::Consumer, topic.topic(), std::move(options), std::move(topicOptions)),
     _typeErasedDeserializer(topic),
-    _receiver(new ConcreteReceiver<TOPIC>(std::move(receiver)))
+    _receiver(std::make_shared<ConcreteReceiver<TOPIC>>(std::move(receiver)))
 {
     static_assert(TOPIC::isSerializable(), "Topic contains types which are not serializable");
-}
-
-template <typename TOPIC>
-void ConsumerConfiguration::setReceiverCallback(const TOPIC& topic,
-                                                Callbacks::ReceiverCallback<TOPIC> receiver)
-{
-    static_assert(TOPIC::isSerializable(), "Topic contains types which are not serializable");
-    if (_receiver) {
-        throw ConfigurationException(getTopic(), "Receiver callback is already set");
-    }
-    _typeErasedDeserializer = {topic};
-    _receiver.reset(new ConcreteReceiver<TOPIC>(std::move(receiver)));
 }
 
 template <typename TOPIC>

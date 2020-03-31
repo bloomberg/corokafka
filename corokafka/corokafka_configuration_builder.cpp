@@ -23,38 +23,42 @@
 namespace Bloomberg {
 namespace corokafka {
 
-ConfigurationBuilder& ConfigurationBuilder::operator()(const TopicConfiguration& config)
+ConfigurationBuilder& ConfigurationBuilder::operator()(const ProducerConfiguration& config)
 {
     std::string topic(config.getTopic());
-    if (config.configType() == KafkaType::Producer) {
-        auto result = _producerConfigurations.emplace(topic, static_cast<const ProducerConfiguration&>(config));
-        if (!result.second) {
-            throw InvalidArgumentException(0, "Duplicate producer configuration found");
-        }
-    }
-    else {
-        auto result = _consumerConfigurations.emplace(topic, static_cast<const ConsumerConfiguration&>(config));
-        if (!result.second) {
-            throw InvalidArgumentException(0, "Duplicate consumer configuration found");
-        }
+    auto result = _producerConfigurations.emplace(topic, config);
+    if (!result.second) {
+        throw InvalidArgumentException(0, "Duplicate producer configuration found");
     }
     return *this;
 }
 
-ConfigurationBuilder& ConfigurationBuilder::operator()(TopicConfiguration&& config)
+ConfigurationBuilder& ConfigurationBuilder::operator()(ProducerConfiguration&& config)
 {
     std::string topic(config.getTopic());
-    if (config.configType() == KafkaType::Producer) {
-        auto result = _producerConfigurations.emplace(topic, std::move(static_cast<ProducerConfiguration&&>(config)));
-        if (!result.second) {
-            throw InvalidArgumentException(0, "Duplicate producer configuration found");
-        }
+    auto result = _producerConfigurations.emplace(topic, std::move(config));
+    if (!result.second) {
+        throw InvalidArgumentException(0, "Duplicate producer configuration found");
     }
-    else {
-        auto result = _consumerConfigurations.emplace(topic, std::move(static_cast<ConsumerConfiguration&&>(config)));
-        if (!result.second) {
-            throw InvalidArgumentException(0, "Duplicate consumer configuration found");
-        }
+    return *this;
+}
+
+ConfigurationBuilder& ConfigurationBuilder::operator()(const ConsumerConfiguration& config)
+{
+    std::string topic(config.getTopic());
+    auto result = _consumerConfigurations.emplace(topic, config);
+    if (!result.second) {
+        throw InvalidArgumentException(0, "Duplicate consumer configuration found");
+    }
+    return *this;
+}
+
+ConfigurationBuilder& ConfigurationBuilder::operator()(ConsumerConfiguration&& config)
+{
+    std::string topic(config.getTopic());
+    auto result = _consumerConfigurations.emplace(topic, std::move(config));
+    if (!result.second) {
+        throw InvalidArgumentException(0, "Duplicate consumer configuration found");
     }
     return *this;
 }

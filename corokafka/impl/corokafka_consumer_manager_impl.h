@@ -16,68 +16,75 @@
 #ifndef BLOOMBERG_COROKAFKA_CONSUMER_MANAGER_IMPL_H
 #define BLOOMBERG_COROKAFKA_CONSUMER_MANAGER_IMPL_H
 
-#include <unordered_map>
-#include <atomic>
-#include <list>
-#include <quantum/quantum.h>
 #include <corokafka/corokafka_metadata.h>
 #include <corokafka/corokafka_configuration_builder.h>
 #include <corokafka/corokafka_callbacks.h>
 #include <corokafka/corokafka_consumer_topic_entry.h>
 #include <corokafka/corokafka_utils.h>
+#include <quantum/quantum.h>
 #include <boost/any.hpp>
+#include <unordered_map>
+#include <atomic>
+#include <list>
 
 namespace Bloomberg {
 namespace corokafka {
 
 using MessageContainer = quantum::Buffer<cppkafka::Message>;
 
-class ConsumerManagerImpl : public Interruptible
+class ConsumerManagerImpl
 {
-    friend class ConsumerManager;
 public:
-    ~ConsumerManagerImpl();
-    
-private:
     using ConfigMap = ConfigurationBuilder::ConfigMap<ConsumerConfiguration>;
     using ReceivedBatch = std::vector<std::tuple<cppkafka::Message, DeserializedMessage>>;
     
     ConsumerManagerImpl(quantum::Dispatcher& dispatcher,
-                        const ConnectorConfiguration& connectorConfiguration,
-                        const ConfigMap& configs);
+                        ConnectorConfiguration connectorConfiguration,
+                        const ConfigMap& configs,
+                        std::atomic_bool& interrupt);
     ConsumerManagerImpl(quantum::Dispatcher& dispatcher,
-                        const ConnectorConfiguration& connectorConfiguration,
-                        ConfigMap&& configs);
+                        ConnectorConfiguration connectorConfiguration,
+                        ConfigMap&& configs,
+                        std::atomic_bool& interrupt);
+    
+    ~ConsumerManagerImpl();
     
     ConsumerMetadata getMetadata(const std::string& topic);
     
-    void preprocess(bool enable, const std::string& topic);
+    void setPreprocessing(bool enable);
+    
+    void setPreprocessing(const std::string& topic, bool enable);
+    
+    void pause();
     
     void pause(const std::string& topic);
     
+    void resume();
+    
     void resume(const std::string& topic);
     
+    void subscribe(const cppkafka::TopicPartitionList& partitionList);
+    
     void subscribe(const std::string& topic,
                    const cppkafka::TopicPartitionList& partitionList);
     
-    void subscribe(const std::string& topic,
-                   ConsumerTopicEntry& topicEntry,
-                   const cppkafka::TopicPartitionList& partitionList);
+    void unsubscribe();
     
     void unsubscribe(const std::string& topic);
     
     cppkafka::Error commit(const cppkafka::TopicPartition& topicPartition,
-                           const void* opaque,
-                           bool forceSync);
+                           const void* opaque);
+    
+    cppkafka::Error commit(const cppkafka::TopicPartition& topicPartition,
+                           ExecMode execMode,
+                           const void* opaque);
     
     cppkafka::Error commit(const cppkafka::TopicPartitionList& topicPartitions,
-                           const void* opaque,
-                           bool forceSync);
+                           ExecMode execMode,
+                           const void* opaque);
     
-    cppkafka::Error commitImpl(ConsumerTopicEntry& topicEntry,
-                               const cppkafka::TopicPartitionList& topicPartitions,
-                               const void* opaque,
-                               bool forceSync);
+    cppkafka::Error commit(const cppkafka::TopicPartitionList& topicPartitions,
+                           const void* opaque);
     
     void shutdown();
     
@@ -90,10 +97,10 @@ private:
     std::vector<std::string> getTopics() const;
     
     //Callbacks
-    static void errorCallback2(ConsumerTopicEntry& topicEntry,
-                               cppkafka::KafkaHandleBase& handle,
-                               int error,
-                               const std::string& reason);
+    static void errorCallbackInternal(ConsumerTopicEntry& topicEntry,
+                                      cppkafka::KafkaHandleBase& handle,
+                                      int error,
+                                      const std::string& reason);
     static void errorCallback(ConsumerTopicEntry& topicEntry,
                               cppkafka::KafkaHandleBase& handle,
                               cppkafka::Error error,
@@ -195,10 +202,24 @@ private:
        }
     };
     
+private:
+    using ConsumerFunc = void(ConsumerType::*)();
+    
+    void pauseImpl(bool pause, ConsumerFunc);
+    
+    void pauseImpl(const std::string& topic, bool pause, ConsumerFunc);
+    
+    static cppkafka::Error commitImpl(ConsumerTopicEntry& entry,
+                                      const cppkafka::TopicPartitionList& topicPartitions,
+                                      ExecMode execMode,
+                                      const void* opaque);
+    
     // Members
     quantum::Dispatcher&        _dispatcher;
+    ConnectorConfiguration      _connectorConfiguration;
     Consumers                   _consumers;
-    std::atomic_flag            _shutdownInitiated{0};
+    std::atomic_bool&           _interrupt;
+    std::atomic_flag            _shutdownInitiated{false};
     std::chrono::milliseconds   _shutdownIoWaitTimeoutMs{2000};
 };
 

@@ -32,10 +32,13 @@ namespace corokafka {
 using namespace std::placeholders;
 
 ProducerManagerImpl::ProducerManagerImpl(quantum::Dispatcher& dispatcher,
-                                         const ConnectorConfiguration& connectorConfiguration,
-                                         const ConfigMap& configs) :
+                                         ConnectorConfiguration connectorConfiguration,
+                                         const ConfigMap& configs,
+                                         std::atomic_bool& interrupt) :
     _dispatcher(dispatcher),
-    _shutdownInitiated{0},
+    _connectorConfiguration(std::move(connectorConfiguration)),
+    _interrupt(interrupt),
+    _shutdownInitiated{false},
     _shutdownIoWaitTimeoutMs(connectorConfiguration.getShutdownIoWaitTimeout())
 {
     //Create a producer for each topic and apply the appropriate configuration
@@ -44,6 +47,7 @@ ProducerManagerImpl::ProducerManagerImpl(quantum::Dispatcher& dispatcher,
         auto it = _producers.emplace(entry.first, ProducerTopicEntry(nullptr,
                                                                      connectorConfiguration,
                                                                      entry.second,
+                                                                     interrupt,
                                                                      _dispatcher.getNumIoThreads()));
         try {
             setup(entry.first, it.first->second);
@@ -58,10 +62,13 @@ ProducerManagerImpl::ProducerManagerImpl(quantum::Dispatcher& dispatcher,
 }
 
 ProducerManagerImpl::ProducerManagerImpl(quantum::Dispatcher& dispatcher,
-                                         const ConnectorConfiguration& connectorConfiguration,
-                                         ConfigMap&& configs) :
+                                         ConnectorConfiguration connectorConfiguration,
+                                         ConfigMap&& configs,
+                                         std::atomic_bool& interrupt) :
     _dispatcher(dispatcher),
-    _shutdownInitiated{0},
+    _connectorConfiguration(std::move(connectorConfiguration)),
+    _interrupt(interrupt),
+    _shutdownInitiated{false},
     _shutdownIoWaitTimeoutMs(connectorConfiguration.getShutdownIoWaitTimeout())
 {
     // Create a producer for each topic and apply the appropriate configuration
@@ -70,6 +77,7 @@ ProducerManagerImpl::ProducerManagerImpl(quantum::Dispatcher& dispatcher,
         auto it = _producers.emplace(entry.first, ProducerTopicEntry(nullptr,
                                                                      connectorConfiguration,
                                                                      std::move(entry.second),
+                                                                     interrupt,
                                                                      _dispatcher.getNumIoThreads()));
         try {
             setup(entry.first, it.first->second);
@@ -150,7 +158,7 @@ void ProducerManagerImpl::setup(const std::string& topic, ProducerTopicEntry& to
     }
     
     if (topicEntry._configuration.getErrorCallback()) {
-        auto errorFunc = std::bind(&errorCallback2, std::ref(topicEntry), _1, _2, _3);
+        auto errorFunc = std::bind(&errorCallbackInternal, std::ref(topicEntry), _1, _2, _3);
         kafkaConfig.set_error_callback(errorFunc);
     }
     
@@ -197,7 +205,7 @@ void ProducerManagerImpl::setup(const std::string& topic, ProducerTopicEntry& to
     //=======================================================================================
     
     //Create a buffered producer
-    topicEntry._producer.reset(new cppkafka::BufferedProducer<ByteArray>(kafkaConfig));
+    topicEntry._producer = std::make_unique<cppkafka::BufferedProducer<ByteArray>>(kafkaConfig);
     
     //Set internal config options
     size_t internalProducerRetries = 0;
@@ -219,17 +227,17 @@ void ProducerManagerImpl::setup(const std::string& topic, ProducerTopicEntry& to
     }
     
     extract(ProducerConfiguration::Options::waitForAcksTimeoutMs, topicEntry._waitForAcksTimeout);
-    if (topicEntry._waitForAcksTimeout.count() == (int)TimerValues::Disabled) {
+    if (topicEntry._waitForAcksTimeout.count() == EnumValue(TimerValues::Disabled)) {
         topicEntry._waitForAcksTimeout = topicEntry._producer->get_producer().get_timeout();
     }
     
     extract(ProducerConfiguration::Options::flushWaitForAcksTimeoutMs, topicEntry._flushWaitForAcksTimeout);
-    if (topicEntry._flushWaitForAcksTimeout.count() == (int)TimerValues::Disabled) {
+    if (topicEntry._flushWaitForAcksTimeout.count() == EnumValue(TimerValues::Disabled)) {
         topicEntry._flushWaitForAcksTimeout = topicEntry._producer->get_producer().get_timeout();
     }
     
     extract(ProducerConfiguration::Options::pollIoThreadId, topicEntry._pollIoThreadId);
-    if ((int)topicEntry._pollIoThreadId >= _dispatcher.getNumIoThreads()) {
+    if (static_cast<int>(topicEntry._pollIoThreadId) >= _dispatcher.getNumIoThreads()) {
         throw InvalidOptionException(topic, ProducerConfiguration::Options::pollIoThreadId, "Value is out of bounds");
     }
     
@@ -302,7 +310,6 @@ void ProducerManagerImpl::shutdown()
 {
     if (!_shutdownInitiated.test_and_set())
     {
-        _shuttingDown = true;
         //see if we have any IO left
         auto sleepInterval = _shutdownIoWaitTimeoutMs/10;
         while (_shutdownIoWaitTimeoutMs.count() > 0) {
@@ -326,7 +333,6 @@ void ProducerManagerImpl::poll()
     auto now = std::chrono::steady_clock::now();
     for (auto&& producer : _producers) {
         ProducerTopicEntry& entry = producer.second;
-        entry._shuttingDown.store(_shuttingDown.load());
         // Adjust throttling if necessary
         adjustThrottling(entry, now);
         bool pollMessages = !entry._pollFuture ||
@@ -347,7 +353,7 @@ void ProducerManagerImpl::poll()
             }
             else {
                 // Start a poll task and flush messages out synchronously
-                entry._pollFuture = _dispatcher.postAsyncIo((int) entry._pollIoThreadId,
+                entry._pollFuture = _dispatcher.postAsyncIo(static_cast<int>(entry._pollIoThreadId),
                                                             false,
                                                             flushTask,
                                                             entry,
@@ -385,12 +391,13 @@ int32_t ProducerManagerImpl::partitionerCallback(
             (makeMetadata(topicEntry), key, partitionCount);
 }
 
-void ProducerManagerImpl::errorCallback2(
+void ProducerManagerImpl::errorCallbackInternal(
                         ProducerTopicEntry& topicEntry,
                         cppkafka::KafkaHandleBase& handle,
                         int error,
                         const std::string& reason)
 {
+    //call application error callback
     errorCallback(topicEntry, handle, (rd_kafka_resp_err_t)error, reason, nullptr);
 }
 
@@ -508,7 +515,7 @@ void ProducerManagerImpl::queueFullCallback(ProducerTopicEntry& topicEntry,
         ("queue full", topicEntry._configuration.getQueueFullCallback(), &topicEntry._producer->get_producer())
             (makeMetadata(topicEntry), SentMessage(builder,
                                                    RD_KAFKA_RESP_ERR__QUEUE_FULL,
-                                                   static_cast<PackedOpaque*>(builder.user_data())->first));
+                                                   static_cast<PackedOpaque*>(builder.user_data())->_opaque));
     }
 }
 
@@ -522,7 +529,7 @@ void ProducerManagerImpl::report(ProducerTopicEntry& topicEntry,
         errorCallback(topicEntry, topicEntry._producer->get_producer(), error, reason, sendOpaque);
     }
     if (topicEntry._logLevel >= level) {
-        logCallback(topicEntry, topicEntry._producer->get_producer(), (int)level, "corokafka", reason);
+        logCallback(topicEntry, topicEntry._producer->get_producer(), EnumValue(level), "corokafka", reason);
     }
 }
 
@@ -562,29 +569,30 @@ const void* ProducerManagerImpl::setPackedOpaqueFuture(const cppkafka::Message& 
 {
     std::unique_ptr<PackedOpaque> packedOpaque(static_cast<PackedOpaque*>(kafkaMessage.get_user_data()));
     try {
-        packedOpaque->second.set(DeliveryReport(cppkafka::TopicPartition(kafkaMessage.get_topic(),
-                                                                         kafkaMessage.get_partition(),
-                                                                         kafkaMessage.get_offset()),
-                                                kafkaMessage.get_payload().get_size(),
-                                                kafkaMessage.get_error(),
-                                                packedOpaque->first));
+        packedOpaque->_deliveryReportPromise.set(
+                DeliveryReport(cppkafka::TopicPartition(kafkaMessage.get_topic(),
+                                                        kafkaMessage.get_partition(),
+                                                        kafkaMessage.get_offset()),
+                                kafkaMessage.get_payload().get_size(),
+                                kafkaMessage.get_error(),
+                                packedOpaque->_opaque));
     }
     catch (...) {
-        return packedOpaque->first;
+        return packedOpaque->_opaque;
     }
-    return packedOpaque->first;
+    return packedOpaque->_opaque;
 }
 
 const void* ProducerManagerImpl::setPackedOpaqueFuture(const cppkafka::MessageBuilder& builder, cppkafka::Error error)
 {
     std::unique_ptr<PackedOpaque> packedOpaque(static_cast<PackedOpaque*>(builder.user_data()));
-    packedOpaque->second.set(DeliveryReport(cppkafka::TopicPartition(builder.topic(),
-                                                                     builder.partition(),
-                                                                     cppkafka::TopicPartition::OFFSET_INVALID),
-                                            0,
-                                            error,
-                                            packedOpaque->first));
-    return packedOpaque->first;
+    packedOpaque->_deliveryReportPromise.set(
+            DeliveryReport(cppkafka::TopicPartition(builder.topic(),
+                                                    builder.partition()),
+                           0,
+                           error,
+                           packedOpaque->_opaque));
+    return packedOpaque->_opaque;
 }
 
 ProducerManagerImpl::Producers::iterator
@@ -621,7 +629,7 @@ int32_t ProducerManagerImpl::mapKeyToQueue(const uint8_t* obj,
     }
     int rangeSize = topicEntry._syncProducerThreadRange.second - topicEntry._syncProducerThreadRange.first + 1;
     if ((topicEntry._numIoThreads == rangeSize) && !topicEntry._preserveMessageOrder) {
-        return (int)quantum::IQueue::QueueId::Any; //pick any queue
+        return EnumValue(quantum::IQueue::QueueId::Any); //pick any queue
     }
     //select specific queue
     return (result % rangeSize) + topicEntry._syncProducerThreadRange.first;

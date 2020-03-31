@@ -15,6 +15,7 @@
 */
 #include <corokafka/corokafka_header_pack.h>
 #include <corokafka/corokafka_exception.h>
+#include <algorithm>
 
 namespace Bloomberg {
 namespace corokafka {
@@ -55,38 +56,46 @@ HeaderPack& HeaderPack::pop_back() {
     return *this;
 }
 
-void HeaderPack::erase(const std::string& name) {
-    _headers.erase(std::remove_if(_headers.begin(), _headers.end(), [&name](const HeaderNode& entry)->bool {
-        return StringEqualCompare()(entry.first, name);
+void HeaderPack::erase(const std::string& name, size_t relativePosition) {
+    size_t pos = 1;
+    _headers.erase(std::remove_if(_headers.begin(), _headers.end(), [&](const HeaderNode& header)->bool {
+        if (StringEqualCompare()(header.first, name)) {
+            return (relativePosition == 0) || (pos++ == relativePosition);
+        }
+        return false;
     }), _headers.end());
 }
 
-size_t HeaderPack::size() const {
+void HeaderPack::erase(const HeaderPack::ListType::iterator& it) {
+    _headers.erase(it);
+}
+
+size_t HeaderPack::size() const noexcept {
     return _headers.size();
 }
 
-bool HeaderPack::empty() const {
-    return _headers.size() == 0;
+bool HeaderPack::empty() const noexcept {
+    return _headers.empty();
 }
 
-HeaderPack::operator bool() const {
+HeaderPack::operator bool() const noexcept {
     return !empty();
 }
 
 // Iterator access to underlying container
-HeaderPack::ListType::iterator HeaderPack::begin() {
+HeaderPack::ListType::iterator HeaderPack::begin() noexcept {
     return _headers.begin();
 }
 
-HeaderPack::ListType::const_iterator HeaderPack::cbegin() const {
+HeaderPack::ListType::const_iterator HeaderPack::cbegin() const noexcept {
     return _headers.cbegin();
 }
 
-HeaderPack::ListType::iterator HeaderPack::end() {
+HeaderPack::ListType::iterator HeaderPack::end() noexcept {
     return _headers.end();
 }
 
-HeaderPack::ListType::const_iterator HeaderPack::cend() const {
+HeaderPack::ListType::const_iterator HeaderPack::cend() const noexcept {
     return _headers.cend();
 }
 
@@ -99,28 +108,23 @@ std::vector<std::string> HeaderPack::getHeaderNames() const {
     return names;
 }
 
-HeaderPack::ListType::const_iterator HeaderPack::getImpl(const std::string& name, int nameIndex) const {
-    return const_cast<HeaderPack*>(this)->getImpl(name, nameIndex);
+HeaderPack::ListType::const_iterator HeaderPack::getImpl(const std::string& name, size_t relativePosition) const {
+    return const_cast<HeaderPack*>(this)->getImpl(name, relativePosition);
 }
 
-HeaderPack::ListType::iterator HeaderPack::getImpl(const std::string& name, int nameIndex) {
-    if (nameIndex == -1) {
-        return std::find_if(_headers.begin(), _headers.end(), [&](const HeaderNode &header) -> bool {
-            return StringEqualCompare()(header.first, name);
-        });
-    }
-    else {
-        auto it = _headers.begin() + nameIndex;
-        if (!StringEqualCompare()(it->first, name)) {
-            throw InvalidArgumentException(0, "Header name mismatch. Name found is:" + it->first);
+HeaderPack::ListType::iterator HeaderPack::getImpl(const std::string& name, size_t relativePosition) {
+    size_t pos = 1;
+    return std::find_if(_headers.begin(), _headers.end(), [&](const HeaderNode &header) -> bool {
+        if (StringEqualCompare()(header.first, name)) {
+            return (pos++ == relativePosition);
         }
-        return it;
-    }
+        return false;
+    });
 }
 
 HeaderPack::HeaderNode& HeaderPack::operator[](size_t index)
 {
-    return _headers[index];
+    return _headers.at(index);
 }
 
 size_t HeaderPack::numValidHeaders() const {
@@ -131,15 +135,19 @@ size_t HeaderPack::numValidHeaders() const {
     return num;
 }
 
-bool HeaderPack::isValidAt(int index) const
+bool HeaderPack::isValidAt(size_t index) const
 {
     const auto& entry = _headers.at(index);
     return !entry.second.empty();
 }
 
-bool HeaderPack::isValid(const std::string& name, int nameIndex) const
+bool HeaderPack::isValid(const std::string& name, size_t relativePosition) const
 {
-    return !getImpl(name, nameIndex)->second.empty();
+    auto it = getImpl(name, relativePosition);
+    if (it == _headers.end()) {
+        throw InvalidArgumentException(0, "Unknown header name");
+    }
+    return !it->second.empty();
 }
 
 }

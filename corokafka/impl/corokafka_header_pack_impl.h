@@ -30,34 +30,34 @@ HeaderPack& HeaderPack::push_back(const std::string& name, H&& header) {
 }
 
 template <typename H>
-const H& HeaderPack::get(const std::string& name, int nameIndex) const & {
-    return boost::any_cast<const H&>(getImpl(name, nameIndex)->second);
+const H& HeaderPack::get(const std::string& name, size_t relativePosition) const & {
+    return boost::any_cast<const H&>(getImpl(name, relativePosition)->second);
 }
 
 template <typename H>
-H& HeaderPack::get(const std::string& name, int nameIndex) & {
-    return boost::any_cast<H&>(getImpl(name, nameIndex)->second);
+H& HeaderPack::get(const std::string& name, size_t relativePosition) & {
+    return boost::any_cast<H&>(getImpl(name, relativePosition)->second);
 }
 
 template <typename H>
-H&& HeaderPack::get(const std::string& name, int nameIndex) && {
-    return boost::any_cast<H&&>(std::move(getImpl(name, nameIndex)->second));
+H&& HeaderPack::get(const std::string& name, size_t relativePosition) && {
+    return boost::any_cast<H&&>(std::move(getImpl(name, relativePosition)->second));
 }
 
 template <typename H>
-HeaderRef<const H&> HeaderPack::getAt(int index) const & {
+HeaderRef<const H&> HeaderPack::getAt(size_t index) const & {
     const auto& entry = _headers.at(index);
     return HeaderRef<const H&>(entry.first, boost::any_cast<const H&>(entry.second));
 }
 
 template <typename H>
-HeaderRef<H&> HeaderPack::getAt(int index) & {
+HeaderRef<H&> HeaderPack::getAt(size_t index) & {
     auto& entry = _headers.at(index);
     return HeaderRef<H&>(entry.first, boost::any_cast<H&>(entry.second));
 }
 
 template <typename H>
-HeaderRef<H&&> HeaderPack::getAt(int index) && {
+HeaderRef<H&&> HeaderPack::getAt(size_t index) && {
     auto& entry = _headers.at(index);
     return HeaderRef<H&&>(entry.first, boost::any_cast<H&&>(std::move(entry.second)));
 }

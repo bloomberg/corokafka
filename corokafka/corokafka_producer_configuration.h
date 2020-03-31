@@ -65,15 +65,18 @@ public:
     
     /**
      * @brief Create a producer configuration.
+     * @tparam TOPIC Type Topic<KEY,PAYLOAD,HEADERS> which represents this producer.
      * @param topic The topic to which this configuration applies.
      * @param options The producer configuration options (for both RdKafka and CoroKafka).
      * @param topicOptions The topic configuration options (for both RdKafka and CoroKafka).
      * @note 'metadata.broker.list' must be supplied in 'options'.
      */
-    ProducerConfiguration(const std::string& topicName,
+    template <typename TOPIC>
+    ProducerConfiguration(const TOPIC& topicName,
                           OptionList options,
                           OptionList topicOptions);
-    ProducerConfiguration(const std::string& topicName,
+    template <typename TOPIC>
+    ProducerConfiguration(const TOPIC& topicName,
                           OptionInitList options,
                           OptionInitList topicOptions);
     
@@ -125,5 +128,7 @@ private:
 };
 
 }}
+
+#include <corokafka/impl/corokafka_producer_configuration_impl.h>
 
 #endif //BLOOMBERG_COROKAFKA_PRODUCER_CONFIGURATION_H

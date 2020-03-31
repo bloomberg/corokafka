@@ -42,13 +42,13 @@ const Configuration::OptionMap ProducerConfiguration::s_internalOptions = {
     {Options::flushWaitForAcksTimeoutMs, [](const std::string& topic, const cppkafka::ConfigurationOption* option, void* value)->bool {
         if (!option) return false;
         std::chrono::milliseconds temp(Configuration::extractCounterValue(
-            topic, Options::flushWaitForAcksTimeoutMs, *option, (int)TimerValues::Unlimited));
+            topic, Options::flushWaitForAcksTimeoutMs, *option, EnumValue(TimerValues::Unlimited)));
         if (value) *reinterpret_cast<std::chrono::milliseconds*>(value) = temp;
         return true;
     }},
     {Options::pollIoThreadId, [](const std::string& topic, const cppkafka::ConfigurationOption* option, void* value)->bool {
         if (!option) return false;
-        ssize_t temp = Configuration::extractCounterValue(topic, Options::pollIoThreadId, *option, (int)quantum::IQueue::QueueId::Any);
+        ssize_t temp = Configuration::extractCounterValue(topic, Options::pollIoThreadId, *option, EnumValue(quantum::IQueue::QueueId::Any));
         if (value) *reinterpret_cast<int*>(value) = temp;
         return true;
     }},
@@ -112,14 +112,14 @@ const Configuration::OptionMap ProducerConfiguration::s_internalOptions = {
     {Options::timeoutMs, [](const std::string& topic, const cppkafka::ConfigurationOption* option, void* value)->bool{
         if (!option) return false;
         std::chrono::milliseconds temp{Configuration::extractCounterValue(
-            topic, Options::timeoutMs, *option, (int)TimerValues::Unlimited)};
+            topic, Options::timeoutMs, *option, EnumValue(TimerValues::Unlimited))};
         if (value) *reinterpret_cast<std::chrono::milliseconds*>(value) = temp;
         return true;
     }},
     {Options::waitForAcksTimeoutMs, [](const std::string& topic, const cppkafka::ConfigurationOption* option, void* value)->bool{
         if (!option) return false;
         std::chrono::milliseconds temp{Configuration::extractCounterValue(
-            topic, Options::waitForAcksTimeoutMs, *option, (int)TimerValues::Unlimited)};
+            topic, Options::waitForAcksTimeoutMs, *option, EnumValue(TimerValues::Unlimited))};
         if (value) *reinterpret_cast<std::chrono::milliseconds*>(value) = temp;
         return true;
     }},
@@ -140,20 +140,6 @@ const Configuration::OptionMap ProducerConfiguration::s_internalOptions = {
 };
 
 const Configuration::OptionMap ProducerConfiguration::s_internalTopicOptions;
-
-ProducerConfiguration::ProducerConfiguration(const std::string& topicName,
-                                             OptionList options,
-                                             OptionList topicOptions) :
-    TopicConfiguration(KafkaType::Producer, topicName, std::move(options), std::move(topicOptions))
-{
-}
-
-ProducerConfiguration::ProducerConfiguration(const std::string& topicName,
-                                             OptionInitList options,
-                                             OptionInitList topicOptions) :
-    TopicConfiguration(KafkaType::Producer, topicName, std::move(options), std::move(topicOptions))
-{
-}
 
 void ProducerConfiguration::setDeliveryReportCallback(Callbacks::DeliveryReportCallback callback)
 {

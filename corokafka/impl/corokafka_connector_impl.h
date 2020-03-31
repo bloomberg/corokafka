@@ -29,11 +29,11 @@
 namespace Bloomberg {
 namespace corokafka {
 
-class ConnectorImpl : public ProducerManager,
-                      public ConsumerManager,
-                      public Interruptible
+class ConnectorImpl : public Interruptible,
+                      public ProducerManager,
+                      public ConsumerManager
 {
-    friend class Connector;
+public:
     ConnectorImpl(const ConfigurationBuilder& builder,
                   quantum::Dispatcher& dispatcher);
     ConnectorImpl(ConfigurationBuilder&& builder,
@@ -42,12 +42,12 @@ class ConnectorImpl : public ProducerManager,
                   std::chrono::milliseconds drainTimeout);
     void poll();
     
+private:
     // members
     const ConnectorConfiguration    _config;
     quantum::Dispatcher&            _dispatcher;
     std::thread                     _pollThread;
-    std::atomic_flag                _shutdownInitiated{0};
-
+    std::atomic_flag                _shutdownInitiated{false};
 };
 
 }}

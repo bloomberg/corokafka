@@ -15,30 +15,29 @@
 */
 #include <corokafka/impl/corokafka_producer_manager_impl.h>
 #include <corokafka/corokafka_producer_manager.h>
+#include <memory>
 
 namespace Bloomberg {
 namespace corokafka {
 
 ProducerManager::ProducerManager(quantum::Dispatcher& dispatcher,
                                  const ConnectorConfiguration& connectorConfiguration,
-                                 const ConfigMap& config) :
-    _impl(new ProducerManagerImpl(dispatcher, connectorConfiguration, config))
+                                 const ConfigMap& config,
+                                 std::atomic_bool& interrupt) :
+    _impl(std::make_unique<ProducerManagerImpl>(dispatcher, connectorConfiguration, config, interrupt))
 {
 
 }
 
 ProducerManager::ProducerManager(quantum::Dispatcher& dispatcher,
                                  const ConnectorConfiguration& connectorConfiguration,
-                                 ConfigMap&& config) :
-    _impl(new ProducerManagerImpl(dispatcher, connectorConfiguration, std::move(config)))
+                                 ConfigMap&& config,
+                                 std::atomic_bool& interrupt) :
+    _impl(std::make_unique<ProducerManagerImpl>(dispatcher, connectorConfiguration, std::move(config), interrupt))
 {
 
 }
 
-ProducerManager::~ProducerManager()
-{
-
-}
 
 ProducerMetadata ProducerManager::getMetadata(const std::string& topic)
 {

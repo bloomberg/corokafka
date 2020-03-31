@@ -28,7 +28,7 @@ TopicConfiguration::TopicConfiguration(KafkaType type,
     _type(type),
     _topic(topic)
 {
-    _topicOptions[(int)OptionType::All] = std::move(topicOptions);
+    _topicOptions[EnumValue(OptionType::All)] = std::move(topicOptions);
     filterOptions();
 }
 
@@ -36,11 +36,11 @@ TopicConfiguration::TopicConfiguration(KafkaType type,
                                        const std::string& topic,
                                        std::initializer_list<cppkafka::ConfigurationOption> options,
                                        std::initializer_list<cppkafka::ConfigurationOption> topicOptions) :
-    Configuration(std::move(options)),
+    Configuration(options),
     _type(type),
     _topic(topic)
 {
-    _topicOptions[(int)OptionType::All] = std::move(topicOptions);
+    _topicOptions[EnumValue(OptionType::All)] = topicOptions;
     filterOptions();
 }
 
@@ -56,7 +56,7 @@ const std::string& TopicConfiguration::getTopic() const
 
 const Configuration::OptionList& TopicConfiguration::getTopicOptions(OptionType type) const
 {
-    return _topicOptions[(int)type];
+    return _topicOptions[EnumValue(type)];
 }
 
 void TopicConfiguration::setErrorCallback(Callbacks::ErrorCallback callback,
@@ -113,7 +113,7 @@ const Callbacks::StatsCallback& TopicConfiguration::getStatsCallback() const
 
 const cppkafka::ConfigurationOption* TopicConfiguration::getTopicOption(const std::string& name) const
 {
-    return findOption(name, _topicOptions[(int)OptionType::All]);
+    return findOption(name, _topicOptions[EnumValue(OptionType::All)]);
 }
 
 void TopicConfiguration::filterOptions()
@@ -124,12 +124,12 @@ void TopicConfiguration::filterOptions()
     // Consumer/Producer options parsing
     const OptionMap& internalOptions = (_type == KafkaType::Producer) ?
         ProducerConfiguration::s_internalOptions : ConsumerConfiguration::s_internalOptions;
-    parseOptions(_topic, internalOptionsPrefix, internalOptions, _options, true);
+    parseOptions(_topic, internalOptionsPrefix, internalOptions, _options, OptionsPermission::RdKafkaAllow);
     
     // Topic options parsing
     const OptionMap& internalTopicOptions = (_type == KafkaType::Producer) ?
         ProducerConfiguration::s_internalTopicOptions : ConsumerConfiguration::s_internalTopicOptions;
-    parseOptions(_topic, internalOptionsPrefix, internalTopicOptions, _topicOptions, true);
+    parseOptions(_topic, internalOptionsPrefix, internalTopicOptions, _topicOptions, OptionsPermission::RdKafkaAllow);
 }
 
 }}

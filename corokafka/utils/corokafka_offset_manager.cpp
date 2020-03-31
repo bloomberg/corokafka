@@ -17,6 +17,7 @@
 #include <corokafka/corokafka_utils.h>
 #include <corokafka/corokafka_metadata.h>
 #include <corokafka/corokafka_exception.h>
+#include <algorithm>
 
 namespace Bloomberg {
 namespace corokafka {
@@ -42,11 +43,7 @@ OffsetManager::OffsetManager(corokafka::ConsumerManager& consumerManager,
         //Create the settings for this topic
         TopicSettings& topicSettings = _topicMap[topic];
         const ConsumerConfiguration& config = _consumerManager.getConfiguration(topic);
-        //Check if we are committing synchronously
-        const cppkafka::ConfigurationOption* commitExec = config.getOption(ConsumerConfiguration::Options::commitExec);
-        if (commitExec && StringEqualCompare()(commitExec->get_value(), "sync")) {
-            topicSettings._syncCommit = true;
-        }
+        //Check the offset reset if specified
         const cppkafka::ConfigurationOption* offsetReset = config.getOption("auto.offset.reset");
         if (offsetReset && StringEqualCompare()(offsetReset->get_value(), "smallest")) {
             topicSettings._autoResetAtEnd = false;
@@ -88,26 +85,28 @@ void OffsetManager::queryOffsetsFromBroker(const std::string& topic,
     }
 }
 
-const cppkafka::TopicPartition& OffsetManager::findPartition(const cppkafka::TopicPartitionList& partitions, int partition)
+const cppkafka::TopicPartition& OffsetManager::findPartition(const cppkafka::TopicPartitionList& partitions,
+                                                             int partition)
 {
     static cppkafka::TopicPartition notFound;
-    for (const auto& toppar : partitions) {
-        if (toppar.get_partition() == partition) {
-            return toppar;
-        }
-    }
-    return notFound;
+    auto it = std::find_if(partitions.begin(),
+                           partitions.end(),
+                           [&partition](const auto& toppar)->bool{
+        return (toppar.get_partition() == partition);
+    });
+    return it == partitions.end() ? notFound : *it;
 }
 
-const OffsetWatermark& OffsetManager::findWatermark(const Metadata::OffsetWatermarkList& watermarks, int partition)
+const OffsetWatermark& OffsetManager::findWatermark(const Metadata::OffsetWatermarkList& watermarks,
+                                                    int partition)
 {
     static OffsetWatermark notFound;
-    for (const auto& watermark : watermarks) {
-        if (watermark._partition == partition) {
-            return watermark;
-        }
-    }
-    return notFound;
+    auto it = std::find_if(watermarks.begin(),
+                           watermarks.end(),
+                           [&partition](const auto& watermark)->bool{
+        return (watermark._partition == partition);
+    });
+    return it == watermarks.end() ? notFound : *it;
 }
 
 void OffsetManager::setStartingOffset(int64_t offset,
@@ -144,39 +143,15 @@ void OffsetManager::setStartingOffset(int64_t offset,
     }
 }
 
-cppkafka::Error OffsetManager::saveOffset(const cppkafka::TopicPartition& offset,
-                                          bool forceSync) noexcept
+cppkafka::Error OffsetManager::saveOffset(const cppkafka::TopicPartition& offset) noexcept
 {
-    try {
-        if (offset.get_offset() < 0) {
-            return RD_KAFKA_RESP_ERR_OFFSET_OUT_OF_RANGE;
-        }
-        TopicSettings& settings = _topicMap.at(offset.get_topic());
-        OffsetRanges& ranges = settings._partitions.at(offset.get_partition());
-        Range<int64_t> range(-1,-1);
-        {//locked scope
-            quantum::Mutex::Guard guard(quantum::local::context(), ranges._offsetsMutex);
-            range = insertOffset(ranges, offset.get_offset());
-        }
-        //Commit range
-        if (range.second != -1) {
-            if (offset.get_offset() == range.second) {
-                return commit(offset, settings._syncCommit || forceSync);
-            }
-            else {
-                //End of the range is greater than the committed offset
-                return commit(cppkafka::TopicPartition{offset.get_topic(), offset.get_partition(), range.second},
-                              settings._syncCommit || forceSync);
-            }
-        }
-        return {};
-    }
-    catch (const std::out_of_range& ex) {
-        return RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION;
-    }
-    catch(...) {
-    }
-    return RD_KAFKA_RESP_ERR_UNKNOWN;
+    return saveOffsetImpl(offset);
+}
+
+cppkafka::Error OffsetManager::saveOffset(const cppkafka::TopicPartition& offset,
+                                          ExecMode execMode) noexcept
+{
+    return saveOffsetImpl(offset, execMode);
 }
 
 cppkafka::TopicPartition OffsetManager::getCurrentOffset(const cppkafka::TopicPartition& partition)
@@ -199,115 +174,46 @@ cppkafka::TopicPartition OffsetManager::getBeginOffset(const cppkafka::TopicPart
                                     ranges._beginOffset);
 }
 
-cppkafka::Error OffsetManager::forceCommit(bool forceSync)
+cppkafka::Error OffsetManager::forceCommit() noexcept
 {
-    try {
-        bool isSyncCommit = false;
-        cppkafka::TopicPartitionList partitions;
-        for (auto& topic : _topicMap) {
-            TopicSettings& settings = topic.second;
-            if (settings._syncCommit) {
-                isSyncCommit = true;
-            }
-            for (auto& partition : settings._partitions) {
-                Range<int64_t> range(-1,-1);
-                OffsetRanges& ranges = partition.second;
-                quantum::Mutex::Guard guard(quantum::local::context(), ranges._offsetsMutex);
-                Iterator it = ranges._offsets.begin();
-                if (it != ranges._offsets.end()) {
-                    range = {it->first, it->second};
-                    //bump current offset
-                    ranges._currentOffset = it->second+1;
-                    //delete range from map
-                    ranges._offsets.erase(it);
-                }
-                //Commit range
-                if (range.second != -1) {
-                    partitions.emplace_back(topic.first, partition.first, range.second);
-                }
-            } //partitions
-        } //topics
-        //Commit all offsets
-        if (!partitions.empty()) {
-            return commit(partitions, isSyncCommit || forceSync);
-        }
-        return {};
-    }
-    catch(...) {
-    }
-    return RD_KAFKA_RESP_ERR_UNKNOWN;
+    return forceCommitImpl();
+}
+
+cppkafka::Error OffsetManager::forceCommit(ExecMode execMode) noexcept
+{
+    return forceCommitImpl(execMode);
+}
+
+cppkafka::Error OffsetManager::forceCommit(const cppkafka::TopicPartition& partition) noexcept
+{
+    return forceCommitPartitionImpl(partition);
 }
 
 cppkafka::Error OffsetManager::forceCommit(const cppkafka::TopicPartition& partition,
-                                           bool forceSync)
+                                           ExecMode execMode) noexcept
 {
-    try {
-        Range<int64_t> range(-1,-1);
-        TopicSettings& settings = _topicMap.at(partition.get_topic());
-        OffsetRanges& ranges = settings._partitions.at(partition.get_partition());
-        { //locked scope
-            quantum::Mutex::Guard guard(quantum::local::context(), ranges._offsetsMutex);
-            Iterator it = ranges._offsets.begin();
-            if (it != ranges._offsets.end()) {
-                range = {it->first, it->second};
-                //bump current offset
-                ranges._currentOffset = range.second + 1;
-                //delete range from map
-                ranges._offsets.erase(it);
-            }
-        }
-        //Commit range
-        if (range.second != -1) {
-            return commit(partition, settings._syncCommit || forceSync);
-        }
-        return {};
-    }
-    catch (const std::out_of_range& ex) {
-        return RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION;
-    }
-    catch(...) {
-    }
-    return RD_KAFKA_RESP_ERR_UNKNOWN;
+    return forceCommitPartitionImpl(partition, execMode);
+}
+
+cppkafka::Error OffsetManager::forceCommitCurrentOffset()
+{
+    return forceCommitCurrentOffsetImpl();
+}
+
+cppkafka::Error OffsetManager::forceCommitCurrentOffset(ExecMode execMode)
+{
+    return forceCommitCurrentOffsetImpl(execMode);
+}
+
+cppkafka::Error OffsetManager::forceCommitCurrentOffset(const cppkafka::TopicPartition& partition)
+{
+    return saveOffset(getCurrentOffset(partition));
 }
 
 cppkafka::Error OffsetManager::forceCommitCurrentOffset(const cppkafka::TopicPartition& partition,
-                                                         bool forceSync)
+                                                        ExecMode execMode)
 {
-    return saveOffset(getCurrentOffset(partition), forceSync);
-}
-
-cppkafka::Error OffsetManager::forceCommitCurrentOffset(bool forceSync)
-{
-    try {
-        bool isSyncCommit = false;
-        cppkafka::TopicPartitionList partitions;
-        for (auto& topic : _topicMap) {
-            TopicSettings& settings = topic.second;
-            for (auto& partition : settings._partitions) {
-                OffsetRanges& ranges = partition.second;
-                if (settings._syncCommit) {
-                    isSyncCommit = true;
-                }
-                Range<int64_t> range(-1,-1);
-                {//locked scope
-                    quantum::Mutex::Guard guard(quantum::local::context(), ranges._offsetsMutex);
-                    range = insertOffset(ranges, ranges._currentOffset);
-                }
-                //Commit range
-                if (range.second != -1) {
-                    partitions.emplace_back(topic.first, partition.first, range.second);
-                }
-            } //partitions
-        } //topics
-        //Commit all offsets
-        if (!partitions.empty()) {
-            return commit(partitions, isSyncCommit || forceSync);
-        }
-        return {};
-    }
-    catch(...) {
-    }
-    return RD_KAFKA_RESP_ERR_UNKNOWN;
+    return saveOffset(getCurrentOffset(partition), execMode);
 }
 
 Range<int64_t> OffsetManager::insertOffset(OffsetRanges& ranges,

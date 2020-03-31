@@ -22,6 +22,7 @@
 #include <initializer_list>
 #include <limits>
 #include <functional>
+#include <array>
 
 namespace Bloomberg {
 namespace corokafka {
@@ -90,7 +91,7 @@ protected:
     using OptionMap = std::map<std::string, OptionExtractorFunc, StringLessCompare>;
     
     Configuration() = default;
-    Configuration(OptionList options);
+    explicit Configuration(OptionList options);
     Configuration(OptionInitList options);
     virtual ~Configuration() = default;
     
@@ -99,8 +100,8 @@ protected:
     static void parseOptions(const std::string& topic,
                              const std::string& optionsPrefix,
                              const OptionMap& allowed,
-                             OptionList(&optionList)[3],
-                             bool allowRdKafkaOptions = true);
+                             std::array<OptionList, 3>& optionList,
+                             OptionsPermission enablement);
     
     static bool extractBooleanValue(const std::string& topic,
                                     const char* optionName,
@@ -114,7 +115,7 @@ protected:
                                               const char* optionName,
                                               const std::string &level);
     // Members
-    OptionList  _options[3]; //indexed by OptionType
+    std::array<OptionList, 3>  _options; //indexed by OptionType
 };
 
 } // corokafka

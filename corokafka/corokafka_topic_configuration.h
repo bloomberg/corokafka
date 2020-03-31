@@ -135,7 +135,7 @@ private:
     
     KafkaType                           _type;
     std::string                         _topic;
-    OptionList                          _topicOptions[3];
+    std::array<OptionList, 3>           _topicOptions;
     Callbacks::ErrorCallback            _errorCallback;
     const void*                         _errorOpaque{nullptr};
     Callbacks::ThrottleCallback         _throttleCallback;

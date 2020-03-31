@@ -15,7 +15,7 @@ namespace corokafka {
 struct Exception : public std::runtime_error
 {
     using std::runtime_error::runtime_error;
-    virtual ~Exception() = default;
+
     const char* what() const noexcept override
     {
         if (_what.empty()) {
@@ -65,16 +65,17 @@ struct HandleException : public Exception
 //=========================================================================================
 struct TopicException : public Exception
 {
-    TopicException(std::string topic, const std::string& reason) :
+    TopicException(const std::string& topic,
+                   const std::string& reason) :
         Exception(reason),
-        _topic(std::move(topic))
+        _topic(topic)
     {}
-    TopicException(std::string topic, const char* reason) :
+    TopicException(const std::string& topic,
+                   const char* reason) :
         Exception(reason),
-        _topic(std::move(topic))
+        _topic(topic)
     {}
     using Exception::Exception;
-    virtual ~TopicException() = default;
     const char* what() const noexcept override
     {
         if (_what.empty()) {
@@ -117,12 +118,14 @@ struct ConfigurationException : public TopicException
 //=========================================================================================
 struct InvalidArgumentException : public Exception
 {
-    InvalidArgumentException(size_t argument, const std::string& reason) :
+    InvalidArgumentException(size_t argument,
+                             const std::string& reason) :
         Exception(reason),
         _argument(argument)
     {
     }
-    InvalidArgumentException(size_t argument, const char* reason) :
+    InvalidArgumentException(size_t argument,
+                             const char* reason) :
         Exception(reason),
         _argument(argument)
     {
@@ -154,21 +157,27 @@ private:
 //=========================================================================================
 struct InvalidOptionException : public ConfigurationException
 {
-    InvalidOptionException(std::string topic, std::string option, const std::string& reason) :
-        ConfigurationException(std::move(topic), reason),
-        _option(std::move(option))
+    InvalidOptionException(const std::string& topic,
+                           const std::string& option,
+                           const std::string& reason) :
+        ConfigurationException(topic, reason),
+        _option(option)
     {}
-    InvalidOptionException(std::string topic, std::string option, const char* reason) :
-        ConfigurationException(std::move(topic), reason),
-        _option(std::move(option))
+    InvalidOptionException(const std::string& topic,
+                           const std::string& option,
+                           const char* reason) :
+        ConfigurationException(topic, reason),
+        _option(option)
     {}
-    InvalidOptionException(std::string option, const std::string& reason) :
-        ConfigurationException(std::move(reason)),
-        _option(std::move(option))
+    InvalidOptionException(const std::string& option,
+                           const std::string& reason) :
+        ConfigurationException(reason),
+        _option(option)
     {}
-    InvalidOptionException(std::string option, const char* reason) :
-        ConfigurationException(std::move(reason)),
-        _option(std::move(option))
+    InvalidOptionException(const std::string& option,
+                           const char* reason) :
+        ConfigurationException(reason),
+        _option(option)
     {}
     const char* what() const noexcept override
     {

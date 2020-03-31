@@ -53,8 +53,8 @@ public:
     using Callback = std::function<ResultType(ReceivedMessageType)>;
     
     //Ctor
-    ConcreteReceiver(Callback callback) :
-        _func(std::move(callback))
+    ConcreteReceiver(Callback func) :
+        _func(std::move(func))
     {}
     
     const Callback& getCallback() const { return _func; }

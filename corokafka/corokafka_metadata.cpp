@@ -39,7 +39,7 @@ Metadata::operator bool() const
 
 uint64_t Metadata::getHandle() const
 {
-    return _handle == nullptr ? 0 : (uint64_t)_handle->get_handle();
+    return _handle == nullptr ? 0 : reinterpret_cast<uint64_t>(_handle->get_handle());
 }
 
 const std::string& Metadata::getTopic() const

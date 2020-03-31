@@ -16,7 +16,6 @@
 #ifndef BLOOMBERG_COROKAFKA_H
 #define BLOOMBERG_COROKAFKA_H
 
-#define __NATIVESTD__
 #include <corokafka/corokafka_callbacks.h>
 #include <corokafka/corokafka_configuration.h>
 #include <corokafka/corokafka_configuration_builder.h>

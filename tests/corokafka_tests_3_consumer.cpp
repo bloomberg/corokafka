@@ -90,7 +90,8 @@ Configuration::OptionList config4 = {
 
 TEST(ConsumerConfiguration, MissingBrokerList)
 {
-    ConsumerConfiguration config(topicWithHeaders().topic(), {}, {}); //use all defaults
+    ConsumerConfiguration config(
+            topicWithHeaders(), {}, {}, Callbacks::messageReceiverWithHeaders); //use all defaults
     ConfigurationBuilder builder;
     builder(config);
     ASSERT_THROW(Connector connector(builder, dispatcher()), InvalidOptionException);
@@ -102,7 +103,8 @@ TEST(ConsumerConfiguration, MissingBrokerList)
 
 TEST(ConsumerConfiguration, MissingGroupId)
 {
-    ConsumerConfiguration config(topicWithHeaders().topic(), {{"metadata.broker.list", programOptions()._broker}}, {}); //use all defaults
+    ConsumerConfiguration config(
+            topicWithHeaders(), {{"metadata.broker.list", programOptions()._broker}}, {}, Callbacks::messageReceiverWithHeaders); //use all defaults
     ConfigurationBuilder builder;
     builder(config);
     ASSERT_THROW(Connector connector(builder, dispatcher()), InvalidOptionException);
@@ -126,9 +128,10 @@ TEST(ConsumerConfiguration, UnknownOption)
 
 TEST(ConsumerConfiguration, UnknownInternalOption)
 {
-    ASSERT_THROW(ConsumerConfiguration config(topicWithHeaders().topic(),
+    ASSERT_THROW(ConsumerConfiguration config(topicWithHeaders(),
         {{"metadata.broker.list", programOptions()._broker},
-         {"internal.consumer.unknown.option", "bad"}}, {}), InvalidOptionException);
+         {"internal.consumer.unknown.option", "bad"}}, {},
+         Callbacks::messageReceiverWithHeaders), InvalidOptionException);
 }
 
 TEST(ConsumerConfiguration, InternalConsumerPauseOnStart)
@@ -324,10 +327,10 @@ TEST(Consumer, ValidatePauseOnStart)
         topicWithoutHeaders(),
         Callbacks::messageReceiverWithoutHeaders,
         PartitionStrategy::Static,
-        {{programOptions()._topicWithoutHeaders, 0, (int)OffsetPoint::AtEnd},
-         {programOptions()._topicWithoutHeaders, 1, (int)OffsetPoint::AtEnd},
-         {programOptions()._topicWithoutHeaders, 2, (int)OffsetPoint::AtEnd},
-         {programOptions()._topicWithoutHeaders, 3, (int)OffsetPoint::AtEnd}});
+        {{topicWithoutHeaders().topic(), 0, (int)OffsetPoint::AtEnd},
+         {topicWithoutHeaders().topic(), 1, (int)OffsetPoint::AtEnd},
+         {topicWithoutHeaders().topic(), 2, (int)OffsetPoint::AtEnd},
+         {topicWithoutHeaders().topic(), 3, (int)OffsetPoint::AtEnd}});
     
     std::this_thread::sleep_for(std::chrono::seconds(5));
     
@@ -357,28 +360,29 @@ TEST(Consumer, ValidatePauseOnStart)
 TEST(Consumer, ValidateDynamicAssignment)
 {
     callbackCounters().reset();
-    {
-        Connector connector = makeConsumerConnector(
-            config2,
-            getNewGroupName(),
-            topicWithoutHeaders(),
-            Callbacks::messageReceiverWithoutHeaders,
-            PartitionStrategy::Dynamic);
-        int loops = maxLoops;
-        while (callbackCounters()._assign == 0 && loops--) {
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-        }
-        loops = maxLoops;
-        while (callbackCounters()._eof < 4 && loops--) {
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-        }
-        EXPECT_EQ(0, callbackCounters()._messageErrors);
-        EXPECT_EQ(4, callbackCounters()._receiver);
-        EXPECT_EQ(1, callbackCounters()._assign);
-        EXPECT_EQ(0, callbackCounters()._rebalance);
-        callbackCounters().reset();
-    }
+    Connector connector = makeConsumerConnector(
+        config2,
+        getNewGroupName(),
+        topicWithoutHeaders(),
+        Callbacks::messageReceiverWithoutHeaders,
+        PartitionStrategy::Dynamic);
     int loops = maxLoops;
+    while (callbackCounters()._assign == 0 && loops--) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+    loops = maxLoops;
+    while (callbackCounters()._eof < 4 && loops--) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+    EXPECT_EQ(0, callbackCounters()._messageErrors);
+    EXPECT_EQ(4, callbackCounters()._receiver);
+    EXPECT_EQ(1, callbackCounters()._assign);
+    EXPECT_EQ(0, callbackCounters()._rebalance);
+    callbackCounters().reset();
+    
+    //stop the connector
+    connector.consumer().shutdown();
+    loops = maxLoops;
     while (callbackCounters()._revoke == 0 && loops--) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
@@ -395,10 +399,10 @@ TEST(Consumer, ReadTopicWithoutHeadersUsingConfig1)
         topicWithoutHeaders(),
         Callbacks::messageReceiverWithoutHeaders,
         PartitionStrategy::Static,
-        {{programOptions()._topicWithoutHeaders, 0, (int)OffsetPoint::AtBeginning},
-         {programOptions()._topicWithoutHeaders, 1, (int)OffsetPoint::AtBeginning},
-         {programOptions()._topicWithoutHeaders, 2, (int)OffsetPoint::AtBeginning},
-         {programOptions()._topicWithoutHeaders, 3, (int)OffsetPoint::AtBeginning}});
+        {{topicWithoutHeaders().topic(), 0, (int)OffsetPoint::AtBeginning},
+         {topicWithoutHeaders().topic(), 1, (int)OffsetPoint::AtBeginning},
+         {topicWithoutHeaders().topic(), 2, (int)OffsetPoint::AtBeginning},
+         {topicWithoutHeaders().topic(), 3, (int)OffsetPoint::AtBeginning}});
     connector.consumer().resume();
     int loops = maxLoops;
     while (callbackCounters()._eof < 4 && loops--) {
@@ -439,10 +443,10 @@ TEST(Consumer, ReadTopicWithHeadersUsingConfig2)
         topicWithHeaders(),
         Callbacks::messageReceiverWithHeadersManualCommit,
         PartitionStrategy::Static,
-        {{programOptions()._topicWithHeaders, 0, (int)OffsetPoint::AtBeginning},
-         {programOptions()._topicWithHeaders, 1, (int)OffsetPoint::AtBeginning},
-         {programOptions()._topicWithHeaders, 2, (int)OffsetPoint::AtBeginning},
-         {programOptions()._topicWithHeaders, 3, (int)OffsetPoint::AtBeginning}});
+        {{topicWithHeaders().topic(), 0, (int)OffsetPoint::AtBeginning},
+         {topicWithHeaders().topic(), 1, (int)OffsetPoint::AtBeginning},
+         {topicWithHeaders().topic(), 2, (int)OffsetPoint::AtBeginning},
+         {topicWithHeaders().topic(), 3, (int)OffsetPoint::AtBeginning}});
     int loops = maxLoops;
     while (callbackCounters()._eof < 4 && loops--) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -456,7 +460,7 @@ TEST(Consumer, ReadTopicWithHeadersUsingConfig2)
     
     //Check async commits
     loops = maxLoops;
-    while ((size_t)callbackCounters()._offsetCommit < messageTracker().totalMessages() && loops--) {
+    while (static_cast<size_t>(callbackCounters()._offsetCommit) < messageTracker().totalMessages() && loops--) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
     EXPECT_EQ(messageTracker().totalMessages(), callbackCounters()._offsetCommit);
@@ -476,10 +480,10 @@ TEST(Consumer, ReadTopicWithHeadersUsingConfig3)
         topicWithHeaders(),
         Callbacks::messageReceiverWithHeadersManualCommit,
         PartitionStrategy::Static,
-        {{programOptions()._topicWithHeaders, 0, (int)OffsetPoint::AtBeginning},
-         {programOptions()._topicWithHeaders, 1, (int)OffsetPoint::AtBeginning},
-         {programOptions()._topicWithHeaders, 2, (int)OffsetPoint::AtBeginning},
-         {programOptions()._topicWithHeaders, 3, (int)OffsetPoint::AtBeginning}});
+        {{topicWithHeaders().topic(), 0, (int)OffsetPoint::AtBeginning},
+         {topicWithHeaders().topic(), 1, (int)OffsetPoint::AtBeginning},
+         {topicWithHeaders().topic(), 2, (int)OffsetPoint::AtBeginning},
+         {topicWithHeaders().topic(), 3, (int)OffsetPoint::AtBeginning}});
     int loops = maxLoops;
     while (callbackCounters()._eof < 4 && loops--) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -493,7 +497,7 @@ TEST(Consumer, ReadTopicWithHeadersUsingConfig3)
     
     //Check async commits
     loops = maxLoops;
-    while ((size_t)callbackCounters()._offsetCommit < messageTracker().totalMessages() && loops--) {
+    while (static_cast<size_t>(callbackCounters()._offsetCommit) < messageTracker().totalMessages() && loops--) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
     EXPECT_EQ(messageTracker().totalMessages(), callbackCounters()._offsetCommit);
@@ -513,10 +517,10 @@ TEST(Consumer, ReadTopicWithHeadersUsingConfig4)
         topicWithHeaders(),
         Callbacks::messageReceiverWithHeadersManualCommit,
         PartitionStrategy::Static,
-        {{programOptions()._topicWithHeaders, 0, (int)OffsetPoint::AtBeginning},
-         {programOptions()._topicWithHeaders, 1, (int)OffsetPoint::AtBeginning},
-         {programOptions()._topicWithHeaders, 2, (int)OffsetPoint::AtBeginning},
-         {programOptions()._topicWithHeaders, 3, (int)OffsetPoint::AtBeginning}});
+        {{topicWithHeaders().topic(), 0, (int)OffsetPoint::AtBeginning},
+         {topicWithHeaders().topic(), 1, (int)OffsetPoint::AtBeginning},
+         {topicWithHeaders().topic(), 2, (int)OffsetPoint::AtBeginning},
+         {topicWithHeaders().topic(), 3, (int)OffsetPoint::AtBeginning}});
 
     //enable consuming
     connector.consumer().resume(topicWithHeaders().topic());
@@ -534,7 +538,7 @@ TEST(Consumer, ReadTopicWithHeadersUsingConfig4)
     
     //Check async commits
     loops = maxLoops;
-    while ((size_t)callbackCounters()._offsetCommit < messageTracker().totalMessages() && loops--) {
+    while (static_cast<size_t>(callbackCounters()._offsetCommit) < messageTracker().totalMessages() && loops--) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
     EXPECT_EQ(messageTracker().totalMessages(), callbackCounters()._offsetCommit);
@@ -558,10 +562,10 @@ TEST(Consumer, SkipMessagesWithRelativeOffsetUsingConfig2)
         topicWithHeaders(),
         Callbacks::messageReceiverWithHeadersManualCommit,
         PartitionStrategy::Static,
-        {{programOptions()._topicWithHeaders, 0, (int)OffsetPoint::AtEndRelative-msgPerPartition},
-         {programOptions()._topicWithHeaders, 1, (int)OffsetPoint::AtEndRelative-msgPerPartition},
-         {programOptions()._topicWithHeaders, 2, (int)OffsetPoint::AtEndRelative-msgPerPartition},
-         {programOptions()._topicWithHeaders, 3, (int)OffsetPoint::AtEndRelative-msgPerPartition}});
+        {{topicWithHeaders().topic(), 0, (int)OffsetPoint::AtEndRelative-msgPerPartition},
+         {topicWithHeaders().topic(), 1, (int)OffsetPoint::AtEndRelative-msgPerPartition},
+         {topicWithHeaders().topic(), 2, (int)OffsetPoint::AtEndRelative-msgPerPartition},
+         {topicWithHeaders().topic(), 3, (int)OffsetPoint::AtEndRelative-msgPerPartition}});
     int loops = maxLoops;
     while (callbackCounters()._eof < 4 && loops--) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -585,10 +589,10 @@ TEST(Consumer, OffsetCommitManager)
             topicWithHeaders(),
             Callbacks::messageReceiverWithHeadersUsingCommitGuard,
             PartitionStrategy::Static,
-            {{programOptions()._topicWithHeaders, 0, (int)OffsetPoint::AtBeginning},
-             {programOptions()._topicWithHeaders, 1, (int)OffsetPoint::AtBeginning},
-             {programOptions()._topicWithHeaders, 2, (int)OffsetPoint::AtBeginning},
-             {programOptions()._topicWithHeaders, 3, (int)OffsetPoint::AtBeginning}});
+            {{topicWithHeaders().topic(), 0, (int)OffsetPoint::AtBeginning},
+             {topicWithHeaders().topic(), 1, (int)OffsetPoint::AtBeginning},
+             {topicWithHeaders().topic(), 2, (int)OffsetPoint::AtBeginning},
+             {topicWithHeaders().topic(), 3, (int)OffsetPoint::AtBeginning}});
 
     //Create the offset manager
     offsetManagerPtr = std::make_shared<OffsetManager>(connector.consumer());
@@ -602,7 +606,7 @@ TEST(Consumer, OffsetCommitManager)
     }
     //Check commits via offset manager
     loops = maxLoops;
-    while ((size_t)callbackCounters()._offsetCommit < consumerMessageTracker().totalMessages() && loops--) {
+    while (static_cast<size_t>(callbackCounters()._offsetCommit) < consumerMessageTracker().totalMessages() && loops--) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
     EXPECT_EQ(callbackCounters()._offsetCommit, consumerMessageTracker().totalMessages());

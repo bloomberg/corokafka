@@ -34,7 +34,7 @@ public:
      * @brief Get the name of the header
      * @return The name
      */
-    const std::string &name() const { return _name; }
+    const std::string& name() const { return _name; }
     
     /**
      * @brief Get the header reference

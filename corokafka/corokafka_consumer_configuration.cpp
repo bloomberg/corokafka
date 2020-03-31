@@ -158,13 +158,13 @@ const Configuration::OptionMap ConsumerConfiguration::s_internalOptions = {
     }},
      {Options::pollIoThreadId, [](const std::string& topic, const cppkafka::ConfigurationOption* option, void* value)->bool {
         if (!option) return false;
-        ssize_t temp = Configuration::extractCounterValue(topic, Options::pollIoThreadId, *option, (int)quantum::IQueue::QueueId::Any);
+        ssize_t temp = Configuration::extractCounterValue(topic, Options::pollIoThreadId, *option, EnumValue(quantum::IQueue::QueueId::Any));
         if (value) *reinterpret_cast<int*>(value) = temp;
         return true;
     }},
     {Options::processCoroThreadId, [](const std::string& topic, const cppkafka::ConfigurationOption* option, void* value)->bool {
         if (!option) return false;
-        ssize_t temp = Configuration::extractCounterValue(topic, Options::processCoroThreadId, *option, (int)quantum::IQueue::QueueId::Any);
+        ssize_t temp = Configuration::extractCounterValue(topic, Options::processCoroThreadId, *option, EnumValue(quantum::IQueue::QueueId::Any));
         if (value) *reinterpret_cast<int*>(value) = temp;
         return true;
     }},
@@ -191,7 +191,7 @@ const Configuration::OptionMap ConsumerConfiguration::s_internalOptions = {
      [](const std::string& topic, const cppkafka::ConfigurationOption* option, void* value)->bool{
         if (!option) return false;
         std::chrono::milliseconds temp{Configuration::extractCounterValue
-            (topic, Options::pollTimeoutMs, *option, (int)TimerValues::Unlimited)};
+            (topic, Options::pollTimeoutMs, *option, EnumValue(TimerValues::Unlimited))};
         if (value) *reinterpret_cast<std::chrono::milliseconds*>(value) = temp;
         return true;
      }},
@@ -272,7 +272,7 @@ const Configuration::OptionMap ConsumerConfiguration::s_internalOptions = {
     {Options::timeoutMs,
      [](const std::string& topic, const cppkafka::ConfigurationOption* option, void* value)->bool{
         if (!option) return false;
-        std::chrono::milliseconds temp{Configuration::extractCounterValue(topic, Options::timeoutMs, *option, (int)TimerValues::Unlimited)};
+        std::chrono::milliseconds temp{Configuration::extractCounterValue(topic, Options::timeoutMs, *option, EnumValue(TimerValues::Unlimited))};
         if (value) *reinterpret_cast<std::chrono::milliseconds*>(value) = temp;
         return true;
      }},
@@ -286,20 +286,6 @@ const Configuration::OptionMap ConsumerConfiguration::s_internalOptions = {
 };
 
 const Configuration::OptionMap ConsumerConfiguration::s_internalTopicOptions;
-
-ConsumerConfiguration::ConsumerConfiguration(const std::string& topic,
-                                             OptionList options,
-                                             OptionList topicOptions) :
-    TopicConfiguration(KafkaType::Consumer, topic, std::move(options), std::move(topicOptions))
-{
-}
-
-ConsumerConfiguration::ConsumerConfiguration(const std::string& topic,
-                                             std::initializer_list<cppkafka::ConfigurationOption> options,
-                                             std::initializer_list<cppkafka::ConfigurationOption> topicOptions) :
-    TopicConfiguration(KafkaType::Consumer, topic, std::move(options), std::move(topicOptions))
-{
-}
 
 PartitionStrategy ConsumerConfiguration::getPartitionStrategy() const
 {

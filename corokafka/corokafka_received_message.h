@@ -28,10 +28,10 @@ namespace corokafka {
 //                     Offset settings
 //==========================================================================
 struct OffsetPersistSettings {
-    bool                    _autoOffsetPersist;
-    bool                    _autoOffsetPersistOnException;
     OffsetPersistStrategy   _autoOffsetPersistStrategy;
     ExecMode                _autoCommitExec;
+    bool                    _autoOffsetPersist;
+    bool                    _autoOffsetPersistOnException;
 };
 
 template <typename TOPIC>
@@ -133,7 +133,8 @@ public:
     /**
      * @brief Commits message with the retry strategy specified in the config for this topic.
      * @param opaque Application-specific pointer which will be returned inside the offset commit callback.
-     *               Passing an opaque pointer only works when 'internal.consumer.offset.persist.strategy=commit'
+     *               Passing an opaque pointer only works when 'internal.consumer.offset.persist.strategy=commit'.
+     * @param execMode If specified, overrides the 'internal.consumer.commit.exec' setting.
      * @return Error object. If the number of retries reaches 0, the error contains RD_KAFKA_RESP_ERR__FAIL.
      * @remark This call is blocking until it succeeds or the last retry failed.
      * @remark If commit() is not called explicitly, it will be called by ~ReceivedMessage() if
@@ -141,6 +142,8 @@ public:
      * @remark This will actually commit (or store) the message offset + 1.
      */
     cppkafka::Error commit(const void* opaque = nullptr);
+    cppkafka::Error commit(ExecMode execMode,
+                           const void* opaque = nullptr);
     /**
      * @brief Helper function to indicate if the message error is an EOF.
      * @return True if EOF was encountered for the partition, False otherwise.
@@ -207,7 +210,7 @@ private:
     void validateKeyError() const;
     void validatePayloadError() const;
     void validateHeadersError() const;
-    cppkafka::Error doCommit();
+    cppkafka::Error doCommit(ExecMode execMode);
     
     cppkafka::BackoffCommitter& _committer;
     OffsetMap&                  _offsets;
