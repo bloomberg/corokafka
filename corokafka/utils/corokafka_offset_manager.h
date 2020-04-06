@@ -61,13 +61,13 @@ public:
     /// @brief Returns the smallest offset which is yet to be committed.
     /// @param partition The partition where this offset is.
     /// @return The offset.
-    cppkafka::TopicPartition getCurrentOffset(const cppkafka::TopicPartition& partition) const;
+    cppkafka::TopicPartition getCurrentOffset(const cppkafka::TopicPartition& partition);
     
     /// @brief Returns the beginning offset.
     /// @param partition The partition where this offset is.
     /// @return The offset.
     /// @note [getBeginOffset(), getCurrentOffset()) gives the total committed range of offsets.
-    cppkafka::TopicPartition getBeginOffset(const cppkafka::TopicPartition& partition) const;
+    cppkafka::TopicPartition getBeginOffset(const cppkafka::TopicPartition& partition);
     
     /// @brief Commits the first available *lowest* offset range even if there are smaller offset(s) still pending.
     /// @param partition The partition where this offset is.
@@ -87,38 +87,53 @@ public:
     cppkafka::Error forceCommitCurrentOffset(bool forceSync = false);
     cppkafka::Error forceCommitCurrentOffset(const cppkafka::TopicPartition& partition,
                                              bool forceSync = false);
+    
+    /// @brief Reset all partition offsets for the specified topic.
+    /// @param topic The topic for which all partitions and offsets will be reset.
+    /// @note Call this when a new partition assignment has been made for this topic.
+    void resetPartitions(const std::string& topic);
+    
 private:
     using OffsetMap = IntervalSet<int64_t>;
     using InsertReturnType = OffsetMap::InsertReturnType;
     using Iterator = OffsetMap::Iterator;
-    struct OffsetsRanges {
-        quantum::Mutex  _mutex;
-        int64_t         _beginOffset{-1};
-        int64_t         _currentOffset{-1};
+    struct OffsetRanges {
+        int64_t         _beginOffset{cppkafka::TopicPartition::Offset::OFFSET_INVALID};
+        int64_t         _currentOffset{cppkafka::TopicPartition::Offset::OFFSET_INVALID};
         OffsetMap       _offsets;
-        bool            _syncCommit{false};
     };
-    using PartitionMap = std::unordered_map<int, OffsetsRanges>;
-    using TopicMap = std::unordered_map<std::string, PartitionMap>;
-    
-    Range<int64_t> insertOffset(OffsetsRanges& ranges,
-                                int64_t offset);
+    using PartitionMap = std::unordered_map<int, OffsetRanges>;
+    struct TopicSettings {
+        bool            _syncCommit{false};
+        bool            _autoResetAtEnd{true};
+        quantum::Mutex  _mutex; //protect partitions map
+        PartitionMap    _partitions;
+    };
+    using TopicMap = std::unordered_map<std::string, TopicSettings>;
+    static Range<int64_t>
+    insertOffset(OffsetRanges& ranges,
+                 int64_t offset);
     
     template <typename PARTITIONS>
     cppkafka::Error commit(const PARTITIONS& partitions,
                            bool forceSync);
 
-    void setStartingOffset(int64_t offset,
-                           OffsetsRanges &ranges,
-                           const cppkafka::TopicPartition& committedOffset,
-                           const OffsetWatermark& watermark,
-                           bool syncCommit,
-                           bool autoResetEnd);
+    static void setStartingOffset(int64_t offset,
+                                  OffsetRanges &ranges,
+                                  const cppkafka::TopicPartition& committedOffset,
+                                  const OffsetWatermark& watermark,
+                                  bool autoResetEnd);
 
-    const cppkafka::TopicPartition& findPartition(const cppkafka::TopicPartitionList& partitions,
-                                                  int partition);
-    const OffsetWatermark& findWatermark(const Metadata::OffsetWatermarkList& watermarks,
-                                         int partition);
+    static const cppkafka::TopicPartition&
+    findPartition(const cppkafka::TopicPartitionList& partitions,
+                  int partition);
+    
+    static const OffsetWatermark&
+    findWatermark(const Metadata::OffsetWatermarkList& watermarks,
+                  int partition);
+    
+    void queryOffsetsFromBroker(const std::string& topic,
+                                TopicSettings& settings);
 
     // Members
     corokafka::ConsumerManager&     _consumerManager;

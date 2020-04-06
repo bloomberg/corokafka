@@ -275,6 +275,13 @@ const Configuration::OptionMap ConsumerConfiguration::s_internalOptions = {
         std::chrono::milliseconds temp{Configuration::extractCounterValue(topic, Options::timeoutMs, *option, (int)TimerValues::Unlimited)};
         if (value) *reinterpret_cast<std::chrono::milliseconds*>(value) = temp;
         return true;
+     }},
+     {Options::startupTimeoutMs,
+     [](const std::string& topic, const cppkafka::ConfigurationOption* option, void* value)->bool{
+        if (!option) return false;
+        std::chrono::milliseconds temp{Configuration::extractCounterValue(topic, Options::startupTimeoutMs, *option, (int)TimerValues::Unlimited)};
+        if (value) *reinterpret_cast<std::chrono::milliseconds*>(value) = temp;
+        return true;
      }}
 };
 
