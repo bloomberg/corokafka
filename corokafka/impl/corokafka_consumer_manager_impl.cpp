@@ -196,6 +196,13 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
     topicEntry._consumer.reset(new cppkafka::Consumer(kafkaConfig));
     topicEntry._committer.reset(new cppkafka::BackoffCommitter(*topicEntry._consumer));
     
+    //Set the startup timeout
+    std::chrono::milliseconds defaultTimeout = topicEntry._consumer->get_timeout();
+    std::chrono::milliseconds startupTimeout;
+    if (extract(ConsumerConfiguration::Options::startupTimeoutMs, startupTimeout)) {
+        topicEntry._consumer->set_timeout(startupTimeout);
+    }
+    
     //Get events queue for polling
     topicEntry._eventQueue = topicEntry._consumer->get_main_queue();
     
@@ -298,13 +305,14 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
     //dynamically subscribe or statically assign partitions to this consumer
     subscribe(topic, topicEntry, topicEntry._configuration.getInitialPartitionAssignment());
     
-    //Set the consumer timeout.
-    //NOTE: This setting must be done after assigning partitions and pausing the consumer (see above)
-    //since these operations require a longer than usual timeout. If the user sets a small timeout
-    //period, partition assignment might fail.
+    //Set the consumer timeouts
     std::chrono::milliseconds timeout;
     if (extract(ConsumerConfiguration::Options::timeoutMs, timeout)) {
         topicEntry._consumer->set_timeout(timeout);
+    }
+    else {
+        //reset default timeout
+        topicEntry._consumer->set_timeout(defaultTimeout);
     }
     
     extract(ConsumerConfiguration::Options::pollTimeoutMs, topicEntry._pollTimeout);
