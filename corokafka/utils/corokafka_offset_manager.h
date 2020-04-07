@@ -40,6 +40,7 @@ public:
     
     /// @brief Creates an offset manager.
     /// @param consumerManager The consumer manager for which we want to manage offsets.
+    /// @note May throw.
     OffsetManager(corokafka::ConsumerManager& consumerManager);
     
     /// @brief Saves an offset to be committed later and potentially commits a range of offsets if it became available.
@@ -90,7 +91,12 @@ public:
     
     /// @brief Reset all partition offsets for the specified topic.
     /// @param topic The topic for which all partitions and offsets will be reset.
+    ///              If topic is not present, then reset all topic partitions.
     /// @note Call this when a new partition assignment has been made for this topic.
+    /// @note This call **MUST** be made with exclusive access (i.e. when no other threads access
+    ///       the ConsumerManager).
+    /// @note May throw.
+    void resetPartitions();
     void resetPartitions(const std::string& topic);
     
 private:
@@ -100,13 +106,13 @@ private:
     struct OffsetRanges {
         int64_t         _beginOffset{cppkafka::TopicPartition::Offset::OFFSET_INVALID};
         int64_t         _currentOffset{cppkafka::TopicPartition::Offset::OFFSET_INVALID};
+        quantum::Mutex  _offsetsMutex; //protect offset map
         OffsetMap       _offsets;
     };
     using PartitionMap = std::unordered_map<int, OffsetRanges>;
     struct TopicSettings {
         bool            _syncCommit{false};
         bool            _autoResetAtEnd{true};
-        quantum::Mutex  _mutex; //protect partitions map
         PartitionMap    _partitions;
     };
     using TopicMap = std::unordered_map<std::string, TopicSettings>;

@@ -44,6 +44,8 @@ OffsetManager::OffsetManager(corokafka::ConsumerManager& consumerManager) :
         else if (offsetReset && StringEqualCompare()(offsetReset->get_value(), "beginning")) {
             topicSettings._autoResetAtEnd = false;
         }
+        //Try to load current offsets. This may throw if brokers are not available
+        queryOffsetsFromBroker(topic, topicSettings);
     }
 }
 
@@ -51,11 +53,6 @@ void OffsetManager::queryOffsetsFromBroker(const std::string& topic,
                                            TopicSettings& settings)
 {
     //Create the assigned partitions for tracking
-    if (!settings._partitions.empty()) {
-        //we have already queried the broker
-        return;
-    }
-    //query brokers for partitions and offsets
     ConsumerMetadata metadata = _consumerManager.getMetadata(topic);
     cppkafka::TopicPartitionList committedOffsets = metadata.queryCommittedOffsets();
     Metadata::OffsetWatermarkList watermarks = metadata.queryOffsetWatermarks();
@@ -134,10 +131,12 @@ cppkafka::Error OffsetManager::saveOffset(const cppkafka::TopicPartition& offset
             return RD_KAFKA_RESP_ERR_OFFSET_OUT_OF_RANGE;
         }
         TopicSettings& settings = _topicMap.at(offset.get_topic());
-        quantum::Mutex::Guard guard(quantum::local::context(), settings._mutex);
-        queryOffsetsFromBroker(offset.get_topic(), settings);
         OffsetRanges& ranges = settings._partitions.at(offset.get_partition());
-        Range<int64_t> range = insertOffset(ranges, offset.get_offset());
+        Range<int64_t> range(-1,-1);
+        {//locked scope
+            quantum::Mutex::Guard guard(quantum::local::context(), ranges._offsetsMutex);
+            range = insertOffset(ranges, offset.get_offset());
+        }
         //Commit range
         if (range.second != -1) {
             if (offset.get_offset() == range.second) {
@@ -162,21 +161,21 @@ cppkafka::Error OffsetManager::saveOffset(const cppkafka::TopicPartition& offset
 cppkafka::TopicPartition OffsetManager::getCurrentOffset(const cppkafka::TopicPartition& partition)
 {
     TopicSettings& settings = _topicMap.at(partition.get_topic());
-    quantum::Mutex::Guard guard(quantum::local::context(), settings._mutex);
-    queryOffsetsFromBroker(partition.get_topic(), settings);
+    OffsetRanges& ranges = settings._partitions.at(partition.get_partition());
+    quantum::Mutex::Guard guard(quantum::local::context(), ranges._offsetsMutex);
     return cppkafka::TopicPartition(partition.get_topic(),
                                     partition.get_partition(),
-                                    settings._partitions.at(partition.get_partition())._currentOffset);
+                                    ranges._currentOffset);
 }
 
 cppkafka::TopicPartition OffsetManager::getBeginOffset(const cppkafka::TopicPartition& partition)
 {
     TopicSettings& settings = _topicMap.at(partition.get_topic());
-    quantum::Mutex::Guard guard(quantum::local::context(), settings._mutex);
-    queryOffsetsFromBroker(partition.get_topic(), settings);
+    OffsetRanges& ranges = settings._partitions.at(partition.get_partition());
+    //NOTE: no need to lock here as the begin offset is read-only
     return cppkafka::TopicPartition(partition.get_topic(),
                                     partition.get_partition(),
-                                    settings._partitions.at(partition.get_partition())._beginOffset);
+                                    ranges._beginOffset);
 }
 
 cppkafka::Error OffsetManager::forceCommit(bool forceSync)
@@ -186,13 +185,13 @@ cppkafka::Error OffsetManager::forceCommit(bool forceSync)
         cppkafka::TopicPartitionList partitions;
         for (auto& topic : _topicMap) {
             TopicSettings& settings = topic.second;
-            quantum::Mutex::Guard guard(quantum::local::context(), settings._mutex);
             if (settings._syncCommit) {
                 isSyncCommit = true;
             }
             for (auto& partition : settings._partitions) {
                 Range<int64_t> range(-1,-1);
                 OffsetRanges& ranges = partition.second;
+                quantum::Mutex::Guard guard(quantum::local::context(), ranges._offsetsMutex);
                 Iterator it = ranges._offsets.begin();
                 if (it != ranges._offsets.end()) {
                     range = {it->first, it->second};
@@ -224,15 +223,17 @@ cppkafka::Error OffsetManager::forceCommit(const cppkafka::TopicPartition& parti
     try {
         Range<int64_t> range(-1,-1);
         TopicSettings& settings = _topicMap.at(partition.get_topic());
-        quantum::Mutex::Guard guard(quantum::local::context(), settings._mutex);
         OffsetRanges& ranges = settings._partitions.at(partition.get_partition());
-        Iterator it = ranges._offsets.begin();
-        if (it != ranges._offsets.end()) {
-            range = {it->first, it->second};
-            //bump current offset
-            ranges._currentOffset = range.second+1;
-            //delete range from map
-            ranges._offsets.erase(it);
+        { //locked scope
+            quantum::Mutex::Guard guard(quantum::local::context(), ranges._offsetsMutex);
+            Iterator it = ranges._offsets.begin();
+            if (it != ranges._offsets.end()) {
+                range = {it->first, it->second};
+                //bump current offset
+                ranges._currentOffset = range.second + 1;
+                //delete range from map
+                ranges._offsets.erase(it);
+            }
         }
         //Commit range
         if (range.second != -1) {
@@ -261,13 +262,16 @@ cppkafka::Error OffsetManager::forceCommitCurrentOffset(bool forceSync)
         cppkafka::TopicPartitionList partitions;
         for (auto& topic : _topicMap) {
             TopicSettings& settings = topic.second;
-            quantum::Mutex::Guard guard(quantum::local::context(), settings._mutex);
             for (auto& partition : settings._partitions) {
                 OffsetRanges& ranges = partition.second;
                 if (settings._syncCommit) {
                     isSyncCommit = true;
                 }
-                Range<int64_t> range = insertOffset(ranges, ranges._currentOffset);
+                Range<int64_t> range(-1,-1);
+                {//locked scope
+                    quantum::Mutex::Guard guard(quantum::local::context(), ranges._offsetsMutex);
+                    range = insertOffset(ranges, ranges._currentOffset);
+                }
                 //Commit range
                 if (range.second != -1) {
                     partitions.emplace_back(topic.first, partition.first, range.second);
@@ -303,11 +307,19 @@ Range<int64_t> OffsetManager::insertOffset(OffsetRanges& ranges,
     return range;
 }
 
+void OffsetManager::resetPartitions()
+{
+    std::vector<std::string> topics = _consumerManager.getTopics();
+    for (auto&& topic : topics) {
+        resetPartitions(topic);
+    }
+}
+
 void OffsetManager::resetPartitions(const std::string& topic)
 {
-    TopicSettings& settings = _topicMap.at(topic);
-    quantum::Mutex::Guard guard(quantum::local::context(), settings._mutex);
-    settings._partitions.clear();
+    TopicSettings& topicSettings = _topicMap[topic];
+    topicSettings._partitions.clear();
+    queryOffsetsFromBroker(topic, topicSettings);
 }
 
 }}
