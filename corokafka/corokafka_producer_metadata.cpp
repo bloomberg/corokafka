@@ -48,19 +48,20 @@ const cppkafka::TopicPartitionList& ProducerMetadata::getTopicPartitions() const
     return _partitions;
 }
 
-Metadata::OffsetWatermarkList ProducerMetadata::queryOffsetWatermarks() const
+Metadata::OffsetWatermarkList ProducerMetadata::queryOffsetWatermarks(std::chrono::milliseconds timeout) const
 {
     if (!_handle) {
         throw HandleException("Null producer");
     }
     OffsetWatermarkList offsets;
     for (const auto& partition : getTopicPartitions()) {
-        offsets.emplace_back(partition.get_partition(), _handle->query_offsets(partition));
+        offsets.emplace_back(partition.get_partition(), _handle->query_offsets(partition, timeout));
     }
     return offsets;
 }
 
-cppkafka::TopicPartitionList ProducerMetadata::queryOffsetsAtTime(Timestamp timestamp) const
+cppkafka::TopicPartitionList ProducerMetadata::queryOffsetsAtTime(Timestamp timestamp,
+                                                                  std::chrono::milliseconds timeout) const
 {
     if (!_handle) {
         throw HandleException("Null producer");
@@ -70,7 +71,7 @@ cppkafka::TopicPartitionList ProducerMetadata::queryOffsetsAtTime(Timestamp time
     for (const auto& partition : getTopicPartitions()) {
         timestampMap[partition] = epochTime;
     }
-    return _handle->get_offsets_for_times(timestampMap);
+    return _handle->get_offsets_for_times(timestampMap, timeout);
 }
 
 size_t ProducerMetadata::getOutboundQueueLength() const

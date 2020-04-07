@@ -45,11 +45,14 @@ public:
     /**
      * @sa Metadata::queryOffsetWatermarks
      */
-    OffsetWatermarkList queryOffsetWatermarks() const final;
+    using Metadata::queryOffsetWatermarks;
+    OffsetWatermarkList queryOffsetWatermarks(std::chrono::milliseconds timeout) const final;
     /**
      * @sa Metadata::queryOffsetsAtTime
      */
-    cppkafka::TopicPartitionList queryOffsetsAtTime(Timestamp timestamp) const final;
+    using Metadata::queryOffsetsAtTime;
+    cppkafka::TopicPartitionList queryOffsetsAtTime(Timestamp timestamp,
+                                                    std::chrono::milliseconds timeout) const final;
     /**
      * @brief Get the length of the outbound RdKafka queue for this producer.
      * @return The queue length.

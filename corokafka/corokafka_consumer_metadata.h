@@ -36,7 +36,8 @@ public:
     /**
      * @sa Metadata::queryOffsetWatermarks
      */
-    OffsetWatermarkList queryOffsetWatermarks() const final;
+    using Metadata::queryOffsetWatermarks;
+    OffsetWatermarkList queryOffsetWatermarks(std::chrono::milliseconds timeout) const final;
     /**
      * @brief Similar to queryOffsetWatermarks but only gets the locally known assigned partitions offsets.
      * @return The offset list.
@@ -46,7 +47,9 @@ public:
     /**
      * @sa Metadata::queryOffsetsAtTime
      */
-    cppkafka::TopicPartitionList queryOffsetsAtTime(Timestamp timestamp) const final;
+    using Metadata::queryOffsetsAtTime;
+    cppkafka::TopicPartitionList queryOffsetsAtTime(Timestamp timestamp,
+                                                    std::chrono::milliseconds timeout) const final;
     /**
      * @brief Query the remote broker for the committed offsets.
      * @return The committed offsets list.
@@ -54,6 +57,7 @@ public:
      *         method from within a callback.
      */
     cppkafka::TopicPartitionList queryCommittedOffsets() const;
+    cppkafka::TopicPartitionList queryCommittedOffsets(std::chrono::milliseconds timeout) const;
     /**
      * @brief Gets the last offset positions locally known.
      * @return The offset list.

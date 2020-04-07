@@ -16,13 +16,26 @@
 #include <corokafka/utils/corokafka_offset_manager.h>
 #include <corokafka/corokafka_utils.h>
 #include <corokafka/corokafka_metadata.h>
+#include <corokafka/corokafka_exception.h>
 
 namespace Bloomberg {
 namespace corokafka {
 
 OffsetManager::OffsetManager(corokafka::ConsumerManager& consumerManager) :
-    _consumerManager(consumerManager)
+    OffsetManager(consumerManager, std::chrono::milliseconds((int)TimerValues::Disabled))
 {
+}
+
+OffsetManager::OffsetManager(corokafka::ConsumerManager& consumerManager,
+                             std::chrono::milliseconds brokerTimeout) :
+    _consumerManager(consumerManager),
+    _brokerTimeout(brokerTimeout)
+{
+    if ((_brokerTimeout <= std::chrono::milliseconds::zero()) &&
+        (_brokerTimeout != std::chrono::milliseconds((int)TimerValues::Unlimited)) &&
+        (_brokerTimeout != std::chrono::milliseconds((int)TimerValues::Disabled))) {
+        throw InvalidArgumentException(2, "Timeout values can be [-2, -1, >0]");
+    }
     //Get all managed topics
     std::vector<std::string> topics = _consumerManager.getTopics();
     for (auto&& topic : topics) {
@@ -52,12 +65,20 @@ OffsetManager::OffsetManager(corokafka::ConsumerManager& consumerManager) :
 void OffsetManager::queryOffsetsFromBroker(const std::string& topic,
                                            TopicSettings& settings)
 {
-    //Create the assigned partitions for tracking
+    //Query offsets and watermarks from broker
+    cppkafka::TopicPartitionList committedOffsets;
+    Metadata::OffsetWatermarkList watermarks;
     ConsumerMetadata metadata = _consumerManager.getMetadata(topic);
-    cppkafka::TopicPartitionList committedOffsets = metadata.queryCommittedOffsets();
-    Metadata::OffsetWatermarkList watermarks = metadata.queryOffsetWatermarks();
-    const cppkafka::TopicPartitionList& assignment = metadata.getPartitionAssignment();
+    if (_brokerTimeout == std::chrono::milliseconds((int)TimerValues::Disabled)) {
+        committedOffsets = metadata.queryCommittedOffsets();
+        watermarks = metadata.queryOffsetWatermarks();
+    }
+    else {
+        committedOffsets = metadata.queryCommittedOffsets(_brokerTimeout);
+        watermarks = metadata.queryOffsetWatermarks(_brokerTimeout);
+    }
     //Get initial partition assignment
+    const cppkafka::TopicPartitionList& assignment = metadata.getPartitionAssignment();
     for (const cppkafka::TopicPartition& toppar : assignment) {
         setStartingOffset(toppar.get_offset(),
                           settings._partitions[toppar.get_partition()],
@@ -307,15 +328,15 @@ Range<int64_t> OffsetManager::insertOffset(OffsetRanges& ranges,
     return range;
 }
 
-void OffsetManager::resetPartitions()
+void OffsetManager::resetPartitionOffsets()
 {
     std::vector<std::string> topics = _consumerManager.getTopics();
     for (auto&& topic : topics) {
-        resetPartitions(topic);
+        resetPartitionOffsets(topic);
     }
 }
 
-void OffsetManager::resetPartitions(const std::string& topic)
+void OffsetManager::resetPartitionOffsets(const std::string& topic)
 {
     TopicSettings& topicSettings = _topicMap[topic];
     topicSettings._partitions.clear();
