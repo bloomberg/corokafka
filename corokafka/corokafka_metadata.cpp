@@ -58,12 +58,36 @@ const cppkafka::Topic& Metadata::getTopicObject() const
     return _kafkaTopic;
 }
 
+Metadata::OffsetWatermarkList Metadata::queryOffsetWatermarks() const
+{
+    if (!_handle) {
+        throw HandleException("Null");
+    }
+    return queryOffsetWatermarks(_handle->get_timeout());
+}
+
+cppkafka::TopicPartitionList Metadata::queryOffsetsAtTime(Timestamp timestamp) const
+{
+    if (!_handle) {
+        throw HandleException("Null");
+    }
+    return queryOffsetsAtTime(timestamp, _handle->get_timeout());
+}
+
 cppkafka::TopicMetadata Metadata::getTopicMetadata() const
 {
     if (!_handle) {
         throw HandleException("Null");
     }
     return _handle->get_metadata(getTopicObject());
+}
+
+cppkafka::TopicMetadata Metadata::getTopicMetadata(std::chrono::milliseconds timeout) const
+{
+    if (!_handle) {
+        throw HandleException("Null");
+    }
+    return _handle->get_metadata(getTopicObject(), timeout);
 }
 
 std::string Metadata::getInternalName() const

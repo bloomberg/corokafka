@@ -40,7 +40,7 @@ ConsumerMetadata::ConsumerMetadata(const std::string& topic,
 {
 }
 
-Metadata::OffsetWatermarkList ConsumerMetadata::queryOffsetWatermarks() const
+Metadata::OffsetWatermarkList ConsumerMetadata::queryOffsetWatermarks(std::chrono::milliseconds timeout) const
 {
     if (!_handle) {
         throw HandleException("Null consumer");
@@ -48,7 +48,7 @@ Metadata::OffsetWatermarkList ConsumerMetadata::queryOffsetWatermarks() const
     OffsetWatermarkList offsets;
     for (const auto& partition : getPartitionAssignment()) {
         offsets.emplace_back(partition.get_partition(),
-                             _handle->query_offsets(partition));
+                             _handle->query_offsets(partition, timeout));
     }
     return offsets;
 }
@@ -66,7 +66,8 @@ Metadata::OffsetWatermarkList ConsumerMetadata::getOffsetWatermarks() const
     return offsets;
 }
 
-cppkafka::TopicPartitionList ConsumerMetadata::queryOffsetsAtTime(Metadata::Timestamp timestamp) const
+cppkafka::TopicPartitionList ConsumerMetadata::queryOffsetsAtTime(Metadata::Timestamp timestamp,
+                                                                  std::chrono::milliseconds timeout) const
 {
     if (!_handle) {
         throw HandleException("Null consumer");
@@ -76,7 +77,7 @@ cppkafka::TopicPartitionList ConsumerMetadata::queryOffsetsAtTime(Metadata::Time
     for (const auto& partition : getPartitionAssignment()) {
         timestampMap[partition] = epochTime;
     }
-    return _handle->get_offsets_for_times(timestampMap);
+    return _handle->get_offsets_for_times(timestampMap, timeout);
 }
 
 cppkafka::TopicPartitionList ConsumerMetadata::queryCommittedOffsets() const
@@ -85,6 +86,14 @@ cppkafka::TopicPartitionList ConsumerMetadata::queryCommittedOffsets() const
         throw HandleException("Null consumer");
     }
     return static_cast<const cppkafka::Consumer*>(_handle)->get_offsets_committed(getPartitionAssignment());
+}
+
+cppkafka::TopicPartitionList ConsumerMetadata::queryCommittedOffsets(std::chrono::milliseconds timeout) const
+{
+    if (!_handle) {
+        throw HandleException("Null consumer");
+    }
+    return static_cast<const cppkafka::Consumer*>(_handle)->get_offsets_committed(getPartitionAssignment(), timeout);
 }
 
 cppkafka::TopicPartitionList ConsumerMetadata::getOffsetPositions() const

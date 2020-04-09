@@ -16,8 +16,9 @@
 #ifndef BLOOMBERG_COROKAFKA_METADATA_H
 #define BLOOMBERG_COROKAFKA_METADATA_H
 
-#include <string>
 #include <corokafka/corokafka_utils.h>
+#include <string>
+#include <chrono>
 
 namespace Bloomberg {
 namespace corokafka {
@@ -65,7 +66,8 @@ public:
      * @remark This method blocks until offset data is received. It is preferable *not* to call this
      *         method from within a callback.
      */
-    virtual OffsetWatermarkList queryOffsetWatermarks() const = 0;
+    OffsetWatermarkList queryOffsetWatermarks() const;
+    virtual OffsetWatermarkList queryOffsetWatermarks(std::chrono::milliseconds) const = 0;
     
     /**
      * @brief Query the remote broker for all offsets newer than timestamp.
@@ -74,7 +76,9 @@ public:
      * @remark This method blocks until offset data is received. It is preferable *not* to call this
      *         method from within a callback.
      */
-    virtual cppkafka::TopicPartitionList queryOffsetsAtTime(Timestamp timestamp) const = 0;
+    cppkafka::TopicPartitionList queryOffsetsAtTime(Timestamp timestamp) const;
+    virtual cppkafka::TopicPartitionList queryOffsetsAtTime(Timestamp timestamp,
+                                                            std::chrono::milliseconds) const = 0;
     
     /**
      * @brief Indicates if the rdkafka consumer/producer handle is valid and set
@@ -99,6 +103,7 @@ public:
      * @return The metadata.
      */
     cppkafka::TopicMetadata getTopicMetadata() const;
+    cppkafka::TopicMetadata getTopicMetadata(std::chrono::milliseconds timeout) const;
     
     /**
      * @brief Get the RdKafka internal name for this consumer or producer.

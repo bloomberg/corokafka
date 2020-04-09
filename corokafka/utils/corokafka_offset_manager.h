@@ -21,6 +21,7 @@
 #include <corokafka/corokafka_received_message.h>
 #include <quantum/quantum.h>
 #include <unordered_map>
+#include <chrono>
 
 namespace Bloomberg {
 namespace corokafka {
@@ -40,8 +41,13 @@ public:
     
     /// @brief Creates an offset manager.
     /// @param consumerManager The consumer manager for which we want to manage offsets.
-    /// @note May throw.
+    /// @param timeout The max timeout for querying offsets and watermarks from brokers.
+    ///                If timeout is not specified, the default consumer timeout will be used.
+    ///                Set timeout to -1 to block infinitely.
+    /// @note May throw if the broker queries time out.
     OffsetManager(corokafka::ConsumerManager& consumerManager);
+    OffsetManager(corokafka::ConsumerManager& consumerManager,
+                  std::chrono::milliseconds brokerTimeout);
     
     /// @brief Saves an offset to be committed later and potentially commits a range of offsets if it became available.
     /// @param offset The partition containing the offset to be saved.
@@ -96,8 +102,8 @@ public:
     /// @note This call **MUST** be made with exclusive access (i.e. when no other threads access
     ///       the ConsumerManager).
     /// @note May throw.
-    void resetPartitions();
-    void resetPartitions(const std::string& topic);
+    void resetPartitionOffsets();
+    void resetPartitionOffsets(const std::string& topic);
     
 private:
     using OffsetMap = IntervalSet<int64_t>;
@@ -143,6 +149,7 @@ private:
 
     // Members
     corokafka::ConsumerManager&     _consumerManager;
+    std::chrono::milliseconds       _brokerTimeout;
     TopicMap                        _topicMap;
 };
 

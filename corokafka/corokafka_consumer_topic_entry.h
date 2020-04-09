@@ -24,9 +24,7 @@
 #include <corokafka/corokafka_consumer_configuration.h>
 #include <corokafka/corokafka_throttle_control.h>
 #include <corokafka/corokafka_connector_configuration.h>
-#ifndef COROKAFKA_DO_NOT_USE_MODIFIED_CPPKAFKA
-#include <corokafka/third_party/cppkafka/round_robin_poll_strategy.h>
-#endif
+#include <cppkafka/utils/roundrobin_poll_strategy.h>
 #include <quantum/quantum.h>
 #include <boost/variant.hpp>
 
