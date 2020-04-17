@@ -42,45 +42,38 @@ enum class QueueFullNotification {
 struct ProducerTopicEntry : public Interruptible {
     ProducerTopicEntry(ProducerPtr producer,
                        const ConnectorConfiguration& connectorConfiguration,
-                       const ProducerConfiguration& configuration,
-                       int numIoThreads) :
-        _connectorConfiguration(connectorConfiguration),
-        _configuration(configuration),
-        _producer(std::move(producer)),
-        _numIoThreads(numIoThreads),
-        _syncProducerThreadRange(0, numIoThreads-1),
-        _ioTracker(std::make_shared<int>(0))
-    {}
-    ProducerTopicEntry(ProducerPtr producer,
-                       const ConnectorConfiguration& connectorConfiguration,
-                       ProducerConfiguration&& configuration,
+                       ProducerConfiguration configuration,
+                       std::atomic_bool& interrupt,
                        int numIoThreads) :
         _connectorConfiguration(connectorConfiguration),
         _configuration(std::move(configuration)),
         _producer(std::move(producer)),
+        _interrupt(interrupt),
         _numIoThreads(numIoThreads),
         _syncProducerThreadRange(0, numIoThreads-1),
         _ioTracker(std::make_shared<int>(0))
     {}
     ProducerTopicEntry(const ProducerTopicEntry&) = delete;
-    ProducerTopicEntry(ProducerTopicEntry&& other) :
-        _connectorConfiguration(std::move(other._connectorConfiguration)),
+    ProducerTopicEntry(ProducerTopicEntry&& other) noexcept :
+        _connectorConfiguration(other._connectorConfiguration),
         _configuration(std::move(other._configuration)),
         _producer(std::move(other._producer)),
-        _numIoThreads(std::move(other._numIoThreads)),
+        _interrupt(other._interrupt),
+        _numIoThreads(other._numIoThreads),
         _syncProducerThreadRange(std::move(other._syncProducerThreadRange)),
         _ioTracker(std::move(other._ioTracker))
     {}
     
-    const ConnectorConfiguration        _connectorConfiguration;
-    const ProducerConfiguration         _configuration;
+    const ConnectorConfiguration&       _connectorConfiguration;
+    ProducerConfiguration               _configuration;
     ProducerPtr                         _producer;
+    std::atomic_bool&                   _interrupt;
     int                                 _numIoThreads;
     std::pair<int,int>                  _syncProducerThreadRange;
     quantum::IQueue::QueueId            _pollIoThreadId{quantum::IQueue::QueueId::Any};
     quantum::ThreadFuturePtr<int>       _pollFuture{nullptr};
-    std::chrono::milliseconds           _waitForAcksTimeout{(int)TimerValues::Disabled};
-    std::chrono::milliseconds           _flushWaitForAcksTimeout{rd_kafka_version() >= RD_KAFKA_ZERO_TIMEOUT_FLUSH_FIX ? (int)TimerValues::Disabled : 100};
+    std::chrono::milliseconds           _waitForAcksTimeout{EnumValue(TimerValues::Disabled)};
+    std::chrono::milliseconds           _flushWaitForAcksTimeout{rd_kafka_version() >= RD_KAFKA_ZERO_TIMEOUT_FLUSH_FIX ? EnumValue(TimerValues::Disabled) : 100};
     bool                                _forceSyncFlush{false};
     bool                                _preserveMessageOrder{false};
     cppkafka::Producer::PayloadPolicy   _payloadPolicy{cppkafka::Producer::PayloadPolicy::COPY_PAYLOAD};

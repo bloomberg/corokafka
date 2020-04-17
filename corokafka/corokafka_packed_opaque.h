@@ -24,18 +24,18 @@
 namespace Bloomberg {
 namespace corokafka {
 
-using PackedOpaqueBase = std::pair<const void*, quantum::Promise<DeliveryReport>>;
-
 /**
  * @brief Represents the packed opaque data structure a pointer to
  * which is associated with every sent message
  */
-class PackedOpaque : public PackedOpaqueBase
-{   
-public:
-    using PackedOpaqueBase::PackedOpaqueBase;
+struct PackedOpaque
+{
     void* operator new(size_t);
     void operator delete(void* p);
+    
+    //members
+    const void*                         _opaque{nullptr};
+    quantum::Promise<DeliveryReport>    _deliveryReportPromise;
 };
     
 }}

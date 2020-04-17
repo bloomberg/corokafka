@@ -43,13 +43,15 @@ public:
      * @brief Pause all consumption from this topic.
      * @param topic The topic name. If the topic is not specified, the function will apply to all topics.
      */
-    void pause(const std::string& topic = {});
+    void pause();
+    void pause(const std::string& topic);
     
     /**
      * @brief Resume all consumption from this topic.
      * @param topic The topic name. If the topic is not specified, the function will apply to all topics.
      */
-    void resume(const std::string& topic = {});
+    void resume();
+    void resume(const std::string& topic);
     
     /**
      * @brief Subscribe a previously unsubscribed consumer.
@@ -61,41 +63,39 @@ public:
      *       shall be used with offsets set to RD_KAFKA_OFFSET_INVALID.
      */
     void subscribe(const std::string& topic,
-                   const cppkafka::TopicPartitionList& partitionList = {});
+                   const cppkafka::TopicPartitionList& partitionList);
+    void subscribe(const cppkafka::TopicPartitionList& partitionList);
     
     /**
      * @brief Unsubscribe from this topic.
      * @param topic The topic name. If the topic is not specified, the function will apply to all topics.
      */
-    void unsubscribe(const std::string& topic = {});
+    void unsubscribe();
+    void unsubscribe(const std::string& topic);
     
     /**
      * @brief Commits an offset. The behavior of this function depends on the 'internal.consumer.offset.persist.strategy' value.
-     * @param topicPartition The offset to commit. Must have a valid topic, partition and offset or just a topic (see note).
+     * @param topicPartition(s) The offset(s) to commit. Must have a valid topic, partition and offset or just a topic (see note).
      * @param opaque Pointer which will be passed as-is via the 'OffsetCommitCallback'.
-     * @param forceSync If true, run the commit synchronously. Otherwise run it according to the
-     *                  'internal.consumer.commit.exec' setting.
+     * @param execMode If specified, overrides the 'internal.consumer.commit.exec' setting.
      * @return Error object. If the number of retries reach 0, error contains RD_KAFKA_RESP_ERR__FAIL.
      * @note If only the topic is supplied, this API will commit all offsets in the current partition assignment.
-     *       This is only valid if 'internal.consumer.offset.persist.strategy=commit'.
+     * @note If 'internal.consumer.offset.persist.strategy=store' and 'execMode=Sync', this function will perform
+     *       a synchronous commit instead of storing the offset. This is equivalent to having
+     *       'internal.consumer.offset.persist.strategy=commit'.
      * @warning If this method is used, 'internal.consumer.auto.offset.persist' must be set to 'false' and NO commits
      *          should be made via the ReceivedMessage::commit() API.
      */
     cppkafka::Error commit(const cppkafka::TopicPartition& topicPartition,
-                           const void* opaque = nullptr,
-                           bool forceSync = false);
-    
-    /**
-     * @brief Similar to the above commit() but supporting a list of partitions.
-     * @param topicPartitions Partitions on the *same* topic. Each TopicPartition must have a valid topic, partition and offset.
-     * @param opaque Pointer which will be passed as-is via the 'OffsetCommitCallback'.
-     * @param forceSync If true, run the commit synchronously. Otherwise run it according to the
-     *                  'internal.consumer.commit.exec' setting.
-     * @return Error object. If the number of retries reach 0, error contains RD_KAFKA_RESP_ERR__FAIL.
-     */
+                           const void* opaque = nullptr);
+    cppkafka::Error commit(const cppkafka::TopicPartition& topicPartition,
+                           ExecMode execMode,
+                           const void* opaque = nullptr);
     cppkafka::Error commit(const cppkafka::TopicPartitionList& topicPartitions,
-                           const void* opaque = nullptr,
-                           bool forceSync = false);
+                           ExecMode execMode,
+                           const void* opaque = nullptr);
+    cppkafka::Error commit(const cppkafka::TopicPartitionList& topicPartitions,
+                           const void* opaque = nullptr);
     
     /**
      * @brief Gracefully shut down all consumers and unsubscribe from all topics.
@@ -111,13 +111,14 @@ public:
     ConsumerMetadata getMetadata(const std::string& topic);
     
     /**
-     * @brief Enables or disables the preprocessor callback (if registered)
-     * @param enable True to enable, false to disable
+     * @brief Enable/disable the preprocessor callback (if registered).
      * @param topic The topic name. If not set, this operation will apply to all topics.
      * @remark Note that the preprocessor is enabled by default
-     * @remark The overload with no topic will act on all topics.
      */
-    void preprocess(bool enable, const std::string& topic = {});
+    void enablePreprocessing();
+    void enablePreprocessing(const std::string& topic);
+    void disablePreprocessing();
+    void disablePreprocessing(const std::string& topic);
     
     /**
      * @brief Get the configuration associated with this topic.
@@ -136,13 +137,15 @@ protected:
     using ConfigMap = ConfigurationBuilder::ConfigMap<ConsumerConfiguration>;
     ConsumerManager(quantum::Dispatcher& dispatcher,
                     const ConnectorConfiguration& connectorConfiguration,
-                    const ConfigMap& config);
+                    const ConfigMap& config,
+                    std::atomic_bool& interrupt);
     
     ConsumerManager(quantum::Dispatcher& dispatcher,
                     const ConnectorConfiguration& connectorConfiguration,
-                    ConfigMap&& config);
+                    ConfigMap&& config,
+                    std::atomic_bool& interrupt);
     
-    virtual ~ConsumerManager();
+    virtual ~ConsumerManager() = default;
     
     void poll();
     

@@ -24,8 +24,14 @@ namespace corokafka {
 
 ConnectorImpl::ConnectorImpl(const ConfigurationBuilder& builder,
                              quantum::Dispatcher& dispatcher) :
-    ProducerManager(dispatcher, builder.connectorConfiguration(), builder.producerConfigurations()),
-    ConsumerManager(dispatcher, builder.connectorConfiguration(), builder.consumerConfigurations()),
+    ProducerManager(dispatcher,
+                    builder.connectorConfiguration(),
+                    builder.producerConfigurations(),
+                    _interrupt),
+    ConsumerManager(dispatcher,
+                    builder.connectorConfiguration(),
+                    builder.consumerConfigurations(),
+                    _interrupt),
     _config(builder.connectorConfiguration()),
     _dispatcher(dispatcher),
     _pollThread(std::bind(&ConnectorImpl::poll, this))
@@ -35,8 +41,14 @@ ConnectorImpl::ConnectorImpl(const ConfigurationBuilder& builder,
 
 ConnectorImpl::ConnectorImpl(ConfigurationBuilder&& builder,
                              quantum::Dispatcher& dispatcher) :
-    ProducerManager(dispatcher, builder.connectorConfiguration(), std::move(builder.producerConfigurations())),
-    ConsumerManager(dispatcher, builder.connectorConfiguration(), std::move(builder.consumerConfigurations())),
+    ProducerManager(dispatcher,
+                    builder.connectorConfiguration(),
+                    std::move(builder.producerConfigurations()),
+                    _interrupt),
+    ConsumerManager(dispatcher,
+                    builder.connectorConfiguration(),
+                    std::move(builder.consumerConfigurations()),
+                    _interrupt),
     _config(std::move(builder.connectorConfiguration())),
     _dispatcher(dispatcher),
     _pollThread(std::bind(&ConnectorImpl::poll, this))
@@ -49,7 +61,7 @@ void ConnectorImpl::shutdown(bool drain,
 {
     if (!_shutdownInitiated.test_and_set())
     {
-        _shuttingDown = true;
+        _interrupt = true;
         ProducerManager::shutdown();
         ConsumerManager::shutdown();
         
@@ -73,7 +85,7 @@ void ConnectorImpl::shutdown(bool drain,
 
 void ConnectorImpl::poll()
 {
-    while (!_shuttingDown) {
+    while (!_interrupt) {
         auto start = std::chrono::high_resolution_clock::now();
         try {
             ProducerManager::poll(); //flush the producers

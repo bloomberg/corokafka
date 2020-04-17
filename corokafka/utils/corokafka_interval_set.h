@@ -173,7 +173,7 @@ IntervalSet<T,Compare,Alloc>::insert(const Range<T>& interval)
             // Get the previous element in the map
             current = --Iterator(it);
             isModified = !canAbsorb(current, it);
-            if (canAbsorb(current, it) || canMerge(current, it)) {
+            if (!isModified || canMerge(current, it)) {
                 it = current; //reset it to point to the previous element
             }
         }

@@ -16,7 +16,7 @@
 #ifndef BLOOMBERG_COROKAFKA_OFFSET_MAP_H
 #define BLOOMBERG_COROKAFKA_OFFSET_MAP_H
 
-#include <map>
+#include <unordered_map>
 #include <mutex>
 #include <memory>
 #include <corokafka/corokafka_utils.h>
@@ -27,7 +27,7 @@ namespace corokafka {
 class OffsetMap {
 public:
     OffsetMap() :
-        _mutex(new std::mutex())
+        _mutex(std::make_unique<std::mutex>())
     {}
     
     void insert(const cppkafka::TopicPartition& position, const void* opaque) {
@@ -43,8 +43,10 @@ public:
     }
     
     const void* find(const cppkafka::TopicPartition& position) const {
-        if (_map.empty()) return nullptr;
         std::lock_guard<std::mutex> lock(*_mutex);
+        if (_map.empty()) {
+            return nullptr;
+        }
         auto it = _map.find(position);
         if (it == _map.end()) {
             return nullptr;
@@ -53,8 +55,10 @@ public:
     }
 
     const void* remove(const cppkafka::TopicPartition& position) {
-        if (_map.empty()) return nullptr;
         std::lock_guard<std::mutex> lock(*_mutex);
+        if (_map.empty()) {
+            return nullptr;
+        }
         auto it = _map.find(position);
         if (it == _map.end()) {
             return nullptr;
@@ -86,17 +90,30 @@ public:
     bool empty() const { return _map.empty(); }
     
 private:
-    struct TopicPartitionComparator
+    struct EqualTo
     {
-        bool operator()(const cppkafka::TopicPartition& lhs, const cppkafka::TopicPartition& rhs) const {
+        bool operator()(const cppkafka::TopicPartition& lhs, const cppkafka::TopicPartition& rhs) const noexcept {
             int lhsPartition = lhs.get_partition(), rhsPartition = rhs.get_partition();
             int64_t lhsOffset = lhs.get_offset(), rhsOffset = rhs.get_offset();
-            return std::tie(lhs.get_topic(), lhsPartition, lhsOffset) <
+            return std::tie(lhs.get_topic(), lhsPartition, lhsOffset) ==
                    std::tie(rhs.get_topic(), rhsPartition, rhsOffset);
         }
     };
+    struct Hasher
+    {
+        //boost hash_combine
+        size_t combine(size_t lhs, size_t rhs) const noexcept {
+          lhs ^= rhs + 0x9e3779b9 + (lhs << 6) + (lhs >> 2);
+          return lhs;
+        }
+        size_t operator()(const cppkafka::TopicPartition& partition) const noexcept {
+            return combine(combine(std::hash<std::string>{}(partition.get_topic()),
+                                   std::hash<int>{}(partition.get_partition())),
+                           std::hash<int64_t>{}(partition.get_offset()));
+        }
+    };
     // Indexed by partition and offset number
-    using MapType = std::map<cppkafka::TopicPartition, const void*, TopicPartitionComparator>;
+    using MapType = std::unordered_map<cppkafka::TopicPartition, const void*, Hasher, EqualTo>;
     
     MapType                             _map;
     mutable std::unique_ptr<std::mutex> _mutex;

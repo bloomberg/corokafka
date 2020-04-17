@@ -21,10 +21,11 @@
 #include <quantum/quantum.h>
 #include <functional>
 #include <algorithm>
-#include <ctype.h>
+#include <cctype>
 #include <vector>
 #include <chrono>
 #include <atomic>
+#include <typeinfo>
 
 //======================================================================================================================
 //                                               Disjunction port
@@ -82,34 +83,33 @@ enum class TimerValues : char
     Disabled = -2,  ///< Not taking effect
     Unlimited = -1  ///< Blocks indefinitely
 };
+enum class SizeLimits : char
+{
+    Unlimited = -1 ///< Unlimited size or unbounded
+};
 enum class PollStrategy : char
 {
     Batch,          ///< Reads messages in batches
     RoundRobin,     ///< Reads messages from each partition at a time, in round-robin fashion
     Serial          ///< Default consumer. Reads messages as they arrive.
 };
-
-struct Empty
+enum class OptionsPermission : char
 {
+    RdKafkaDisallow,
+    RdKafkaAllow
 };
 
-template <typename T>
-struct is_empty
+template <typename Enum>
+constexpr auto EnumValue(Enum e) noexcept
 {
-    constexpr static bool value{false};
-};
-
-template <>
-struct is_empty<Empty>
-{
-    constexpr static bool value{true};
-};
+    return static_cast<std::underlying_type_t<Enum>>(e);
+}
 
 ssize_t& maxMessageBuilderOutputLength();
 
 struct Interruptible
 {
-    std::atomic<bool> _shuttingDown{false};
+    std::atomic_bool _interrupt{false};
 };
 
 void handleException(const std::exception &ex,
@@ -126,7 +126,7 @@ struct StringLessCompare
 {
     struct CharLessCompare
     {
-        bool operator()(const unsigned char &c1, const unsigned char &c2) const
+        bool operator()(unsigned char c1, unsigned char c2) const
         {
             return tolower(c1) < tolower(c2);
         }
@@ -142,7 +142,7 @@ struct StringEqualCompare
 {
     struct CharEqualCompare
     {
-        bool operator()(const unsigned char &c1, const unsigned char &c2) const
+        bool operator()(unsigned char c1, unsigned char c2) const
         {
             return tolower(c1) == tolower(c2);
         }
@@ -176,10 +176,10 @@ struct StringEqualCompare
 
 // Trim whitespaces at both ends
 static inline void trim(std::string& str) {
-    str.erase(str.begin(), std::find_if(str.begin(), str.end(), [](int c) {
+    str.erase(str.begin(), std::find_if(str.begin(), str.end(), [](int c)->bool {
         return !std::isspace(c);
     }));
-    str.erase(std::find_if(str.rbegin(), str.rend(), [](int c) {
+    str.erase(std::find_if(str.rbegin(), str.rend(), [](int c)->bool {
         return !std::isspace(c);
     }).base(), str.end());
 }
@@ -227,7 +227,7 @@ std::ostream &operator<<(std::ostream &stream, const cppkafka::BasicMessageBuild
 {
     ssize_t max_len = maxMessageBuilderOutputLength();
     size_t payload_len = (max_len == -1) ? builder.payload().size() :
-                         std::min(builder.payload().size(), (size_t) max_len);
+                         std::min(builder.payload().size(), static_cast<size_t>(max_len));
     JsonBuilder json(stream);
     json.startMember("messageBuilder").
         tag("topic", builder.topic()).
@@ -248,7 +248,7 @@ std::ostream &operator<<(std::ostream &stream,
 {
     ssize_t max_len = maxMessageBuilderOutputLength();
     size_t payload_len = (max_len == -1) ? builder.payload().size() :
-                         std::min(builder.payload().size(), (size_t) max_len);
+                         std::min(builder.payload().size(), static_cast<size_t>(max_len));
     JsonBuilder json(stream);
     json.startMember("messageBuilder").
         tag("topic", builder.topic()).
@@ -268,7 +268,7 @@ std::ostream& operator<<(std::ostream& stream,
                          const cppkafka::BasicMessageBuilder<cppkafka::Buffer, C> &builder) {
     ssize_t max_len = maxMessageBuilderOutputLength();
     size_t payload_len = (max_len == -1) ? builder.payload().get_size() :
-                         std::min(builder.payload().get_size(), (size_t)max_len);
+                         std::min(builder.payload().get_size(), static_cast<size_t>(max_len));
     JsonBuilder json(stream);
     json.startMember("messageBuilder").
         tag("topic", builder.topic()).

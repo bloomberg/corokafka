@@ -63,7 +63,7 @@ ConnectorConfiguration::ConnectorConfiguration(OptionInitList options) :
 void ConnectorConfiguration::init()
 {
     //Validate options
-    parseOptions({}, s_internalOptionsPrefix, s_internalOptions, _options, false);
+    parseOptions({}, s_internalOptionsPrefix, s_internalOptions, _options, OptionsPermission::RdKafkaDisallow);
     extract(Options::pollIntervalMs)
         ({}, Configuration::getOption(Options::pollIntervalMs), &_pollInterval);
     extract(Options::maxPayloadOutputLength)

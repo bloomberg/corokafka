@@ -44,10 +44,10 @@ public:
      * @tparam K The Key type used in selecting the partition where this message will be sent.
      * @tparam P The Payload type for this message.
      * @param topic The topic to publish to.
+     * @param opaque An opaque data pointer which will be returned inside the delivery callback or the returned future.
      * @param key The message key.
      * @param payload The message payload.
      * @param headers The header pack for this message in order of definition in the TopicTraits.
-     * @param opaque An opaque data pointer which will be returned inside the delivery callback.
      * @return A message delivery report.
      * @remark This call will block for the duration of the 'internal.producer.wait.for.acks.timeout.ms'.
      *         Contrary to post(), this will create an IO operation on the internal dispatcher. Depending
@@ -74,10 +74,10 @@ public:
      * @tparam K The Key type used in selecting the partition where this message will be sent.
      * @tparam P The Payload type for this message.
      * @param topic The topic to publish to.
+     * @param opaque An opaque data pointer which will be returned inside the delivery callback or the returned future.
      * @param key The message key.
      * @param payload The message payload.
      * @param headers The header pack for this message.
-     * @param opaque An opaque data pointer which will be returned inside the delivery callback or the returned future.
      * @return A future containing a message delivery report.
      * @remark To guarantee strict message ordering, set 'internal.producer.preserve.message.order = true' which will
      *         also set the RdKafka option 'max.in.flight = 1' and 'message.send.max.retries=0' as it
@@ -151,13 +151,15 @@ protected:
     
     ProducerManager(quantum::Dispatcher& dispatcher,
                     const ConnectorConfiguration& connectorConfiguration,
-                    const ConfigMap& config);
+                    const ConfigMap& config,
+                    std::atomic_bool& interrupt);
     
     ProducerManager(quantum::Dispatcher& dispatcher,
                     const ConnectorConfiguration& connectorConfiguration,
-                    ConfigMap&& config);
+                    ConfigMap&& config,
+                    std::atomic_bool& interrupt);
     
-    virtual ~ProducerManager();
+    virtual ~ProducerManager() = default;
     
     void poll();
     void pollEnd();

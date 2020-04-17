@@ -20,6 +20,7 @@
 #include <corokafka/corokafka_utils.h>
 #include <corokafka/corokafka_header_pack.h>
 #include <boost/any.hpp>
+#include <bitset>
 
 namespace Bloomberg {
 namespace corokafka {
@@ -27,22 +28,26 @@ namespace corokafka {
 struct DeserializerError
 {
     enum class Source : uint8_t {
-        Kafka           = 1<<0,
-        Key             = 1<<1,
-        Payload         = 1<<2,
-        Header          = 1<<3,
-        Preprocessor    = 1<<4
+        Kafka = 0,
+        Key,
+        Payload,
+        Header,
+        Preprocessor,
+        Max
     };
-    bool isKafkaError() const { return (_source & (uint8_t)Source::Kafka) != 0; }
-    bool isKeyError() const { return (_source & (uint8_t)Source::Key) != 0; }
-    bool isPayloadError() const { return (_source & (uint8_t)Source::Payload) != 0; }
-    bool isHeaderError() const { return (_source & (uint8_t)Source::Header) != 0; }
-    bool isPreprocessorError() const { return (_source & (uint8_t)Source::Preprocessor) != 0; }
-    
+    bool hasError() const {
+        return _source.any();
+    }
+    bool hasError(Source source) const {
+        return _source.test(EnumValue(source));
+    }
+    void setError(Source source) {
+        _source.set(EnumValue(source));
+    }
     //members
-    cppkafka::Error     _error{RD_KAFKA_RESP_ERR_NO_ERROR};
-    uint8_t             _source{0};
-    int                 _headerNum{-1};
+    cppkafka::Error                     _error{RD_KAFKA_RESP_ERR_NO_ERROR};
+    std::bitset<EnumValue(Source::Max)> _source;
+    int                                 _headerNum{-1};
 };
 
 struct Deserializer

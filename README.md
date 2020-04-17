@@ -187,7 +187,7 @@ std::initializer_list<cppkafka::ConfigurationOption > producerOptions = {
 
 // Associate the topic and producer configuration with a topic name.
 // Note: any number of producer configs/topics can be created.
-corokafka::ProducerConfiguration config("my-topic", producerOptions, topicOptions);
+corokafka::ProducerConfiguration config(myTopic, producerOptions, topicOptions);
 
 // Add the callbacks
 config.setDeliveryReportCallback(deliveryReportCallback);
@@ -220,7 +220,7 @@ for (size_t i = 0; i < 10; ++i) {
 
 In the following example we will be consuming messages with a key of type `size_t`, a payload of type
 `std::string` and a simple header called _Header1_. For full consumer API see [here](https://github.com/bloomberg/corokafka/blob/master/corokafka/corokafka_consumer_manager.h).
-```
+```c++
 //==========================================================================
 //                 Message worker queue and processor
 //==========================================================================

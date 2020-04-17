@@ -108,7 +108,7 @@ struct MessageTracker
         }
         SenderId                _id;
         int                     _partition{0};
-        int                     _offset{(int)OffsetPoint::Invalid};
+        int                     _offset{EnumValue(OffsetPoint::Invalid)};
         Optional<Header1>       _header1;
         Optional<Header2>       _header2;
         Message                 _message;
@@ -230,7 +230,7 @@ void testProducerOption(const char* exName, const char* opName, const ValueTestL
         if (value.second) { //throws
             try {
                 ProducerConfiguration config(
-                    topicWithHeaders().topic(),
+                    topicWithHeaders(),
                     {{opName, value.first},
                     {"metadata.broker.list", programOptions()._broker}}, {});
                 FAIL(); //should have thrown
@@ -248,7 +248,7 @@ void testProducerOption(const char* exName, const char* opName, const ValueTestL
         else {
             ASSERT_NO_THROW(
                 ProducerConfiguration config(
-                    topicWithHeaders().topic(),
+                    topicWithHeaders(),
                     {{opName, value.first},
                     {"metadata.broker.list", programOptions()._broker}}, {});
             );
@@ -293,8 +293,8 @@ void testConsumerOption(const char* exName, const char* opName, const ValueTestL
     }
 }
 
-inline
-Connector makeProducerConnector(const Configuration::OptionList& ops, const std::string& topic)
+template <typename TOPIC>
+Connector makeProducerConnector(const Configuration::OptionList& ops, const TOPIC& topic)
 {
     Configuration::OptionList options = ops;
     options.push_back({"metadata.broker.list", programOptions()._broker});

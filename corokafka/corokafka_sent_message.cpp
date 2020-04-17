@@ -43,7 +43,7 @@ SentMessage::SentMessage(const cppkafka::MessageBuilder& builder,
 
 uint64_t SentMessage::getHandle() const
 {
-    return _message ? (uint64_t)_message->get_handle() : 0;
+    return _message ? reinterpret_cast<uint64_t>(_message->get_handle()) : 0;
 }
 
 const cppkafka::Buffer& SentMessage::getKeyBuffer() const
@@ -78,7 +78,7 @@ int SentMessage::getPartition() const
 
 int64_t SentMessage::getOffset() const
 {
-    return _message ? _message->get_offset() : (int64_t)cppkafka::TopicPartition::OFFSET_INVALID;
+    return _message ? _message->get_offset() : static_cast<int64_t>(cppkafka::TopicPartition::OFFSET_INVALID);
 }
 
 std::chrono::milliseconds SentMessage::getTimestamp() const

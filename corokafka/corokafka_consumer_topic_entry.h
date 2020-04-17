@@ -34,7 +34,7 @@ namespace corokafka {
 using ConsumerType = cppkafka::Consumer;
 using ConsumerPtr = std::unique_ptr<ConsumerType>;
 using CommitterPtr = std::unique_ptr<cppkafka::BackoffCommitter>;
-using RoundRobinPollStrategyPtr = std::unique_ptr<cppkafka::RoundRobinPollStrategy>;
+using PollStrategyBasePtr = std::unique_ptr<cppkafka::PollStrategyBase>;
 using DeserializedMessage = std::tuple<boost::any, boost::any, HeaderPack, DeserializerError>;
 using MessageBatch = std::vector<cppkafka::Message>;
 using Batches = std::vector<MessageBatch>;
@@ -46,57 +46,47 @@ enum class Field : int {
     Error = 3
 };
 
-struct ConsumerTopicEntry : public Interruptible {
+struct ConsumerTopicEntry {
     ConsumerTopicEntry(ConsumerPtr consumer,
                        const ConnectorConfiguration& connectorConfiguration,
-                       const ConsumerConfiguration& configuration,
-                       int numIoThreads,
-                       std::pair<int,int> coroQueueIdRangeForAny) :
-        _connectorConfiguration(connectorConfiguration),
-        _configuration(configuration),
-        _consumer(std::move(consumer)),
-        _partitionAssignment(_configuration.getInitialPartitionAssignment()),
-        _coroQueueIdRangeForAny(coroQueueIdRangeForAny),
-        _numIoThreads(numIoThreads),
-        _receiveCallbackThreadRange(0, numIoThreads-1),
-        _ioTracker(std::make_shared<int>(0))
-    {}
-    ConsumerTopicEntry(ConsumerPtr consumer,
-                       const ConnectorConfiguration& connectorConfiguration,
-                       ConsumerConfiguration&& configuration,
+                       ConsumerConfiguration configuration,
+                       std::atomic_bool& interrupt,
                        int numIoThreads,
                        std::pair<int,int> coroQueueIdRangeForAny) :
         _connectorConfiguration(connectorConfiguration),
         _configuration(std::move(configuration)),
         _consumer(std::move(consumer)),
+        _interrupt(interrupt),
         _partitionAssignment(_configuration.getInitialPartitionAssignment()),
-        _coroQueueIdRangeForAny(coroQueueIdRangeForAny),
+        _coroQueueIdRangeForAny(std::move(coroQueueIdRangeForAny)),
         _numIoThreads(numIoThreads),
         _receiveCallbackThreadRange(0, numIoThreads-1),
         _ioTracker(std::make_shared<int>(0))
     {}
     ConsumerTopicEntry(const ConsumerTopicEntry&) = delete;
-    ConsumerTopicEntry(ConsumerTopicEntry&& other) :
-        _connectorConfiguration(std::move(other._connectorConfiguration)),
+    ConsumerTopicEntry(ConsumerTopicEntry&& other) noexcept :
+        _connectorConfiguration(other._connectorConfiguration),
         _configuration(std::move(other._configuration)),
         _consumer(std::move(other._consumer)),
+        _interrupt(other._interrupt),
         _partitionAssignment(std::move(other._partitionAssignment)),
         _coroQueueIdRangeForAny(std::move(other._coroQueueIdRangeForAny)),
-        _numIoThreads(std::move(other._numIoThreads)),
+        _numIoThreads(other._numIoThreads),
         _receiveCallbackThreadRange(std::move(other._receiveCallbackThreadRange)),
         _ioTracker(std::move(other._ioTracker))
     {}
     
     //Members
-    const ConnectorConfiguration    _connectorConfiguration;
-    const ConsumerConfiguration     _configuration;
+    const ConnectorConfiguration&   _connectorConfiguration;
+    ConsumerConfiguration           _configuration;
     ConsumerPtr                     _consumer;
+    std::atomic_bool&               _interrupt;
     cppkafka::Queue                 _eventQueue; //queue event polling
     cppkafka::TopicPartitionList    _partitionAssignment;
     CommitterPtr                    _committer;
-    RoundRobinPollStrategyPtr       _roundRobinStrategy;
+    PollStrategyBasePtr             _poller;
     PollStrategy                    _pollStrategy{PollStrategy::Serial};
-    mutable OffsetMap               _offsets;
+    OffsetMap                       _offsets;
     Metadata::OffsetWatermarkList   _watermarks;
     bool                            _enableWatermarkCheck{false};
     std::atomic_bool                _isPaused{false};
@@ -107,7 +97,7 @@ struct ConsumerTopicEntry : public Interruptible {
     ssize_t                         _readSize{100};
     quantum::IQueue::QueueId        _processCoroThreadId{quantum::IQueue::QueueId::Any};
     quantum::IQueue::QueueId        _pollIoThreadId{quantum::IQueue::QueueId::Any};
-    std::chrono::milliseconds       _pollTimeout{(int)TimerValues::Disabled};
+    std::chrono::milliseconds       _pollTimeout{EnumValue(TimerValues::Disabled)};
     std::chrono::milliseconds       _minRoundRobinPollTimeout{10};
     std::pair<int,int>              _coroQueueIdRangeForAny;
     int                             _numIoThreads;

@@ -16,11 +16,6 @@
 #ifndef BLOOMBERG_COROKAFKA_PRODUCER_MANAGER_IMPL_H
 #define BLOOMBERG_COROKAFKA_PRODUCER_MANAGER_IMPL_H
 
-#include <unordered_map>
-#include <atomic>
-#include <future>
-#include <mutex>
-#include <condition_variable>
 #include <corokafka/corokafka_message.h>
 #include <corokafka/corokafka_metadata.h>
 #include <corokafka/corokafka_configuration_builder.h>
@@ -28,17 +23,18 @@
 #include <corokafka/corokafka_producer_topic_entry.h>
 #include <corokafka/corokafka_delivery_report.h>
 #include <corokafka/corokafka_packed_opaque.h>
+#include <unordered_map>
+#include <atomic>
+#include <future>
+#include <mutex>
+#include <condition_variable>
 
 namespace Bloomberg {
 namespace corokafka {
 
-class ProducerManagerImpl : public Interruptible
+class ProducerManagerImpl
 {
-    friend class ProducerManager;
 public:
-    ~ProducerManagerImpl();
-    
-private:
     using ConfigMap = ConfigurationBuilder::ConfigMap<ProducerConfiguration>;
     using BuilderTuple = std::tuple<ProducerTopicEntry*, ProducerMessageBuilder<ByteArray>>;
     using MessageFuture = quantum::ThreadContextPtr<BuilderTuple>;
@@ -48,13 +44,17 @@ private:
                                          StringEqualCompare>; //index by topic
     
     ProducerManagerImpl(quantum::Dispatcher& dispatcher,
-                        const ConnectorConfiguration& connectorConfiguration,
-                        const ConfigMap& configs);
+                        ConnectorConfiguration connectorConfiguration,
+                        const ConfigMap& configs,
+                        std::atomic_bool& interrupt);
     
     ProducerManagerImpl(quantum::Dispatcher& dispatcher,
-                        const ConnectorConfiguration& connectorConfiguration,
-                        ConfigMap&& configs);
-
+                        ConnectorConfiguration connectorConfiguration,
+                        ConfigMap&& configs,
+                        std::atomic_bool& interrupt);
+    
+    ~ProducerManagerImpl();
+    
     ProducerMetadata getMetadata(const std::string& topic);
     
     const ProducerConfiguration& getConfiguration(const std::string& topic) const;
@@ -103,10 +103,10 @@ private:
                                        const cppkafka::Topic& topic,
                                        const cppkafka::Buffer& key,
                                        int32_t partitionCount);
-    static void errorCallback2(ProducerTopicEntry& topicEntry,
-                               cppkafka::KafkaHandleBase& handle,
-                               int error,
-                               const std::string& reason);
+    static void errorCallbackInternal(ProducerTopicEntry& topicEntry,
+                                      cppkafka::KafkaHandleBase& handle,
+                                      int error,
+                                      const std::string& reason);
     static void errorCallback(ProducerTopicEntry& topicEntry,
                                cppkafka::KafkaHandleBase& handle,
                                cppkafka::Error error,
@@ -181,11 +181,13 @@ private:
                                  const ProducerTopicEntry& topicEntry);
     static bool isFlushNonBlocking(const ProducerTopicEntry& topicEntry);
     
+private:
     // Members
     quantum::Dispatcher&        _dispatcher;
+    ConnectorConfiguration      _connectorConfiguration;
     Producers                   _producers;
-    std::atomic_flag            _shutdownInitiated{0};
-    std::deque<MessageFuture>   _messageQueue;
+    std::atomic_bool&           _interrupt;
+    std::atomic_flag            _shutdownInitiated{false};
     std::chrono::milliseconds   _shutdownIoWaitTimeoutMs{2000};
 };
 
@@ -335,7 +337,7 @@ ProducerManagerImpl::postImpl(ExecMode mode,
     if (mode == ExecMode::Async) {
         if (topicEntry._preserveMessageOrder) {
             if ((topicEntry._maxQueueLength > -1) &&
-                (topicEntry._producer->get_buffer_size() > (size_t)topicEntry._maxQueueLength)) {
+                (topicEntry._producer->get_buffer_size() > static_cast<size_t>(topicEntry._maxQueueLength))) {
                 deliveryPromise.set(DeliveryReport{{}, 0, RD_KAFKA_RESP_ERR__QUEUE_FULL, opaque});
                 return deliveryFuture;
             }
@@ -354,7 +356,7 @@ ProducerManagerImpl::postImpl(ExecMode mode,
         deliveryPromise.set(DeliveryReport{{}, 0, RD_KAFKA_RESP_ERR__VALUE_SERIALIZATION, opaque});
         return deliveryFuture;
     }
-    builder.user_data(new PackedOpaque(opaque, std::move(deliveryPromise)));
+    builder.user_data(new PackedOpaque{opaque, std::move(deliveryPromise)});
     int rc = 0;
     if (ctx && (mode == ExecMode::Sync)) {
         //Find thread id

@@ -24,8 +24,8 @@ struct TypeErasedDeserializer
     
     template <typename TOPIC>
     TypeErasedDeserializer(const TOPIC& topic) :
-        _keyDeserializer(new ConcreteDeserializer<typename TOPIC::KeyType>{}),
-        _payloadDeserializer(new ConcreteDeserializer<typename TOPIC::PayloadType>{}),
+        _keyDeserializer(std::make_shared<ConcreteDeserializer<typename TOPIC::KeyType>>()),
+        _payloadDeserializer(std::make_shared<ConcreteDeserializer<typename TOPIC::PayloadType>>()),
         _headerDeserializers(headerDeserializers(topic.headers(), std::make_index_sequence<TOPIC::HeadersType::NumHeaders>{}))
     {
         for (const auto& name : topic.headers().names()) {
@@ -38,7 +38,7 @@ struct TypeErasedDeserializer
     {
         return {
             {headers.names()[I],
-            {I, DeserializerPtr(new ConcreteDeserializer<typename std::tuple_element<I, typename HEADERS::HeaderTypes>::type>{})}}
+            {I, DeserializerPtr(std::make_shared<ConcreteDeserializer<typename std::tuple_element<I, typename HEADERS::HeaderTypes>::type>>())}}
              ...
         };
     }

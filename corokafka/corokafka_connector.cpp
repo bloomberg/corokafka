@@ -22,32 +22,36 @@ namespace Bloomberg {
 namespace corokafka {
 
 Connector::Connector(const ConfigurationBuilder& builder) :
-    _dispatcherPtr(new quantum::Dispatcher(builder.connectorConfiguration().getDispatcherConfiguration())),
-    _impl(new ConnectorImpl(builder, *_dispatcherPtr))
+    _dispatcherPtr(std::make_shared<quantum::Dispatcher>(builder.connectorConfiguration().getDispatcherConfiguration())),
+    _impl(std::make_unique<ConnectorImpl>(builder, *_dispatcherPtr))
 {
 
 }
 
 Connector::Connector(ConfigurationBuilder&& builder) :
-    _dispatcherPtr(new quantum::Dispatcher(builder.connectorConfiguration().getDispatcherConfiguration())),
-    _impl(new ConnectorImpl(std::move(builder), *_dispatcherPtr))
+    _dispatcherPtr(std::make_shared<quantum::Dispatcher>(builder.connectorConfiguration().getDispatcherConfiguration())),
+    _impl(std::make_unique<ConnectorImpl>(std::move(builder), *_dispatcherPtr))
 {
 
 }
 
 Connector::Connector(const ConfigurationBuilder& builder,
                      quantum::Dispatcher& dispatcher) :
-    _impl(new ConnectorImpl(builder, dispatcher))
+    _impl(std::make_unique<ConnectorImpl>(builder, dispatcher))
 {
 
 }
 
 Connector::Connector(ConfigurationBuilder&& builder,
                      quantum::Dispatcher& dispatcher) :
-    _impl(new ConnectorImpl(std::move(builder), dispatcher))
+    _impl(std::make_unique<ConnectorImpl>(std::move(builder), dispatcher))
 {
 
 }
+
+//Circumvent ConnectorImpl not being defined in the header.
+Connector::Connector(Connector&& other) noexcept = default;
+Connector& Connector::operator=(Connector&& other) = default;
 
 Connector::~Connector()
 {

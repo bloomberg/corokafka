@@ -15,6 +15,7 @@
 */
 #include <corokafka/corokafka_configuration.h>
 #include <corokafka/corokafka_exception.h>
+#include <algorithm>
 
 namespace Bloomberg {
 namespace corokafka {
@@ -181,22 +182,22 @@ const std::string& Configuration::getJsonSchemaUri()
 
 Configuration::Configuration(OptionList options)
 {
-    _options[(int)OptionType::All] = std::move(options);
+    _options[EnumValue(OptionType::All)] = std::move(options);
 }
 
 Configuration::Configuration(OptionInitList options)
 {
-    _options[(int)OptionType::All] = std::move(options);
+    _options[EnumValue(OptionType::All)] = std::move(options);
 }
 
 const Configuration::OptionList& Configuration::getOptions(OptionType type) const
 {
-    return _options[(int)type];
+    return _options[EnumValue(type)];
 }
 
 const cppkafka::ConfigurationOption* Configuration::getOption(const std::string& name) const
 {
-    return findOption(name, _options[(int)OptionType::All]);
+    return findOption(name, _options[EnumValue(OptionType::All)]);
 }
 
 const cppkafka::ConfigurationOption* Configuration::findOption(const std::string& name,
@@ -215,12 +216,12 @@ const cppkafka::ConfigurationOption* Configuration::findOption(const std::string
 void Configuration::parseOptions(const std::string& topic,
                                  const std::string& optionsPrefix,
                                  const OptionMap& allowed,
-                                 OptionList(&optionList)[3],
-                                 bool allowRdKafkaOptions)
+                                 std::array<OptionList, 3>& optionList,
+                                 OptionsPermission enablement)
 {
-    OptionList& config = optionList[(int)OptionType::All];
-    OptionList& rdKafka = optionList[(int)OptionType::RdKafka];
-    OptionList& internal = optionList[(int)OptionType::Internal];
+    OptionList& config = optionList[EnumValue(OptionType::All)];
+    OptionList& rdKafka = optionList[EnumValue(OptionType::RdKafka)];
+    OptionList& internal = optionList[EnumValue(OptionType::Internal)];
     
     if (!allowed.empty()) {
         for (auto& option : config) {
@@ -232,7 +233,7 @@ void Configuration::parseOptions(const std::string& topic,
             if (option.get_value().empty()) {
                 throw InvalidOptionException(topic, option.get_value(), "Value is empty");
             }
-            auto it = allowed.find(option.get_key());
+            const auto it = allowed.find(option.get_key());
             if (it == allowed.end()) {
                 //Check if it's an rdkafka option or a misspelled internal option
                 if (StringEqualCompare()(option.get_key(), optionsPrefix, optionsPrefix.length())) {
@@ -241,7 +242,7 @@ void Configuration::parseOptions(const std::string& topic,
                 }
                 else {
                     //RdKafka option
-                    if (!allowRdKafkaOptions) {
+                    if (enablement == OptionsPermission::RdKafkaDisallow) {
                         throw InvalidOptionException(topic, option.get_key(), "Unknown RdKafka option");
                     }
                     rdKafka.emplace_back(option);
@@ -284,7 +285,7 @@ ssize_t Configuration::extractCounterValue(const std::string& topic,
                                            ssize_t minAllowed,
                                            ssize_t maxAllowed)
 {
-    ssize_t value;
+    ssize_t value{0};
     try {
         value = std::stoll(option.get_value());
     }
@@ -292,10 +293,12 @@ ssize_t Configuration::extractCounterValue(const std::string& topic,
         throw InvalidOptionException(topic, optionName, option.get_value());
     }
     if ((value < minAllowed) || (value > maxAllowed)) {
+        std::ostringstream reason;
+        reason << "Allowed values are in the range: [" << minAllowed << ", " << maxAllowed << ")";
         if (topic.empty()) {
-            throw InvalidOptionException(optionName, option.get_value());
+            throw InvalidOptionException(optionName, reason.str());
         }
-        throw InvalidOptionException(topic, optionName, option.get_value());
+        throw InvalidOptionException(topic, optionName, reason.str());
     }
     return value;
 }

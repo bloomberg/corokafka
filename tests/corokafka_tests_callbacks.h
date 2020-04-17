@@ -87,7 +87,7 @@ struct Callbacks
                                  void *opaque);
     
     static void handleThrottling(const Metadata &metadata,
-                                 const std::string &broker_name,
+                                 const std::string &brokerName,
                                  int32_t brokerId,
                                  std::chrono::milliseconds throttleTime);
     

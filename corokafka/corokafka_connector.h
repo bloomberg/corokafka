@@ -42,8 +42,8 @@ public:
      * @brief Creates an instance from a ConfigurationBuilder object using its own internal quantum dispatcher.
      * @param builder The builder object containing producer and consumer configurations, one for each topic.
      */
-    Connector(const ConfigurationBuilder& builder);
-    Connector(ConfigurationBuilder&& builder);
+    explicit Connector(const ConfigurationBuilder& builder);
+    explicit Connector(ConfigurationBuilder&& builder);
     
     /**
      * @brief Creates an instance from a ConfigurationBuilder object and using the supplied quantum dispatcher.
@@ -56,9 +56,9 @@ public:
               quantum::Dispatcher& dispatcher);
     
     Connector(const Connector& other) = delete;
-    Connector(Connector&& other) = default;
+    Connector(Connector&& other) noexcept;
     Connector& operator=(const Connector& other) = delete;
-    Connector& operator=(Connector&& other) = default;
+    Connector& operator=(Connector&& other);
     
     /**
      * @brief Destructor.
@@ -92,7 +92,7 @@ public:
 private:
     //members
     std::shared_ptr<quantum::Dispatcher>        _dispatcherPtr;
-    std::shared_ptr<ConnectorImpl>              _impl;
+    std::unique_ptr<ConnectorImpl>              _impl;
 };
 
 }

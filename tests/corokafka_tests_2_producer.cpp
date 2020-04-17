@@ -48,7 +48,7 @@ Configuration::OptionList asyncUnorderedConfig = {
 
 TEST(ProducerConfiguration, MissingBrokerList)
 {
-    ProducerConfiguration config(topicWithHeaders().topic(), {}, {}); //use all defaults
+    ProducerConfiguration config(topicWithHeaders(), {}, {}); //use all defaults
     ConfigurationBuilder builder;
     builder(config);
     ASSERT_THROW(Connector connector(builder, dispatcher()), InvalidOptionException);
@@ -60,7 +60,7 @@ TEST(ProducerConfiguration, MissingBrokerList)
 
 TEST(ProducerConfiguration, UnknownOption)
 {
-    ProducerConfiguration config(topicWithHeaders().topic(),
+    ProducerConfiguration config(topicWithHeaders(),
         {{"metadata.broker.list", programOptions()._broker},
          {"somebadoption", "bad"}}, {});
     ConfigurationBuilder builder;
@@ -150,7 +150,7 @@ TEST(ProducerConfiguration, InternalProducerPollIoThreadId)
 
 TEST(Producer, SendSyncWithoutHeaders)
 {
-    Connector connector = makeProducerConnector(syncConfig, programOptions()._topicWithoutHeaders);
+    Connector connector = makeProducerConnector(syncConfig, topicWithoutHeaders());
     
     //Send messages
     SenderId id = SenderId::SyncWithoutHeaders;
@@ -166,7 +166,7 @@ TEST(Producer, SendSyncWithoutHeaders)
 
 TEST(Producer, SendSyncWithHeaders)
 {
-    Connector connector = makeProducerConnector(syncConfig, programOptions()._topicWithHeaders);
+    Connector connector = makeProducerConnector(syncConfig, topicWithHeaders());
     
     //Send messages
     SenderId id = SenderId::Sync;
@@ -184,7 +184,7 @@ TEST(Producer, SendSyncWithHeaders)
 
 TEST(Producer, SendSyncSkippingOneHeader)
 {
-    Connector connector = makeProducerConnector(syncConfig, programOptions()._topicWithHeaders);
+    Connector connector = makeProducerConnector(syncConfig, topicWithHeaders());
     
     //Send messages
     SenderId id = SenderId::SyncSecondHeaderMissing;
@@ -201,7 +201,7 @@ TEST(Producer, SendSyncSkippingOneHeader)
 
 TEST(Producer, SendSyncSkippingBothHeaders)
 {
-    Connector connector = makeProducerConnector(syncConfig, programOptions()._topicWithHeaders);
+    Connector connector = makeProducerConnector(syncConfig, topicWithHeaders());
     
     //Send messages
     SenderId id = SenderId::SyncBothHeadersMissing;
@@ -217,7 +217,7 @@ TEST(Producer, SendSyncSkippingBothHeaders)
 
 TEST(Producer, SendSyncUnorderedWithHeaders)
 {
-    Connector connector = makeProducerConnector(syncUnorderedConfig, programOptions()._topicWithHeaders);
+    Connector connector = makeProducerConnector(syncUnorderedConfig, topicWithHeaders());
     
     //Send messages
     SenderId id = SenderId::SyncUnordered;
@@ -235,7 +235,7 @@ TEST(Producer, SendSyncUnorderedWithHeaders)
 
 TEST(Producer, SendSyncIdempotent)
 {
-    Connector connector = makeProducerConnector(syncIdempotentConfig, programOptions()._topicWithHeaders);
+    Connector connector = makeProducerConnector(syncIdempotentConfig, topicWithHeaders());
     
     //Send messages
     SenderId id = SenderId::SyncIdempotent;
@@ -253,7 +253,7 @@ TEST(Producer, SendSyncIdempotent)
 
 TEST(Producer, SendAsync)
 {
-    Connector connector = makeProducerConnector(asyncConfig, programOptions()._topicWithHeaders);
+    Connector connector = makeProducerConnector(asyncConfig, topicWithHeaders());
     
     std::vector<quantum::GenericFuture<DeliveryReport>> futures;
     //Send messages
@@ -280,7 +280,7 @@ TEST(Producer, SendAsync)
 
 TEST(Producer, SendAsyncUnordered)
 {
-    Connector connector = makeProducerConnector(asyncUnorderedConfig, programOptions()._topicWithHeaders);
+    Connector connector = makeProducerConnector(asyncUnorderedConfig, topicWithHeaders());
     
     std::vector<quantum::GenericFuture<DeliveryReport>> futures;
     //Send messages
@@ -315,7 +315,7 @@ TEST(Producer, ValidateCallbacks)
     options.push_back({"statistics.interval.ms", 100});
     options.push_back({"debug", "all"});
     options.push_back({"internal.producer.log.level", "warning"});
-    ProducerConfiguration config(programOptions()._topicWithHeaders, options, {});
+    ProducerConfiguration config(topicWithHeaders(), options, {});
     config.setStatsCallback(Callbacks::handleStats);
     config.setDeliveryReportCallback(Callbacks::handleDeliveryReport);
     config.setPartitionerCallback(Callbacks::partitioner);
@@ -376,7 +376,7 @@ TEST(Producer, ValidateErrorCallback)
     options.push_back({"retries", 0});
     options.push_back({"api.version.request", true});
     Configuration::OptionList topicOptions = {{"message.timeout.ms", 2000}};
-    ProducerConfiguration config(programOptions()._topicWithHeaders, options, topicOptions);
+    ProducerConfiguration config(topicWithHeaders(), options, topicOptions);
     config.setErrorCallback(Callbacks::handleKafkaError, &opaque);
     ConfigurationBuilder builder;
     builder(config);

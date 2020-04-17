@@ -42,7 +42,7 @@ ReceivedMessage<KEY,PAYLOAD,HEADERS>::ReceivedMessage(
 {
     if (_message.get_error() && !_error._error) {
         _error._error = _message.get_error();
-        _error._source |= (uint8_t)DeserializerError::Source::Kafka;
+        _error.setError(DeserializerError::Source::Kafka);
     }
 }
 
@@ -56,13 +56,13 @@ ReceivedMessage<KEY,PAYLOAD,HEADERS>::~ReceivedMessage()
     if (std::uncaught_exception() && !_offsetSettings._autoOffsetPersistOnException) {
         return; // don't commit if we are being destroyed as the result of an exception
     }
-    doCommit();
+    doCommit(_offsetSettings._autoCommitExec);
 }
 
 template <typename KEY, typename PAYLOAD, typename HEADERS>
 uint64_t ReceivedMessage<KEY,PAYLOAD,HEADERS>::getHandle() const
 {
-    return (uint64_t)_message.get_handle();
+    return reinterpret_cast<uint64_t>(_message.get_handle());
 }
 
 template <typename KEY, typename PAYLOAD, typename HEADERS>
@@ -133,7 +133,7 @@ ReceivedMessage<KEY,PAYLOAD,HEADERS>::operator bool() const
 template <typename KEY, typename PAYLOAD, typename HEADERS>
 bool ReceivedMessage<KEY,PAYLOAD,HEADERS>::skip() const
 {
-    return _error.isPreprocessorError();
+    return _error.hasError(DeserializerError::Source::Preprocessor);
 }
 
 template <typename KEY, typename PAYLOAD, typename HEADERS>
@@ -144,6 +144,13 @@ void ReceivedMessage<KEY,PAYLOAD,HEADERS>::setOpaque(const void* opaque)
 
 template <typename KEY, typename PAYLOAD, typename HEADERS>
 cppkafka::Error ReceivedMessage<KEY,PAYLOAD,HEADERS>::commit(const void* opaque)
+{
+    return commit(_offsetSettings._autoCommitExec, opaque);
+}
+
+template <typename KEY, typename PAYLOAD, typename HEADERS>
+cppkafka::Error ReceivedMessage<KEY,PAYLOAD,HEADERS>::commit(ExecMode execMode,
+                                                             const void* opaque)
 {
     if (!_message) {
         return RD_KAFKA_RESP_ERR__BAD_MSG;
@@ -158,7 +165,7 @@ cppkafka::Error ReceivedMessage<KEY,PAYLOAD,HEADERS>::commit(const void* opaque)
         _committer.get_consumer().get_configuration().get_offset_commit_callback()) {
         _offsets.insert(cppkafka::TopicPartition(getTopic(), getPartition(), getOffset()), opaque);
     }
-    return doCommit();
+    return doCommit(execMode);
 }
 
 template <typename KEY, typename PAYLOAD, typename HEADERS>
@@ -279,10 +286,10 @@ HeaderPack&& ReceivedMessage<KEY,PAYLOAD,HEADERS>::getHeaders() &&
 template <typename KEY, typename PAYLOAD, typename HEADERS>
 void ReceivedMessage<KEY,PAYLOAD,HEADERS>::validateMessageError() const
 {
-    if (_error.isPreprocessorError()) {
+    if (_error.hasError(DeserializerError::Source::Preprocessor)) {
         throw MessageException("Dropped message");
     }
-    if (_error.isKafkaError()) {
+    if (_error.hasError(DeserializerError::Source::Kafka)) {
         throw MessageException("Invalid message");
     }
 }
@@ -291,7 +298,7 @@ template <typename KEY, typename PAYLOAD, typename HEADERS>
 void ReceivedMessage<KEY,PAYLOAD,HEADERS>::validateKeyError() const
 {
     validateMessageError();
-    if (_error.isKeyError()) {
+    if (_error.hasError(DeserializerError::Source::Key)) {
         throw MessageException("Key deserialization error");
     }
 }
@@ -300,7 +307,7 @@ template <typename KEY, typename PAYLOAD, typename HEADERS>
 void ReceivedMessage<KEY,PAYLOAD,HEADERS>::validatePayloadError() const
 {
     validateMessageError();
-    if (_error.isPayloadError()) {
+    if (_error.hasError(DeserializerError::Source::Payload)) {
         throw MessageException("Payload deserialization error");
     }
 }
@@ -309,13 +316,13 @@ template <typename KEY, typename PAYLOAD, typename HEADERS>
 void ReceivedMessage<KEY,PAYLOAD,HEADERS>::validateHeadersError() const
 {
     validateMessageError();
-    if (_error.isHeaderError()) {
+    if (_error.hasError(DeserializerError::Source::Header)) {
         throw MessageException("Header deserialization error");
     }
 }
 
 template <typename KEY, typename PAYLOAD, typename HEADERS>
-cppkafka::Error ReceivedMessage<KEY,PAYLOAD,HEADERS>::doCommit()
+cppkafka::Error ReceivedMessage<KEY,PAYLOAD,HEADERS>::doCommit(ExecMode execMode)
 {
     try {
         if (!_message) {
@@ -326,7 +333,7 @@ cppkafka::Error ReceivedMessage<KEY,PAYLOAD,HEADERS>::doCommit()
             return RD_KAFKA_RESP_ERR__PARTITION_EOF;
         }
         if (_offsetSettings._autoOffsetPersistStrategy == OffsetPersistStrategy::Commit) {
-            if (_offsetSettings._autoCommitExec== ExecMode::Sync) {
+            if (execMode == ExecMode::Sync) {
                 auto ctx = quantum::local::context();
                 if (ctx) {
                     //Start an IO task and wait on it to complete

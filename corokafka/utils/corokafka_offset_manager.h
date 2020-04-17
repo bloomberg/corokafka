@@ -45,25 +45,29 @@ public:
     ///                If timeout is not specified, the default consumer timeout will be used.
     ///                Set timeout to -1 to block infinitely.
     /// @note May throw if the broker queries time out.
-    OffsetManager(corokafka::ConsumerManager& consumerManager);
+    explicit OffsetManager(corokafka::ConsumerManager& consumerManager);
     OffsetManager(corokafka::ConsumerManager& consumerManager,
                   std::chrono::milliseconds brokerTimeout);
     
     /// @brief Saves an offset to be committed later and potentially commits a range of offsets if it became available.
     /// @param offset The partition containing the offset to be saved.
-    /// @param forceSync Force synchronous commits regardless of 'internal.consumer.commit.exec' consumer setting.
+    /// @param execMode If specified, overrides 'internal.consumer.commit.exec' consumer setting.
     /// @returns Error.
+    cppkafka::Error saveOffset(const cppkafka::TopicPartition& offset) noexcept;
     cppkafka::Error saveOffset(const cppkafka::TopicPartition& offset,
-                               bool forceSync = false) noexcept;
+                               ExecMode execMode) noexcept;
 
     /// @brief Saves an offset to be committed later and potentially commits a range of offsets if it became available.
     /// @param message The message whose offset we want to commit.
-    /// @param forceSync Force synchronous commits regardless of 'internal.consumer.commit.exec' consumer setting.
+    /// @param execMode If specified, overrides 'internal.consumer.commit.exec' consumer setting.
     /// @returns Error.
     /// @remark Note that this will actually commit ReceivedMessage::getOffset()+1
     template <typename KEY, typename PAYLOAD, typename HEADERS>
+    cppkafka::Error saveOffset(const ReceivedMessage<KEY,PAYLOAD,HEADERS>& message) noexcept;
+    
+    template <typename KEY, typename PAYLOAD, typename HEADERS>
     cppkafka::Error saveOffset(const ReceivedMessage<KEY,PAYLOAD,HEADERS>& message,
-                               bool forceSync = false) noexcept;
+                               ExecMode execMode) noexcept;
     
     /// @brief Returns the smallest offset which is yet to be committed.
     /// @param partition The partition where this offset is.
@@ -77,23 +81,25 @@ public:
     cppkafka::TopicPartition getBeginOffset(const cppkafka::TopicPartition& partition);
     
     /// @brief Commits the first available *lowest* offset range even if there are smaller offset(s) still pending.
-    /// @param partition The partition where this offset is.
-    /// @param ctx A coroutine synchronization context if this method is called from within a coroutine.
-    /// @param forceSync Force synchronous commits regardless of 'internal.consumer.commit.exec' consumer setting.
+    /// @param partition The partition where this offset is, or all partitions if not specified.
+    /// @param execMode If specified, overrides 'internal.consumer.commit.exec' consumer setting.
     /// @warning Messages may be lost if the committed offsets were not yet complete and the application crashes.
-    cppkafka::Error forceCommit(bool forceSync = false);
+    cppkafka::Error forceCommit() noexcept;
+    cppkafka::Error forceCommit(ExecMode execMode) noexcept;
+    cppkafka::Error forceCommit(const cppkafka::TopicPartition& partition) noexcept;
     cppkafka::Error forceCommit(const cppkafka::TopicPartition& partition,
-                                bool forceSync = false);
+                                ExecMode execMode) noexcept;
     
     /// @brief Commit the lowest offset range as if by calling `saveOffset(getCurrentOffset(partition))`. This will
     ///        either commit the current offset or any range resulting by merging with the current offset.
-    /// @param partition The partition where this offset is.
-    /// @param ctx A coroutine synchronization context if this method is called from within a coroutine.
-    /// @param forceSync Force synchronous commits regardless of 'internal.consumer.commit.exec' consumer setting.
+    /// @param partition The partition where this offset is, or all partitions if not specified.
+    /// @param execMode If specified, overrides 'internal.consumer.commit.exec' consumer setting.
     /// @warning Messages may be lost if the committed offsets were not yet complete and the application crashes.
-    cppkafka::Error forceCommitCurrentOffset(bool forceSync = false);
+    cppkafka::Error forceCommitCurrentOffset();
+    cppkafka::Error forceCommitCurrentOffset(ExecMode execMode);
+    cppkafka::Error forceCommitCurrentOffset(const cppkafka::TopicPartition& partition);
     cppkafka::Error forceCommitCurrentOffset(const cppkafka::TopicPartition& partition,
-                                             bool forceSync = false);
+                                             ExecMode execMode);
     
     /// @brief Reset all partition offsets for the specified topic.
     /// @param topic The topic for which all partitions and offsets will be reset.
@@ -117,7 +123,6 @@ private:
     };
     using PartitionMap = std::unordered_map<int, OffsetRanges>;
     struct TopicSettings {
-        bool            _syncCommit{false};
         bool            _autoResetAtEnd{true};
         PartitionMap    _partitions;
     };
@@ -125,10 +130,6 @@ private:
     static Range<int64_t>
     insertOffset(OffsetRanges& ranges,
                  int64_t offset);
-    
-    template <typename PARTITIONS>
-    cppkafka::Error commit(const PARTITIONS& partitions,
-                           bool forceSync);
 
     static void setStartingOffset(int64_t offset,
                                   OffsetRanges &ranges,
@@ -146,6 +147,20 @@ private:
     
     void queryOffsetsFromBroker(const std::string& topic,
                                 TopicSettings& settings);
+    
+    template <typename...EXEC_MODE>
+    cppkafka::Error saveOffsetImpl(const cppkafka::TopicPartition& offset,
+                                   EXEC_MODE&&...execMode) noexcept;
+    
+    template <typename...EXEC_MODE>
+    cppkafka::Error forceCommitImpl(EXEC_MODE&&...execMode) noexcept;
+    
+    template <typename...EXEC_MODE>
+    cppkafka::Error forceCommitPartitionImpl(const cppkafka::TopicPartition& partition,
+                                             EXEC_MODE&&...execMode) noexcept;
+    
+    template <typename...EXEC_MODE>
+    cppkafka::Error forceCommitCurrentOffsetImpl(EXEC_MODE&&...execMode);
 
     // Members
     corokafka::ConsumerManager&     _consumerManager;
@@ -155,9 +170,147 @@ private:
 
 // Implementation
 template <typename KEY, typename PAYLOAD, typename HEADERS>
+cppkafka::Error OffsetManager::saveOffset(const ReceivedMessage<KEY,PAYLOAD,HEADERS>& message) noexcept {
+    return saveOffset({message.getTopic(), message.getPartition(), message.getOffset()+1});
+}
+
+template <typename KEY, typename PAYLOAD, typename HEADERS>
 cppkafka::Error OffsetManager::saveOffset(const ReceivedMessage<KEY,PAYLOAD,HEADERS>& message,
-                                          bool forceSync) noexcept {
-    return saveOffset({message.getTopic(), message.getPartition(), message.getOffset()+1}, forceSync);
+                                          ExecMode execMode) noexcept {
+    return saveOffset({message.getTopic(), message.getPartition(), message.getOffset()+1}, execMode);
+}
+
+template <typename...EXEC_MODE>
+cppkafka::Error OffsetManager::saveOffsetImpl(const cppkafka::TopicPartition& offset,
+                                              EXEC_MODE&&...execMode) noexcept
+{
+    try {
+        if (offset.get_offset() < 0) {
+            return RD_KAFKA_RESP_ERR_OFFSET_OUT_OF_RANGE;
+        }
+        TopicSettings& settings = _topicMap.at(offset.get_topic());
+        OffsetRanges& ranges = settings._partitions.at(offset.get_partition());
+        Range<int64_t> range(-1,-1);
+        {//locked scope
+            quantum::Mutex::Guard guard(quantum::local::context(), ranges._offsetsMutex);
+            range = insertOffset(ranges, offset.get_offset());
+        }
+        //Commit range
+        if (range.second != -1) {
+            //This is a valid range
+            return _consumerManager.commit(cppkafka::TopicPartition{offset.get_topic(), offset.get_partition(), range.second},
+                                           std::forward<EXEC_MODE>(execMode)...);
+        }
+        return {};
+    }
+    catch (const std::out_of_range& ex) {
+        return RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION;
+    }
+    catch(...) {
+    }
+    return RD_KAFKA_RESP_ERR_UNKNOWN;
+}
+
+template <typename...EXEC_MODE>
+cppkafka::Error OffsetManager::forceCommitImpl(EXEC_MODE&&...execMode) noexcept
+{
+    try {
+        bool isSyncCommit = false;
+        cppkafka::TopicPartitionList partitions;
+        for (auto& topic : _topicMap) {
+            TopicSettings& settings = topic.second;
+            for (auto& partition : settings._partitions) {
+                Range<int64_t> range(-1,-1);
+                OffsetRanges& ranges = partition.second;
+                quantum::Mutex::Guard guard(quantum::local::context(), ranges._offsetsMutex);
+                Iterator it = ranges._offsets.begin();
+                if (it != ranges._offsets.end()) {
+                    range = {it->first, it->second};
+                    //bump current offset
+                    ranges._currentOffset = it->second+1;
+                    //delete range from map
+                    ranges._offsets.erase(it);
+                }
+                //Commit range
+                if (range.second != -1) {
+                    partitions.emplace_back(topic.first, partition.first, range.second);
+                }
+            } //partitions
+        } //topics
+        //Commit all offsets
+        if (!partitions.empty()) {
+            return _consumerManager.commit(partitions, std::forward<EXEC_MODE>(execMode)...);
+        }
+        return {};
+    }
+    catch(...) {
+    }
+    return RD_KAFKA_RESP_ERR_UNKNOWN;
+}
+
+template <typename...EXEC_MODE>
+cppkafka::Error OffsetManager::forceCommitPartitionImpl(const cppkafka::TopicPartition& partition,
+                                                        EXEC_MODE&&...execMode) noexcept
+{
+    try {
+        Range<int64_t> range(-1,-1);
+        TopicSettings& settings = _topicMap.at(partition.get_topic());
+        OffsetRanges& ranges = settings._partitions.at(partition.get_partition());
+        { //locked scope
+            quantum::Mutex::Guard guard(quantum::local::context(), ranges._offsetsMutex);
+            Iterator it = ranges._offsets.begin();
+            if (it != ranges._offsets.end()) {
+                range = {it->first, it->second};
+                //bump current offset
+                ranges._currentOffset = range.second + 1;
+                //delete range from map
+                ranges._offsets.erase(it);
+            }
+        }
+        //Commit range
+        if (range.second != -1) {
+            return _consumerManager.commit(partition, std::forward<EXEC_MODE>(execMode)...);
+        }
+        return {};
+    }
+    catch (const std::out_of_range& ex) {
+        return RD_KAFKA_RESP_ERR__UNKNOWN_PARTITION;
+    }
+    catch(...) {
+    }
+    return RD_KAFKA_RESP_ERR_UNKNOWN;
+}
+
+template <typename...EXEC_MODE>
+cppkafka::Error OffsetManager::forceCommitCurrentOffsetImpl(EXEC_MODE&&...execMode)
+{
+    try {
+        bool isSyncCommit = false;
+        cppkafka::TopicPartitionList partitions;
+        for (auto& topic : _topicMap) {
+            TopicSettings& settings = topic.second;
+            for (auto& partition : settings._partitions) {
+                OffsetRanges& ranges = partition.second;
+                Range<int64_t> range(-1,-1);
+                {//locked scope
+                    quantum::Mutex::Guard guard(quantum::local::context(), ranges._offsetsMutex);
+                    range = insertOffset(ranges, ranges._currentOffset);
+                }
+                //Commit range
+                if (range.second != -1) {
+                    partitions.emplace_back(topic.first, partition.first, range.second);
+                }
+            } //partitions
+        } //topics
+        //Commit all offsets
+        if (!partitions.empty()) {
+            return _consumerManager.commit(partitions, std::forward<EXEC_MODE>(execMode)...);
+        }
+        return {};
+    }
+    catch(...) {
+    }
+    return RD_KAFKA_RESP_ERR_UNKNOWN;
 }
 
 /// @brief RAII-type class for committing an offset within a scope.
@@ -167,47 +320,58 @@ public:
     /// @brief Saves an offset locally to be committed when this object goes out of scope.
     /// @param om The offset manager reference.
     /// @param offset The offset to be committed.
-    /// @param forceSync Force synchronous commit even though the setting for this topic is async.
+    /// @param execMode If specified, overrides 'internal.consumer.commit.exec' consumer setting.
+    OffsetCommitGuard(OffsetManager& om,
+                      cppkafka::TopicPartition offset) :
+        _om(om),
+        _offset(std::move(offset))
+    {}
     OffsetCommitGuard(OffsetManager& om,
                       cppkafka::TopicPartition offset,
-                      bool forceSync = false) :
+                      ExecMode execMode) :
         _om(om),
         _offset(std::move(offset)),
-        _forceSync(forceSync)
+        _execMode(execMode),
+        _useExecMode(true)
     {}
 
     /// @brief Saves an offset locally to be committed when this object goes out of scope.
     /// @param om The offset manager reference.
     /// @param message The message whose offset we want to commit.
-    /// @param forceSync Force synchronous commit even though the setting for this topic is async.
+    /// @param execMode If specified, overrides 'internal.consumer.commit.exec' consumer setting.
     /// @remark Note that this will actually commit ReceivedMessage::getOffset()+1
     template <typename KEY, typename PAYLOAD, typename HEADERS>
     OffsetCommitGuard(OffsetManager& om,
+                      const ReceivedMessage<KEY,PAYLOAD,HEADERS>& message) :
+            _om(om),
+            _offset(message.getTopic(), message.getPartition(), message.getOffset()+1)
+    {}
+    template <typename KEY, typename PAYLOAD, typename HEADERS>
+    OffsetCommitGuard(OffsetManager& om,
                       const ReceivedMessage<KEY,PAYLOAD,HEADERS>& message,
-                      bool forceSync = false) :
+                      ExecMode execMode) :
             _om(om),
             _offset(message.getTopic(), message.getPartition(), message.getOffset()+1),
-            _forceSync(forceSync)
+            _execMode(execMode),
+            _useExecMode(true)
     {}
 
     /// @brief Destructor. This will attempt to commit the offset.
     ~OffsetCommitGuard()
     {
-        _om.saveOffset(_offset, _forceSync);
+        if (_useExecMode) {
+            _om.saveOffset(_offset, _execMode);
+        }
+        else {
+            _om.saveOffset(_offset);
+        }
     }
 private:
     OffsetManager&                      _om;
     const cppkafka::TopicPartition      _offset;
-    bool                                _forceSync;
+    ExecMode                            _execMode{ExecMode::Async};
+    bool                                _useExecMode{false};
 };
-
-// Implementations
-template <typename PARTITIONS>
-cppkafka::Error OffsetManager::commit(const PARTITIONS& partitions,
-                                      bool forceSync)
-{
-    return _consumerManager.commit(partitions, nullptr, forceSync);
-}
 
 }}
 

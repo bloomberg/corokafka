@@ -45,7 +45,7 @@ public:
     /**
      * @brief Creates an empty header pack.
      */
-    HeaderPack(size_t numElements = 0);
+    explicit HeaderPack(size_t numElements = 0);
     
     /**
      * @brief Initialize the HeaderPack with a list of headers.
@@ -66,53 +66,61 @@ public:
     HeaderPack& pop_back();
     
     /**
-     * @brief Delete the header.
+     * @brief Delete the header(s) whose name is specified.
      * @param name The name of the header.
+     * @param relativePosition (1-based) The N-th header to be checked if the name is not unique.
+     *        If (relativePosition == 0), then all headers with the corresponding names will be erased.
      */
-    void erase(const std::string& name);
+    void erase(const std::string& name, size_t relativePosition = 0);
+    
+    /**
+     * @brief Erase a specific header using its iterator.
+     * @param it The iterator.
+     */
+    void erase(const ListType::iterator& it);
     
     /**
      * @brief Get the size of the pack.
      * @return The size.
      */
-    size_t size() const;
+    size_t size() const noexcept;
     
     /**
      * @brief Check if this pack is empty.
      * @return True if empty, false otherwise.
      */
-    bool empty() const;
+    bool empty() const noexcept;
     
     /**
      * @brief If true, the pack contains headers
      */
-    explicit operator bool() const;
+    explicit operator bool() const noexcept;
     
     /**
      * @brief Iterator to the beginning of the header pack.
      * @return An header iterator.
      * @remark If the pack is empty, begin()==end()
      */
-    ListType::iterator begin();
+    ListType::iterator begin() noexcept;
     
     /**
      * @brief Const iterator to the beginning of the header pack.
      * @return An header const iterator.
      * @remark If the pack is empty, cbegin()==cend()
      */
-    ListType::const_iterator cbegin() const;
+    ListType::const_iterator cbegin() const noexcept;
     
     /**
      * @brief Iterator to the end of the header pack.
      * @return An header iterator.
      */
-    ListType::iterator end();
+    ListType::iterator end() noexcept;
     
     /**
      * @brief Const iterator to the end of the header pack.
      * @return An header const iterator.
      */
-    ListType::const_iterator cend() const;
+    ListType::const_iterator cend() const noexcept;
     
     /**
      * @brief Get all the header names.
@@ -124,45 +132,45 @@ public:
      * @brief Get the header by name.
      * @tparam H The header type.
      * @param name The name of the header.
-     * @param nameIndex (optional) The index of the header name if not unique. If not specified (i.e. == -1) the first
-     *                  header matching this name is returned.
+     * @param relativePosition (1-based) The N-th header to be returned if the name is not unique.
      * @return The header object.
      */
     template <typename H>
-    const H& get(const std::string& name, int nameIndex = -1) const &;
+    const H& get(const std::string& name, size_t relativePosition = 1) const &;
     
     /**
      * @brief Non-const version of the above.
      */
     template <typename H>
-    H& get(const std::string& name, int nameIndex = -1) &;
+    H& get(const std::string& name, size_t relativePosition = 1) &;
     
     /**
      * @brief Move-able version of the above.
      */
     template <typename H>
-    H&& get(const std::string& name, int nameIndex = -1) &&;
+    H&& get(const std::string& name, size_t relativePosition = 1) &&;
     
     /**
      * @brief Header accessors by index.
      * @tparam H The header type.
      * @param index The index where the header is at (>= 0).
-     * @return A header reference wrapper..
+     * @return A header reference wrapper.
+     * @note The header must be valid otherwise this call with throw.
      */
     template <typename H>
-    HeaderRef<const H&> getAt(int index) const &;
+    HeaderRef<const H&> getAt(size_t index) const &;
     
     /**
      * @brief Non-const version of the above.
      */
     template <typename H>
-    HeaderRef<H&> getAt(int index) &;
+    HeaderRef<H&> getAt(size_t index) &;
     
     /**
      * @brief Move-able version of the above.
      */
     template <typename H>
-    HeaderRef<H&&> getAt(int index) &&;
+    HeaderRef<H&&> getAt(size_t index) &&;
     
     /**
      * @brief Returns the number of valid headers (i.e. non-empty)
@@ -174,16 +182,15 @@ public:
      * @brief Checks if the header at position 'index' is valid (i.e. non-empty)
      * @return True if the header is valid
      */
-    bool isValidAt(int index) const;
+    bool isValidAt(size_t index) const;
     
     /**
      * @brief Checks if the header with specified name and index is valid.
      * @param name The header name
-     * @param nameIndex (optional) The index of the header name if not unique. If not specified (i.e. == -1) the first
-     *                  header matching this name is returned.
+     * @param relativePosition (1-based) The N-th header to be validated if the name is not unique.
      * @return True if the header is valid
      */
-    bool isValid(const std::string& name, int nameIndex = -1) const;
+    bool isValid(const std::string& name, size_t relativePosition = 1) const;
     
 private:
     template <typename H>
@@ -192,8 +199,8 @@ private:
     HeaderPack& push_back(const std::string& name, H&& header);
     HeaderPack& push_back(const std::string& name, boost::any&& header);
     HeaderPack& push_front(const std::string& name, boost::any&& header);
-    ListType::const_iterator getImpl(const std::string& name, int nameIndex) const;
-    ListType::iterator getImpl(const std::string& name, int nameIndex);
+    ListType::const_iterator getImpl(const std::string& name, size_t relativePosition) const;
+    ListType::iterator getImpl(const std::string& name, size_t relativePosition);
     HeaderNode& operator[](size_t index);
     
     // Members

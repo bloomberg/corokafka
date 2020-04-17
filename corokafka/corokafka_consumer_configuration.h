@@ -97,21 +97,6 @@ public:
                           Callbacks::ReceiverCallback<TOPIC> receiver);
     
     /**
-     * @brief Create a consumer configuration.
-     * @param topic The topic name to which this configuration applies.
-     * @param options The consumer configuration options (for both RdKafka and CoroKafka).
-     * @param topicOptions The topic configuration options (for both RdKafka and CoroKafka).
-     * @note When using this constructor, the application must call 'setReceiverCallback()' below.
-     * @note 'metadata.broker.list' must be supplied in 'options'.
-     */
-    ConsumerConfiguration(const std::string& topic,
-                          OptionList options,
-                          OptionList topicOptions);
-    ConsumerConfiguration(const std::string& topic,
-                          OptionInitList options,
-                          OptionInitList topicOptions);
-    
-    /**
      * @brief Assign partitions and offsets on startup for this consumer.
      * @param strategy The strategy to use for this consumer.
      * @param partitions The partition list.
@@ -176,15 +161,6 @@ public:
      * @return The callback.
      */
     const Callbacks::PreprocessorCallback& getPreprocessorCallback() const;
-    
-    /**
-     * @brief Set the receiver function.
-     * @tparam TOPIC Type Topic<KEY,PAYLOAD,HEADERS> which represents this consumer.
-     * @param callback The receiver function on which all messages are delivered.
-     * @remark Setting a receiver callback is mandatory.
-     */
-    template <typename TOPIC>
-    void setReceiverCallback(const TOPIC& topic, Callbacks::ReceiverCallback<TOPIC> receiver);
     
     /**
      * @brief Get the receiver callback.

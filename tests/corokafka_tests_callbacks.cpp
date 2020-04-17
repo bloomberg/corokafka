@@ -100,7 +100,7 @@ void Callbacks::handleOffsetCommit(const ConsumerMetadata &metadata,
 {
     callbackCounters()._offsetCommit++;
     for (auto&& part : topicPartitions) {
-        if (part.get_offset() != (int)OffsetPoint::Invalid) {
+        if (part.get_offset() != EnumValue(OffsetPoint::Invalid)) {
             //We decrement by one since RdKafka always commits the message offset + 1.
             //Otherwise we won't be able to match the received message offsets and the committed ones.
             callbackCounters()._offsetCommitPartitions[part] = part.get_offset()-1;
@@ -188,7 +188,7 @@ void Callbacks::messageReceiverWithHeadersManualCommit(TopicWithHeaders::Receive
 void Callbacks::messageReceiverWithHeadersUsingCommitGuard(TopicWithHeaders::ReceivedMessageType message)
 {
     if (message && !message.isEof()) {
-        OffsetCommitGuard guard(*offsetManagerPtr, message, true);
+        OffsetCommitGuard guard(*offsetManagerPtr, message, ExecMode::Sync);
     }
     messageReceiverWithHeaders(std::move(message));
 }
