@@ -80,7 +80,6 @@ public:
      * @param execMode If specified, overrides the 'internal.consumer.commit.exec' setting.
      * @return Error object. If the number of retries reach 0, error contains RD_KAFKA_RESP_ERR__FAIL.
      * @note If only the topic is supplied, this API will commit all offsets in the current partition assignment.
-     *       If a partition list is supplied, all partitions must belong to the same topic.
      * @note If 'internal.consumer.offset.persist.strategy=store' and 'execMode=Sync', this function will perform
      *       a synchronous commit instead of storing the offset. This is equivalent to having
      *       'internal.consumer.offset.persist.strategy=commit'.

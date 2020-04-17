@@ -67,6 +67,9 @@ void HeaderPack::erase(const std::string& name, size_t relativePosition) {
 }
 
 void HeaderPack::erase(const HeaderPack::ListType::iterator& it) {
+    if (it == _headers.end()) {
+        throw InvalidArgumentException(0, "Out-of-bounds iterator");
+    }
     _headers.erase(it);
 }
 

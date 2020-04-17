@@ -80,10 +80,10 @@ public:
                            const void* opaque);
     
     cppkafka::Error commit(const cppkafka::TopicPartitionList& topicPartitions,
-                           ExecMode execMode,
                            const void* opaque);
     
     cppkafka::Error commit(const cppkafka::TopicPartitionList& topicPartitions,
+                           ExecMode execMode,
                            const void* opaque);
     
     void shutdown();
@@ -205,9 +205,18 @@ public:
 private:
     using ConsumerFunc = void(ConsumerType::*)();
     
-    void pauseImpl(bool pause, ConsumerFunc);
+    void pause(bool pause, ConsumerFunc);
     
-    void pauseImpl(const std::string& topic, bool pause, ConsumerFunc);
+    static void pauseImpl(ConsumerTopicEntry& topicEntry, bool pause, ConsumerFunc);
+    
+    static void subscribeImpl(ConsumerTopicEntry& topicEntry,
+                              const cppkafka::TopicPartitionList& partitionList);
+    
+    static void unsubscribeImpl(ConsumerTopicEntry& topicEntry);
+    
+    cppkafka::Error commitImpl(const cppkafka::TopicPartitionList& topicPartitions,
+                               ExecMode* execMode,
+                               const void* opaque);
     
     static cppkafka::Error commitImpl(ConsumerTopicEntry& entry,
                                       const cppkafka::TopicPartitionList& topicPartitions,

@@ -355,38 +355,37 @@ void ConsumerManagerImpl::setPreprocessing(const std::string& topic, bool enable
 
 void ConsumerManagerImpl::pause()
 {
-    pauseImpl(true, &ConsumerType::pause);
+    pause(true, &ConsumerType::pause);
 }
 
 void ConsumerManagerImpl::pause(const std::string& topic)
 {
-    pauseImpl(topic, true, &ConsumerType::pause);
+    pauseImpl(findConsumer(topic)->second, true, &ConsumerType::pause);
 }
 
 void ConsumerManagerImpl::resume()
 {
-    pauseImpl(false, &ConsumerType::resume);
+    pause(false, &ConsumerType::resume);
 }
 
 void ConsumerManagerImpl::resume(const std::string& topic)
 {
-    pauseImpl(topic, false, &ConsumerType::resume);
+    pauseImpl(findConsumer(topic)->second, false, &ConsumerType::resume);
 }
 
-void ConsumerManagerImpl::pauseImpl(bool pause,
-                                    ConsumerFunc func)
+void ConsumerManagerImpl::pause(bool pause,
+                                ConsumerFunc func)
 {
     for (auto&& consumer : _consumers) {
-        pauseImpl(consumer.first, pause, func);
+        pauseImpl(consumer.second, pause, func);
     }
 }
 
-void ConsumerManagerImpl::pauseImpl(const std::string& topic,
+void ConsumerManagerImpl::pauseImpl(ConsumerTopicEntry& topicEntry,
                                     bool pause,
                                     ConsumerFunc func)
 {
     bool paused = !pause;
-    ConsumerTopicEntry& topicEntry = findConsumer(topic)->second;
     if (topicEntry._isPaused.compare_exchange_strong(paused, pause)) {
         ((*topicEntry._consumer).*func)();
     }
@@ -395,23 +394,30 @@ void ConsumerManagerImpl::pauseImpl(const std::string& topic,
 void ConsumerManagerImpl::subscribe(const cppkafka::TopicPartitionList& partitionList)
 {
     for (auto&& consumer : _consumers) {
-        subscribe(consumer.first, partitionList);
+        subscribeImpl(consumer.second, partitionList);
     }
 }
 
 void ConsumerManagerImpl::subscribe(const std::string& topic,
                                     const cppkafka::TopicPartitionList& partitionList)
 {
-    ConsumerTopicEntry& topicEntry = findConsumer(topic)->second;
+    subscribeImpl(findConsumer(topic)->second, partitionList);
+}
+
+void ConsumerManagerImpl::subscribeImpl(ConsumerTopicEntry& topicEntry,
+                                        const cppkafka::TopicPartitionList& partitionList)
+{
     if (topicEntry._isSubscribed) {
         return; //nothing to do
     }
     //process partitions and make sure offsets are valid
+    const std::string& topic = topicEntry._configuration.getTopic();
     cppkafka::TopicPartitionList assignment = partitionList;
     if ((assignment.size() == 1) &&
         (assignment.front().get_partition() == RD_KAFKA_PARTITION_UA)) {
         //Overwrite the initial assignment if the user provided no partitions
-        cppkafka::TopicMetadata metadata = topicEntry._consumer->get_metadata(topicEntry._consumer->get_topic(topic));
+        cppkafka::TopicMetadata metadata =
+                topicEntry._consumer->get_metadata(topicEntry._consumer->get_topic(topic));
         int offset = assignment.front().get_offset();
         assignment = cppkafka::convert(topic, metadata.get_partitions());
         //set the specified offset on all existing partitions
@@ -449,13 +455,17 @@ void ConsumerManagerImpl::subscribe(const std::string& topic,
 void ConsumerManagerImpl::unsubscribe()
 {
     for (auto&& consumer : _consumers) {
-        unsubscribe(consumer.first);
+        unsubscribeImpl(consumer.second);
     }
 }
 
 void ConsumerManagerImpl::unsubscribe(const std::string& topic)
 {
-    ConsumerTopicEntry& topicEntry = findConsumer(topic)->second;
+    unsubscribeImpl(findConsumer(topic)->second);
+}
+
+void ConsumerManagerImpl::unsubscribeImpl(ConsumerTopicEntry& topicEntry)
+{
     if (topicEntry._isSubscribed) {
         if (topicEntry._configuration.getPartitionStrategy() == PartitionStrategy::Static) {
             if (topicEntry._pollStrategy == PollStrategy::RoundRobin) {
@@ -487,30 +497,41 @@ cppkafka::Error ConsumerManagerImpl::commit(const cppkafka::TopicPartition& topi
 cppkafka::Error ConsumerManagerImpl::commit(const cppkafka::TopicPartitionList& topicPartitions,
                                             const void* opaque)
 {
-    if (topicPartitions.empty()) {
-        return RD_KAFKA_RESP_ERR_INVALID_PARTITIONS;
-    }
-    //Use the first topic name
-    auto it = _consumers.find(topicPartitions.at(0).get_topic());
-    if (it == _consumers.end()) {
-        return RD_KAFKA_RESP_ERR_UNKNOWN_TOPIC_OR_PART;
-    }
-    return commitImpl(it->second, topicPartitions, it->second._autoCommitExec, opaque);
+    return commitImpl(topicPartitions, nullptr, opaque);
 }
 
 cppkafka::Error ConsumerManagerImpl::commit(const cppkafka::TopicPartitionList& topicPartitions,
                                             ExecMode execMode,
                                             const void* opaque)
 {
+    return commitImpl(topicPartitions, &execMode, opaque);
+}
+
+cppkafka::Error ConsumerManagerImpl::commitImpl(const cppkafka::TopicPartitionList& topicPartitions,
+                                                ExecMode* execMode,
+                                                const void* opaque)
+{
     if (topicPartitions.empty()) {
         return RD_KAFKA_RESP_ERR_INVALID_PARTITIONS;
     }
-    //Use the first topic name
-    auto it = _consumers.find(topicPartitions.at(0).get_topic());
-    if (it == _consumers.end()) {
-        return RD_KAFKA_RESP_ERR_UNKNOWN_TOPIC_OR_PART;
+    //Group the original partitions by topic
+    std::unordered_map<std::string, cppkafka::TopicPartitionList> partitionsByTopic;
+    for (const auto& topicPartition : topicPartitions) {
+        partitionsByTopic[topicPartition.get_topic()].emplace_back(topicPartition);
     }
-    return commitImpl(it->second, topicPartitions, execMode, opaque);
+    cppkafka::Error error;
+    for (const auto& listEntry : partitionsByTopic) {
+        const cppkafka::TopicPartitionList& partitionList = listEntry.second;
+        auto it = _consumers.find(listEntry.first);
+        if (it == _consumers.end()) {
+            return RD_KAFKA_RESP_ERR_UNKNOWN_TOPIC_OR_PART;
+        }
+        error = commitImpl(it->second, partitionList, execMode ? *execMode : it->second._autoCommitExec, opaque);
+        if (error) {
+            break;
+        }
+    }
+    return error;
 }
 
 cppkafka::Error ConsumerManagerImpl::commitImpl(ConsumerTopicEntry& entry,

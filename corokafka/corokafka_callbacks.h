@@ -53,7 +53,9 @@ struct Callbacks {
                                              void* opaque)>;
     
     /**
-     * @brief Callback which notifies the application when broker throttling occurs.
+     * @brief Callback which notifies the application when broker throttling occurs. This is purely
+     *        informational and no action is required from the application side if
+     *        'internal.consumer.auto.throttle=true' or 'internal.producer.auto.throttle=true'.
      */
     using ThrottleCallback = std::function<void(const Metadata& metadata,
                                                 const std::string& brokerName,
@@ -119,12 +121,12 @@ struct Callbacks {
     
     /**
      * @brief This callback allows producers to alter the behavior of the default RdKafka partitioning
-     *        mechanism which is a hashing function performed over the size of the message payload.
+     *        mechanism which is a hashing function performed over the entire length of the key (in bytes).
      *        This callback shall return the partition to use for a specific key.
      */
     using PartitionerCallback = std::function<int32_t(const ProducerMetadata& metadata,
                                                       const cppkafka::Buffer& key,
-                                                      int32_t partition_count)>;
+                                                      int32_t partitionCount)>;
     
     /**
      * @brief This callback tells the producer when the internal message buffer is full. At this point
