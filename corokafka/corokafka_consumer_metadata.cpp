@@ -123,6 +123,30 @@ cppkafka::GroupInformation ConsumerMetadata::getGroupInformation() const
     return _handle->get_consumer_group(static_cast<const cppkafka::Consumer*>(_handle)->get_member_id());
 }
 
+cppkafka::GroupInformation ConsumerMetadata::getGroupInformation(std::chrono::milliseconds timeout) const
+{
+    if (!_handle) {
+        throw HandleException("Null consumer");
+    }
+    return _handle->get_consumer_group(static_cast<const cppkafka::Consumer*>(_handle)->get_member_id(), timeout);
+}
+
+cppkafka::GroupInformationList ConsumerMetadata::getAllGroupsInformation() const
+{
+    if (!_handle) {
+        throw HandleException("Null consumer");
+    }
+    return _handle->get_consumer_groups();
+}
+
+cppkafka::GroupInformationList ConsumerMetadata::getAllGroupsInformation(std::chrono::milliseconds timeout) const
+{
+    if (!_handle) {
+        throw HandleException("Null consumer");
+    }
+    return _handle->get_consumer_groups(timeout);
+}
+
 PartitionStrategy ConsumerMetadata::getPartitionStrategy() const
 {
     return _strategy;

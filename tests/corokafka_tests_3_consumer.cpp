@@ -21,7 +21,7 @@ Configuration::OptionList config1 = {
     {"enable.auto.commit", true}, //automatically commit stored offset every 100ms
     {"auto.offset.reset","beginning"},
     {"auto.commit.interval.ms", 10},
-    {ConsumerConfiguration::Options::timeoutMs, 10},
+    {ConsumerConfiguration::Options::timeoutMs, 100},
     {ConsumerConfiguration::Options::pauseOnStart, true},
     {ConsumerConfiguration::Options::readSize, 100},
     {ConsumerConfiguration::Options::pollStrategy, "batch"},
@@ -425,9 +425,9 @@ TEST(Consumer, ReadTopicWithoutHeadersUsingConfig1)
     
     ConsumerMetadata meta = connector.consumer().getMetadata(topicWithoutHeaders().topic());
     Metadata::OffsetWatermarkList water1 = meta.getOffsetWatermarks();
-    Metadata::OffsetWatermarkList water2 = meta.queryOffsetWatermarks();
+    Metadata::OffsetWatermarkList water2 = meta.queryOffsetWatermarks(std::chrono::milliseconds(1000));
     auto off1 = meta.getOffsetPositions();
-    auto off2 = meta.queryCommittedOffsets();
+    auto off2 = meta.queryCommittedOffsets(std::chrono::milliseconds(1000));
     
     //clear everything
     consumerMessageWithoutHeadersTracker().clear();
