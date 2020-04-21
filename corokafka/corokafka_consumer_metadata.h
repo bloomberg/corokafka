@@ -75,6 +75,14 @@ public:
      * @return The group info.
      */
     cppkafka::GroupInformation getGroupInformation() const;
+    cppkafka::GroupInformation getGroupInformation(std::chrono::milliseconds timeout) const;
+    
+    /**
+     * @brief Get information about all consumer groups
+     * @return A list of group information objects
+     */
+    cppkafka::GroupInformationList getAllGroupsInformation() const;
+    cppkafka::GroupInformationList getAllGroupsInformation(std::chrono::milliseconds timeout) const;
     
     /**
      * @brief Get the current partition strategy.
