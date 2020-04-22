@@ -120,24 +120,24 @@ void OffsetManager::setStartingOffset(int64_t offset,
         case cppkafka::TopicPartition::Offset::OFFSET_INVALID:
             //populate from committed offsets if any, otherwise from watermark
             if (committedOffset.get_offset() >= 0) {
-                ranges._beginOffset = ranges._currentOffset = committedOffset.get_offset() + 1;
+                ranges._beginOffset = ranges._currentOffset = committedOffset.get_offset();
             }
             else {
                 ranges._beginOffset = ranges._currentOffset =
-                        autoResetAtEnd ? watermark._watermark._high + 1 : watermark._watermark._low + 1;
+                        autoResetAtEnd ? watermark._watermark._high : watermark._watermark._low;
             }
             break;
         case cppkafka::TopicPartition::Offset::OFFSET_BEGINNING:
-            ranges._beginOffset = ranges._currentOffset = watermark._watermark._low + 1;
+            ranges._beginOffset = ranges._currentOffset = watermark._watermark._low;
             break;
         case cppkafka::TopicPartition::Offset::OFFSET_END:
-            ranges._beginOffset = ranges._currentOffset = watermark._watermark._high + 1;
+            ranges._beginOffset = ranges._currentOffset = watermark._watermark._high;
             break;
         default:
             if (offset < RD_KAFKA_OFFSET_TAIL_BASE) {
                 //rewind from high watermark
                 ranges._beginOffset = ranges._currentOffset =
-                        watermark._watermark._high - (RD_KAFKA_OFFSET_TAIL_BASE - offset) + 1;
+                        watermark._watermark._high - (RD_KAFKA_OFFSET_TAIL_BASE - offset);
             }
             break;
     }
@@ -223,10 +223,10 @@ Range<int64_t> OffsetManager::insertOffset(OffsetRanges& ranges,
     auto it = ranges._offsets.insert(Point<int64_t>{offset});
     if (it.second) {
         //a range was modified
-        if (it.first->first == ranges._currentOffset) {
+        if (it.first->first == (ranges._currentOffset + 1)) {
             //we can commit this range
             range = {it.first->first, it.first->second};
-            ranges._currentOffset = it.first->second+1;
+            ranges._currentOffset = it.first->second;
             //delete range from map
             ranges._offsets.erase(it.first->first);
         }

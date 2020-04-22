@@ -24,10 +24,12 @@ struct CallbackCounters
         _partitioner = 0;
         _queueFull = 0;
         _offsetCommit = 0;
+        _maxProcessedOffsets = -1;
         _assign = 0;
         _revoke = 0;
         _rebalance = 0;
         _offsetCommitPartitions.clear();
+        _numOffsetCommitted.clear();
         _receiver = 0;
         _eof = 0;
         _skip = 0;
@@ -48,7 +50,9 @@ struct CallbackCounters
     int _partitioner{0};
     int _queueFull{0};
     std::atomic_int _offsetCommit{0};
+    std::map<cppkafka::TopicPartition, int> _numOffsetCommitted;
     std::map<cppkafka::TopicPartition, int> _offsetCommitPartitions;
+    int _maxProcessedOffsets{-1};
     int _assign{0};
     int _revoke{0};
     int _rebalance{0};
