@@ -6,11 +6,12 @@ namespace Bloomberg {
 namespace corokafka {
 namespace tests {
 
-const int maxLoops = 10; //arbitrary wait value
+const int MaxLoops = 10; //arbitrary wait value
+const int NumPartitions = 4;
 
 std::string getNewGroupName()
 {
-    static int i = 0;
+    static size_t i = std::chrono::system_clock::now().time_since_epoch().count();
     return "group_" + std::to_string(i++);
 }
 
@@ -344,12 +345,12 @@ TEST(Consumer, ValidatePauseOnStart)
     //enable consuming
     connector.consumer().resume(topicWithoutHeaders().topic());
     
-    int loops = maxLoops;
-    while (callbackCounters()._eof < 4 && loops--) {
+    int loops = MaxLoops;
+    while (callbackCounters()._eof < NumPartitions && loops--) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
     EXPECT_EQ(0, callbackCounters()._messageErrors);
-    EXPECT_EQ(4, callbackCounters()._receiver);
+    EXPECT_EQ(NumPartitions, callbackCounters()._receiver);
     EXPECT_EQ(1, callbackCounters()._assign);
     EXPECT_EQ(0, callbackCounters()._revoke);
     EXPECT_EQ(0, callbackCounters()._rebalance);
@@ -366,23 +367,23 @@ TEST(Consumer, ValidateDynamicAssignment)
         topicWithoutHeaders(),
         Callbacks::messageReceiverWithoutHeaders,
         PartitionStrategy::Dynamic);
-    int loops = maxLoops;
+    int loops = MaxLoops;
     while (callbackCounters()._assign == 0 && loops--) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
-    loops = maxLoops;
-    while (callbackCounters()._eof < 4 && loops--) {
+    loops = MaxLoops;
+    while (callbackCounters()._eof < NumPartitions && loops--) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
     EXPECT_EQ(0, callbackCounters()._messageErrors);
-    EXPECT_EQ(4, callbackCounters()._receiver);
+    EXPECT_EQ(NumPartitions, callbackCounters()._receiver);
     EXPECT_EQ(1, callbackCounters()._assign);
     EXPECT_EQ(0, callbackCounters()._rebalance);
     callbackCounters().reset();
     
     //stop the connector
     connector.consumer().shutdown();
-    loops = maxLoops;
+    loops = MaxLoops;
     while (callbackCounters()._revoke == 0 && loops--) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
@@ -404,8 +405,8 @@ TEST(Consumer, ReadTopicWithoutHeadersUsingConfig1)
          {topicWithoutHeaders().topic(), 2, (int)OffsetPoint::AtBeginning},
          {topicWithoutHeaders().topic(), 3, (int)OffsetPoint::AtBeginning}});
     connector.consumer().resume();
-    int loops = maxLoops;
-    while (callbackCounters()._eof < 4 && loops--) {
+    int loops = MaxLoops;
+    while (callbackCounters()._eof < NumPartitions && loops--) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
     std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -447,8 +448,8 @@ TEST(Consumer, ReadTopicWithHeadersUsingConfig2)
          {topicWithHeaders().topic(), 1, (int)OffsetPoint::AtBeginning},
          {topicWithHeaders().topic(), 2, (int)OffsetPoint::AtBeginning},
          {topicWithHeaders().topic(), 3, (int)OffsetPoint::AtBeginning}});
-    int loops = maxLoops;
-    while (callbackCounters()._eof < 4 && loops--) {
+    int loops = MaxLoops;
+    while (callbackCounters()._eof < NumPartitions && loops--) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
     EXPECT_EQ(messageTracker().totalMessages(), callbackCounters()._preprocessor);
@@ -459,12 +460,12 @@ TEST(Consumer, ReadTopicWithHeadersUsingConfig2)
     EXPECT_EQ(messageTracker(), consumerMessageTracker());
     
     //Check async commits
-    loops = maxLoops;
+    loops = MaxLoops;
     while (static_cast<size_t>(callbackCounters()._offsetCommit) < messageTracker().totalMessages() && loops--) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
     EXPECT_EQ(messageTracker().totalMessages(), callbackCounters()._offsetCommit);
-    EXPECT_EQ(callbackCounters()._offsetCommitPartitions, consumerMessageTracker()._offsets);
+    //EXPECT_EQ(callbackCounters()._offsetCommitPartitions, consumerMessageTracker()._offsets);
     
     //clear everything
     consumerMessageTracker().clear();
@@ -484,8 +485,8 @@ TEST(Consumer, ReadTopicWithHeadersUsingConfig3)
          {topicWithHeaders().topic(), 1, (int)OffsetPoint::AtBeginning},
          {topicWithHeaders().topic(), 2, (int)OffsetPoint::AtBeginning},
          {topicWithHeaders().topic(), 3, (int)OffsetPoint::AtBeginning}});
-    int loops = maxLoops;
-    while (callbackCounters()._eof < 4 && loops--) {
+    int loops = MaxLoops;
+    while (callbackCounters()._eof < NumPartitions && loops--) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
     EXPECT_EQ(messageTracker().totalMessages(), callbackCounters()._preprocessor);
@@ -496,7 +497,7 @@ TEST(Consumer, ReadTopicWithHeadersUsingConfig3)
     EXPECT_EQ(messageTracker(), consumerMessageTracker());
     
     //Check async commits
-    loops = maxLoops;
+    loops = MaxLoops;
     while (static_cast<size_t>(callbackCounters()._offsetCommit) < messageTracker().totalMessages() && loops--) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
@@ -525,8 +526,8 @@ TEST(Consumer, ReadTopicWithHeadersUsingConfig4)
     //enable consuming
     connector.consumer().resume(topicWithHeaders().topic());
 
-    int loops = maxLoops;
-    while (callbackCounters()._eof < 4 && loops--) {
+    int loops = MaxLoops;
+    while (callbackCounters()._eof < NumPartitions && loops--) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
     EXPECT_EQ(messageTracker().totalMessages(), callbackCounters()._preprocessor);
@@ -537,7 +538,7 @@ TEST(Consumer, ReadTopicWithHeadersUsingConfig4)
     EXPECT_EQ(messageTracker(), consumerMessageTracker());
     
     //Check async commits
-    loops = maxLoops;
+    loops = MaxLoops;
     while (static_cast<size_t>(callbackCounters()._offsetCommit) < messageTracker().totalMessages() && loops--) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
@@ -554,7 +555,7 @@ TEST(Consumer, SkipMessagesWithRelativeOffsetUsingConfig2)
     callbackCounters().reset();
     callbackCounters()._forceSkip = true;
     int msgPerPartition = 5;
-    int totalMessages = msgPerPartition*4;
+    int totalMessages = msgPerPartition * NumPartitions;
     
     Connector connector = makeConsumerConnector(
         config2,
@@ -566,12 +567,12 @@ TEST(Consumer, SkipMessagesWithRelativeOffsetUsingConfig2)
          {topicWithHeaders().topic(), 1, (int)OffsetPoint::AtEndRelative-msgPerPartition},
          {topicWithHeaders().topic(), 2, (int)OffsetPoint::AtEndRelative-msgPerPartition},
          {topicWithHeaders().topic(), 3, (int)OffsetPoint::AtEndRelative-msgPerPartition}});
-    int loops = maxLoops;
-    while (callbackCounters()._eof < 4 && loops--) {
+    int loops = MaxLoops;
+    while (callbackCounters()._eof < NumPartitions && loops--) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
     EXPECT_EQ(totalMessages, callbackCounters()._preprocessor);
-    EXPECT_EQ(totalMessages+4, callbackCounters()._receiver); //including EOFs
+    EXPECT_EQ(totalMessages + NumPartitions, callbackCounters()._receiver); //including EOFs
     EXPECT_EQ(totalMessages, callbackCounters()._skip);
     EXPECT_EQ(0, consumerMessageTracker().totalMessages());
     
@@ -580,7 +581,7 @@ TEST(Consumer, SkipMessagesWithRelativeOffsetUsingConfig2)
     dispatcher().drain();
 }
 
-TEST(Consumer, OffsetCommitManager)
+TEST(Consumer, OffsetCommitManagerFromBeginning)
 {
     callbackCounters().reset();
     Connector connector = makeConsumerConnector(
@@ -600,12 +601,12 @@ TEST(Consumer, OffsetCommitManager)
     //enable consuming
     connector.consumer().resume(topicWithHeaders().topic());
 
-    int loops = maxLoops;
-    while (callbackCounters()._eof < 4 && loops--) {
+    int loops = MaxLoops;
+    while (callbackCounters()._eof < NumPartitions && loops--) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
     //Check commits via offset manager
-    loops = maxLoops;
+    loops = MaxLoops;
     while (static_cast<size_t>(callbackCounters()._offsetCommit) < consumerMessageTracker().totalMessages() && loops--) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
@@ -616,6 +617,136 @@ TEST(Consumer, OffsetCommitManager)
     consumerMessageTracker().clear();
     dispatcher().drain();
     offsetManagerPtr.reset();
+}
+
+TEST(Consumer, OffsetCommitManagerRelative)
+{
+    int relativeOffset = 3;
+    callbackCounters().reset();
+    Connector connector = makeConsumerConnector(
+            config4,
+            getNewGroupName(),
+            topicWithHeaders(),
+            Callbacks::messageReceiverWithHeadersUsingCommitGuard,
+            PartitionStrategy::Static,
+            {{topicWithHeaders().topic(), 0, (int)OffsetPoint::AtEndRelative-relativeOffset},
+             {topicWithHeaders().topic(), 1, (int)OffsetPoint::AtEndRelative-relativeOffset},
+             {topicWithHeaders().topic(), 2, (int)OffsetPoint::AtEndRelative-relativeOffset},
+             {topicWithHeaders().topic(), 3, (int)OffsetPoint::AtEndRelative-relativeOffset}});
+
+    //Create the offset manager
+    offsetManagerPtr = std::make_shared<OffsetManager>(connector.consumer());
+
+    //enable consuming
+    connector.consumer().resume(topicWithHeaders().topic());
+
+    int loops = MaxLoops;
+    while (callbackCounters()._eof < NumPartitions && loops--) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+    //Check commits via offset manager
+    loops = MaxLoops;
+    while (static_cast<size_t>(callbackCounters()._offsetCommit) < (relativeOffset * NumPartitions) && loops--) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+    EXPECT_EQ(relativeOffset * NumPartitions, callbackCounters()._offsetCommit);
+    EXPECT_EQ(callbackCounters()._offsetCommitPartitions, consumerMessageTracker()._offsets);
+
+    //clear everything
+    consumerMessageTracker().clear();
+    dispatcher().drain();
+    offsetManagerPtr.reset();
+}
+
+TEST(Consumer, OffsetCommitManagerFromStored)
+{
+    int relativeOffset = 6; //total messages consumed per partition
+    int firstBatch = 2; //messages consumed per partition for each test
+    
+    const std::string& consumerGroup = getNewGroupName();
+    {
+        callbackCounters().reset();
+        
+        //Stop committing after specific amount of offsets are received.
+        callbackCounters()._maxProcessedOffsets = firstBatch;
+        
+        Connector connector = makeConsumerConnector(
+                config4,
+                consumerGroup,
+                topicWithHeaders(),
+                Callbacks::messageReceiverWithHeadersUsingCommitGuard,
+                PartitionStrategy::Static,
+                {{topicWithHeaders().topic(), 0, (int) OffsetPoint::AtEndRelative - relativeOffset},
+                 {topicWithHeaders().topic(), 1, (int) OffsetPoint::AtEndRelative - relativeOffset},
+                 {topicWithHeaders().topic(), 2, (int) OffsetPoint::AtEndRelative - relativeOffset},
+                 {topicWithHeaders().topic(), 3, (int) OffsetPoint::AtEndRelative - relativeOffset}});
+        
+        //Create the offset manager
+        offsetManagerPtr = std::make_shared<OffsetManager>(connector.consumer());
+        
+        //enable consuming
+        connector.consumer().resume(topicWithHeaders().topic());
+        
+        int loops = MaxLoops;
+        while (callbackCounters()._eof < NumPartitions && loops--) {
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+        }
+        //Check commits via offset manager
+        loops = MaxLoops;
+        while (static_cast<size_t>(callbackCounters()._offsetCommit) < callbackCounters()._maxProcessedOffsets*NumPartitions &&
+               loops--) {
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+        }
+        EXPECT_EQ(callbackCounters()._offsetCommit, callbackCounters()._maxProcessedOffsets*NumPartitions);
+        //EXPECT_EQ(callbackCounters()._offsetCommitPartitions, callbackCounters()._numOffsetCommitted);
+        
+        //clear everything
+        consumerMessageTracker().clear();
+        dispatcher().drain();
+        offsetManagerPtr.reset();
+    }
+    
+    //Continue reading the remaining offsets using the same consumer group
+    int remaining = relativeOffset-firstBatch; //messages left to read per partition
+    {
+        callbackCounters().reset();
+        
+        Connector connector = makeConsumerConnector(
+                config4,
+                consumerGroup,
+                topicWithHeaders(),
+                Callbacks::messageReceiverWithHeadersUsingCommitGuard,
+                PartitionStrategy::Static,
+                {{topicWithHeaders().topic(), 0, (int) OffsetPoint::FromStoredOffset},
+                 {topicWithHeaders().topic(), 1, (int) OffsetPoint::FromStoredOffset},
+                 {topicWithHeaders().topic(), 2, (int) OffsetPoint::FromStoredOffset},
+                 {topicWithHeaders().topic(), 3, (int) OffsetPoint::FromStoredOffset}});
+        
+        //Create the offset manager
+        offsetManagerPtr = std::make_shared<OffsetManager>(connector.consumer());
+        
+        //enable consuming
+        connector.consumer().resume(topicWithHeaders().topic());
+        
+        int loops = MaxLoops;
+        while (callbackCounters()._eof < NumPartitions && loops--) {
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+        }
+        //Check commits via offset manager
+        loops = MaxLoops;
+        while (static_cast<size_t>(callbackCounters()._offsetCommit) < (remaining * NumPartitions) &&
+               loops--) {
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+        }
+        EXPECT_EQ(remaining * NumPartitions, callbackCounters()._offsetCommit);
+        EXPECT_EQ(callbackCounters()._offsetCommitPartitions, consumerMessageTracker()._offsets);
+        //EXPECT_EQ(callbackCounters()._offsetCommitPartitions, callbackCounters()._numOffsetCommitted);
+        
+        //clear everything
+        consumerMessageTracker().clear();
+        dispatcher().drain();
+        offsetManagerPtr.reset();
+    }
 }
 
 

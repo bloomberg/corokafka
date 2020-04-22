@@ -116,9 +116,6 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
         throw InvalidOptionException(topic, Configuration::RdKafkaOptions::groupId, "Missing");
     }
     
-    //Check if the receiver is set (will throw if not set)
-    topicEntry._configuration.getTypeErasedReceiver();
-    
     //Set the rdkafka configuration options
     cppkafka::Configuration kafkaConfig(rdKafkaOptions);
     kafkaConfig.set_default_topic_configuration(cppkafka::TopicConfiguration(rdKafkaTopicOptions));
