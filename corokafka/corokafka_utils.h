@@ -26,6 +26,10 @@
 #include <chrono>
 #include <atomic>
 #include <typeinfo>
+#include <cstring>
+#if (__GLIBC__ >= 2) && (__GLIBC_MINOR__ >= 12)
+#include <pthread.h> //pthread_setname_np()
+#endif
 
 //======================================================================================================================
 //                                               Disjunction port
@@ -379,6 +383,39 @@ struct ProducerMessageBuilder : public cppkafka::ConcreteMessageBuilder<T>
 };
 
 using IoTracker = std::shared_ptr<int>;
+
+//======================================================================================================================
+//                                               Misc
+//======================================================================================================================
+/**
+ * name: 8 letters if threadId==-1, 7 letters if threadId < 10, 6 letters if threadId > 9
+ * threadId: 0-99
+ */
+#if (__GLIBC__ >= 2) && (__GLIBC_MINOR__ >= 12)
+inline
+void setThreadName(std::thread::native_handle_type threadHandle,
+                   const char* name, //max 7 letters. 6 letters if threadId >= 10
+                   int threadId = -1) //0-99
+{
+    int idx = 0;
+    char buf[16] = {0};
+    std::strncpy(buf, "corokf:", 7); idx += 7;
+    if (threadId == -1) {
+        //no digits used for thread id
+        int len = std::min(8, (int)std::strlen(name));
+        std::strncpy(buf+idx, name, len); idx += len;
+    }
+    else {
+        //use 1 digit for string
+        std::string id = std::to_string(threadId);
+        int len = std::min((int)(8-id.length()), (int)std::strlen(name));
+        std::strncpy(buf+idx, name, len); idx += len;
+        std::strncpy(buf+idx, id.c_str(), id.length()); idx += id.length();
+    }
+    buf[idx]=0;
+    pthread_setname_np(threadHandle, buf);
+}
+#endif
 
 } //namespace corokafka
 } //namespace Bloomberg

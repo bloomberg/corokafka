@@ -37,6 +37,9 @@ ConnectorImpl::ConnectorImpl(const ConfigurationBuilder& builder,
     _pollThread(std::bind(&ConnectorImpl::poll, this))
 {
     maxMessageBuilderOutputLength() = _config.getMaxMessagePayloadOutputLength();
+#if (__GLIBC__ >= 2) && (__GLIBC_MINOR__ >= 12)
+    setThreadName(_pollThread.native_handle(), "poll:", 0);
+#endif
 }
 
 ConnectorImpl::ConnectorImpl(ConfigurationBuilder&& builder,
@@ -54,6 +57,9 @@ ConnectorImpl::ConnectorImpl(ConfigurationBuilder&& builder,
     _pollThread(std::bind(&ConnectorImpl::poll, this))
 {
     maxMessageBuilderOutputLength() = _config.getMaxMessagePayloadOutputLength();
+#if (__GLIBC__ >= 2) && (__GLIBC_MINOR__ >= 12)
+    setThreadName(_pollThread.native_handle(), "poll:", 0);
+#endif
 }
 
 void ConnectorImpl::shutdown(bool drain,
