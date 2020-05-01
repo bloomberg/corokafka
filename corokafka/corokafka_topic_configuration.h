@@ -26,8 +26,6 @@ namespace corokafka {
 //========================================================================
 class TopicConfiguration : public Configuration
 {
-    friend class ConsumerManagerImpl;
-    friend class ProducerManagerImpl;
 public:
     /**
      * @brief Get the configuration type.
@@ -121,6 +119,9 @@ public:
     bool operator<(const TopicConfiguration& other) const;
     
 protected:
+    friend class ConsumerManagerImpl;
+    friend class ProducerManagerImpl;
+    
     TopicConfiguration() = default;
     TopicConfiguration(KafkaType type,
                        const std::string& topic,

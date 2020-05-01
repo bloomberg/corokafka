@@ -27,7 +27,6 @@ namespace corokafka {
  */
 class DeliveryReport
 {
-    friend class ProducerManagerImpl;
 public:
     DeliveryReport() = default;
     /**
@@ -51,6 +50,7 @@ public:
      */
     std::string toString() const;
 private:
+    friend class ProducerManagerImpl;
     /**
      * @brief Constructs an instance of a message delivery report
      * @param topicPartition the partition the message was sent to
@@ -65,7 +65,7 @@ private:
     
     cppkafka::TopicPartition    _topicPartition;
     size_t                      _numBytes{0};
-    cppkafka::Error             _error;
+    cppkafka::Error             _error{RD_KAFKA_RESP_ERR__FAIL};
     const void*                 _opaque{nullptr};
 };
 

@@ -28,7 +28,6 @@ namespace corokafka {
 template <typename HEADER>
 class HeaderRef
 {
-    friend class HeaderPack;
 public:
     /**
      * @brief Get the name of the header
@@ -43,6 +42,7 @@ public:
     HEADER value() const { return std::forward<HEADER>(_value); }
 
 private:
+    friend class HeaderPack;
     HeaderRef(const std::string &name,
               HEADER value) :
     _name(name),

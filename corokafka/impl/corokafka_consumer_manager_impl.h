@@ -16,11 +16,10 @@
 #ifndef BLOOMBERG_COROKAFKA_CONSUMER_MANAGER_IMPL_H
 #define BLOOMBERG_COROKAFKA_CONSUMER_MANAGER_IMPL_H
 
-#include <corokafka/corokafka_metadata.h>
+#include <corokafka/interface/corokafka_iconnector.h>
 #include <corokafka/corokafka_configuration_builder.h>
 #include <corokafka/corokafka_callbacks.h>
 #include <corokafka/corokafka_consumer_topic_entry.h>
-#include <corokafka/corokafka_utils.h>
 #include <quantum/quantum.h>
 #include <boost/any.hpp>
 #include <unordered_map>
@@ -32,69 +31,74 @@ namespace corokafka {
 
 using MessageContainer = quantum::Buffer<cppkafka::Message>;
 
-class ConsumerManagerImpl
+class ConsumerManagerImpl : public IConsumerManager
 {
 public:
     using ConfigMap = ConfigurationBuilder::ConfigMap<ConsumerConfiguration>;
     using ReceivedBatch = std::vector<std::tuple<cppkafka::Message, DeserializedMessage>>;
     
     ConsumerManagerImpl(quantum::Dispatcher& dispatcher,
-                        ConnectorConfiguration connectorConfiguration,
+                        const ConnectorConfiguration& connectorConfiguration,
                         const ConfigMap& configs,
                         std::atomic_bool& interrupt);
+    
     ConsumerManagerImpl(quantum::Dispatcher& dispatcher,
-                        ConnectorConfiguration connectorConfiguration,
+                        const ConnectorConfiguration& connectorConfiguration,
                         ConfigMap&& configs,
                         std::atomic_bool& interrupt);
     
     ~ConsumerManagerImpl();
     
-    ConsumerMetadata getMetadata(const std::string& topic);
+    ConsumerMetadata getMetadata(const std::string& topic) final;
     
-    void setPreprocessing(bool enable);
+    void enablePreprocessing() final;
     
-    void setPreprocessing(const std::string& topic, bool enable);
+    void enablePreprocessing(const std::string& topic) final;
     
-    void pause();
+    void disablePreprocessing() final;
     
-    void pause(const std::string& topic);
+    void disablePreprocessing(const std::string& topic) final;
     
-    void resume();
+    void pause() final;
     
-    void resume(const std::string& topic);
+    void pause(const std::string& topic) final;
     
-    void subscribe(const cppkafka::TopicPartitionList& partitionList);
+    void resume() final;
+    
+    void resume(const std::string& topic) final;
+    
+    void subscribe(const cppkafka::TopicPartitionList& partitionList) final;
     
     void subscribe(const std::string& topic,
-                   const cppkafka::TopicPartitionList& partitionList);
+                   const cppkafka::TopicPartitionList& partitionList) final;
     
-    void unsubscribe();
+    void unsubscribe() final;
     
-    void unsubscribe(const std::string& topic);
+    void unsubscribe(const std::string& topic) final;
     
     cppkafka::Error commit(const cppkafka::TopicPartition& topicPartition,
-                           const void* opaque);
+                           const void* opaque) final;
     
     cppkafka::Error commit(const cppkafka::TopicPartition& topicPartition,
                            ExecMode execMode,
-                           const void* opaque);
+                           const void* opaque) final;
     
     cppkafka::Error commit(const cppkafka::TopicPartitionList& topicPartitions,
-                           const void* opaque);
+                           const void* opaque) final;
     
     cppkafka::Error commit(const cppkafka::TopicPartitionList& topicPartitions,
                            ExecMode execMode,
-                           const void* opaque);
+                           const void* opaque) final;
     
-    void shutdown();
+    void shutdown() final;
+    
+    const ConsumerConfiguration& getConfiguration(const std::string& topic) const final;
+    
+    std::vector<std::string> getTopics() const;
     
     void poll();
     
     void pollEnd();
-    
-    const ConsumerConfiguration& getConfiguration(const std::string& topic) const;
-    
-    std::vector<std::string> getTopics() const;
     
     //Callbacks
     static void errorCallbackInternal(ConsumerTopicEntry& topicEntry,
@@ -224,8 +228,8 @@ private:
                                       const void* opaque);
     
     // Members
-    quantum::Dispatcher&        _dispatcher;
-    ConnectorConfiguration      _connectorConfiguration;
+    quantum::Dispatcher&            _dispatcher;
+    const ConnectorConfiguration&   _connectorConfiguration;
     Consumers                   _consumers;
     std::atomic_bool&           _interrupt;
     std::atomic_flag            _shutdownInitiated{false};

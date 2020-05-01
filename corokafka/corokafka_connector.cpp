@@ -22,56 +22,51 @@ namespace Bloomberg {
 namespace corokafka {
 
 Connector::Connector(const ConfigurationBuilder& builder) :
-    _dispatcherPtr(std::make_shared<quantum::Dispatcher>(builder.connectorConfiguration().getDispatcherConfiguration())),
-    _impl(std::make_unique<ConnectorImpl>(builder, *_dispatcherPtr))
+    ImplType(std::make_shared<ConnectorImpl>(builder))
 {
-
 }
 
 Connector::Connector(ConfigurationBuilder&& builder) :
-    _dispatcherPtr(std::make_shared<quantum::Dispatcher>(builder.connectorConfiguration().getDispatcherConfiguration())),
-    _impl(std::make_unique<ConnectorImpl>(std::move(builder), *_dispatcherPtr))
+    ImplType(std::make_shared<ConnectorImpl>(std::move(builder)))
 {
-
 }
 
 Connector::Connector(const ConfigurationBuilder& builder,
                      quantum::Dispatcher& dispatcher) :
-    _impl(std::make_unique<ConnectorImpl>(builder, dispatcher))
+    ImplType(std::make_shared<ConnectorImpl>(builder, dispatcher))
 {
-
 }
 
 Connector::Connector(ConfigurationBuilder&& builder,
                      quantum::Dispatcher& dispatcher) :
-    _impl(std::make_unique<ConnectorImpl>(std::move(builder), dispatcher))
+    ImplType(std::make_shared<ConnectorImpl>(std::move(builder), dispatcher))
 {
-
 }
 
 //Circumvent ConnectorImpl not being defined in the header.
 Connector::Connector(Connector&& other) noexcept = default;
 Connector& Connector::operator=(Connector&& other) = default;
 
-Connector::~Connector()
-{
-    shutdown();
-}
-
 ConsumerManager& Connector::consumer()
 {
-    return *_impl;
+    return impl()->consumer();
 }
 
 ProducerManager& Connector::producer()
 {
-    return *_impl;
+    return impl()->producer();
+}
+
+void Connector::shutdown()
+{
+    //drain only if we own the dispatcher
+    impl()->shutdown();
 }
 
 void Connector::shutdown(std::chrono::milliseconds drainTimeout)
 {
     //drain only if we own the dispatcher
-    _impl->shutdown(_dispatcherPtr != nullptr, drainTimeout);
+    impl()->shutdown(drainTimeout);
 }
 
 }

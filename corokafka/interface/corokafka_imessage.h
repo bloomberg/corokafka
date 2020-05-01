@@ -20,6 +20,7 @@
 #include <tuple>
 #include <corokafka/corokafka_utils.h>
 #include <corokafka/corokafka_offset_map.h>
+#include <cppkafka/message.h>
 #include <boost/optional.hpp>
 
 namespace Bloomberg {
@@ -28,8 +29,6 @@ namespace corokafka {
 class IMessage
 {
 public:
-    using HeaderType = cppkafka::Message::HeaderType;
-    using HeaderListType = cppkafka::Message::HeaderListType;
     /**
      * @brief Destructor
      */
@@ -51,7 +50,7 @@ public:
      * @brief Get the raw Kafka header list.
      * @return A header list composed of non-owning Buffers.
      */
-    virtual const HeaderListType& getHeaderList() const = 0;
+    virtual const cppkafka::Message::HeaderListType& getHeaderList() const = 0;
     /**
      * @brief Get the raw Kafka buffer containing payload data.
      * @return A non-owning Buffer.

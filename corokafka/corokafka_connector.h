@@ -16,14 +16,10 @@
 #ifndef BLOOMBERG_COROKAFKA_CONNECTOR_H
 #define BLOOMBERG_COROKAFKA_CONNECTOR_H
 
-#include <vector>
-#include <map>
-#include <chrono>
-#include <corokafka/corokafka_utils.h>
 #include <corokafka/corokafka_configuration_builder.h>
-#include <corokafka/corokafka_metadata.h>
-#include <corokafka/corokafka_consumer_manager.h>
-#include <corokafka/corokafka_producer_manager.h>
+#include <corokafka/interface/corokafka_iconnector.h>
+#include <corokafka/interface/corokafka_impl.h>
+#include <quantum/quantum_dispatcher.h>
 
 namespace Bloomberg {
 namespace corokafka {
@@ -35,7 +31,7 @@ class ConnectorImpl;
  *        setup the required topics for publishing/consumption and to get the ProducerManger and/or
  *        ConsumerManager objects for interacting with these topics.
  */
-class Connector
+class Connector : public Impl<IConnector>
 {
 public:
     /**
@@ -44,6 +40,12 @@ public:
      */
     explicit Connector(const ConfigurationBuilder& builder);
     explicit Connector(ConfigurationBuilder&& builder);
+    
+    /**
+     * @brief For mocking only via dependency injection
+     */
+    using ImplType = Impl<IConnector>;
+    using ImplType::Impl;
     
     /**
      * @brief Creates an instance from a ConfigurationBuilder object and using the supplied quantum dispatcher.
@@ -64,19 +66,19 @@ public:
      * @brief Destructor.
      * @remark This calls shutdown().
      */
-    ~Connector();
+    ~Connector() = default;
     
     /**
      * @brief Get the ConsumerManager for interacting with Kafka consumers.
      * @return A modifiable ConsumerManager reference.
      */
-    ConsumerManager& consumer();
+    ConsumerManager& consumer() final;
     
     /**
      * @brief Get the ProducerManager for interacting with Kafka producers.
      * @return A modifiable ProducerManager reference.
      */
-    ProducerManager& producer();
+    ProducerManager& producer() final;
     
     /**
      * @brief Gracefully shut down the connector.
@@ -87,12 +89,8 @@ public:
      * @remark If this connector owns the internal dispatcher (i.e. was not constructed using an externally-supplied
      *         dispatcher) it will also drain all running tasks.
      */
-    void shutdown(std::chrono::milliseconds drainTimeout = std::chrono::milliseconds(-1));
-    
-private:
-    //members
-    std::shared_ptr<quantum::Dispatcher>        _dispatcherPtr;
-    std::unique_ptr<ConnectorImpl>              _impl;
+    void shutdown() final;
+    void shutdown(std::chrono::milliseconds drainTimeout) final;
 };
 
 }

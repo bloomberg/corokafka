@@ -18,6 +18,7 @@
 #include <quantum/quantum.h>
 #include <corokafka/corokafka.h>
 #include <corokafka_tests_topics.h>
+#include <corokafka/mock/corokafka_connector_mock.h>
 
 //aliases
 using namespace Bloomberg::corokafka::tests;

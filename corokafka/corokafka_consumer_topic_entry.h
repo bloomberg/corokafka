@@ -20,7 +20,7 @@
 #include <chrono>
 #include <atomic>
 #include <corokafka/corokafka_utils.h>
-#include <corokafka/corokafka_message.h>
+#include <corokafka/interface/corokafka_imessage.h>
 #include <corokafka/corokafka_consumer_configuration.h>
 #include <corokafka/corokafka_throttle_control.h>
 #include <corokafka/corokafka_connector_configuration.h>
@@ -87,7 +87,7 @@ struct ConsumerTopicEntry {
     PollStrategyBasePtr             _poller;
     PollStrategy                    _pollStrategy{PollStrategy::Serial};
     OffsetMap                       _offsets;
-    Metadata::OffsetWatermarkList   _watermarks;
+    OffsetWatermarkList   _watermarks;
     bool                            _enableWatermarkCheck{false};
     std::atomic_bool                _isPaused{false};
     bool                            _setOffsetsOnStart{true};

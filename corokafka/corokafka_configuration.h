@@ -32,9 +32,6 @@ namespace corokafka {
 //========================================================================
 class Configuration
 {
-    friend class ConsumerManagerImpl;
-    friend class ProducerManagerImpl;
-    friend class ConnectorImpl;
 public:
     using OptionList = std::vector<cppkafka::ConfigurationOption>;
     using OptionInitList = std::initializer_list<cppkafka::ConfigurationOption>;
@@ -67,6 +64,9 @@ public:
     const OptionList& getOptions(OptionType type = OptionType::All) const;
     
 protected:
+    friend class ConsumerManagerImpl;
+    friend class ProducerManagerImpl;
+    friend class ConnectorImpl;
     /**
      * @brief: RdKafka options modified by this library
      */

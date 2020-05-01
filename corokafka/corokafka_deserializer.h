@@ -16,7 +16,7 @@
 #ifndef BLOOMBERG_COROKAFKA_DESERIALIZER_H
 #define BLOOMBERG_COROKAFKA_DESERIALIZER_H
 
-#include <corokafka/corokafka_message.h>
+#include <corokafka/interface/corokafka_imessage.h>
 #include <corokafka/corokafka_utils.h>
 #include <corokafka/corokafka_header_pack.h>
 #include <boost/any.hpp>

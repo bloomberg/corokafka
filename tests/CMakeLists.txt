@@ -58,6 +58,8 @@ else()
         crypto
         dl
         z
+        #zstd
+        #lz4
     )
     if (COROKAFKA_VERBOSE_MAKEFILE)
         message(STATUS "SOURCE_FILES = ${SOURCE_FILES}")

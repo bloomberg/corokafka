@@ -36,8 +36,6 @@ namespace corokafka {
  */
 class ConsumerConfiguration : public TopicConfiguration
 {
-    friend class TopicConfiguration;
-    friend class ConsumerManagerImpl;
 public:
     /**
      * @brief Internal CoroKafka-specific options for the consumer. They are used to control this
@@ -171,6 +169,8 @@ public:
     const Callbacks::ReceiverCallback<TOPIC>& getReceiverCallback() const;
     
 private:
+    friend class TopicConfiguration;
+    friend class ConsumerManagerImpl;
     const TypeErasedDeserializer& getTypeErasedDeserializer() const;
     const Receiver& getTypeErasedReceiver() const;
     static const OptionExtractorFunc& extract(const std::string& option);

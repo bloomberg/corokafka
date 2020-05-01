@@ -5,7 +5,8 @@ function(make_header)
             "*.h"
             "detail/*.h"
             "utils/*.h"
-            "third_party/cppkafka/*.h")
+            "mock/*.h"
+            "interface/*.h")
     SET(PROJECT_INCLUDE_HEADERS  "${INCLUDE_HEADERS}" CACHE INTERNAL "${PROJECT_NAME} include headers")
     list(SORT INCLUDE_HEADERS)
     foreach(header ${INCLUDE_HEADERS})

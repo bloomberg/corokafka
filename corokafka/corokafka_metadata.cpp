@@ -14,6 +14,7 @@
 ** limitations under the License.
 */
 #include <corokafka/corokafka_metadata.h>
+#include <corokafka/impl/corokafka_metadata_impl.h>
 #include <corokafka/corokafka_exception.h>
 
 namespace Bloomberg {
@@ -26,81 +27,74 @@ namespace corokafka {
 Metadata::Metadata(const std::string& topic,
                    const cppkafka::Topic& kafkaTopic,
                    cppkafka::KafkaHandleBase* handle) :
-    _topic(topic),
-    _handle(handle),
-    _kafkaTopic(cppkafka::Topic::make_non_owning(kafkaTopic.get_handle()))
+    VirtualImpl(std::make_shared<MetadataImpl>(topic, kafkaTopic, handle))
 {
+}
+
+KafkaType Metadata::getType() const
+{
+    return impl()->getType();
 }
 
 Metadata::operator bool() const
 {
-    return _handle != nullptr;
+    return impl()->operator bool();
 }
 
 uint64_t Metadata::getHandle() const
 {
-    return _handle == nullptr ? 0 : reinterpret_cast<uint64_t>(_handle->get_handle());
+    return impl()->getHandle();
 }
 
 const std::string& Metadata::getTopic() const
 {
-    return _topic;
+    return impl()->getTopic();
 }
 
 const cppkafka::Topic& Metadata::getTopicObject() const
 {
-    if (!_handle) {
-        throw HandleException("Null");
-    }
-    if (!_kafkaTopic) {
-        _kafkaTopic = _handle->get_topic(_topic);
-    }
-    return _kafkaTopic;
+    return impl()->getTopicObject();
 }
 
-Metadata::OffsetWatermarkList Metadata::queryOffsetWatermarks() const
+OffsetWatermarkList Metadata::queryOffsetWatermarks() const
 {
-    if (!_handle) {
-        throw HandleException("Null");
-    }
-    return queryOffsetWatermarks(_handle->get_timeout());
+    return impl()->queryOffsetWatermarks();
+}
+
+OffsetWatermarkList Metadata::queryOffsetWatermarks(std::chrono::milliseconds timeout) const
+{
+    return impl()->queryOffsetWatermarks(timeout);
 }
 
 cppkafka::TopicPartitionList Metadata::queryOffsetsAtTime(Timestamp timestamp) const
 {
-    if (!_handle) {
-        throw HandleException("Null");
-    }
-    return queryOffsetsAtTime(timestamp, _handle->get_timeout());
+    return impl()->queryOffsetsAtTime(timestamp);
+}
+
+cppkafka::TopicPartitionList Metadata::queryOffsetsAtTime(Timestamp timestamp,
+                                                          std::chrono::milliseconds timeout) const
+{
+    return impl()->queryOffsetsAtTime(timestamp, timeout);
 }
 
 cppkafka::TopicMetadata Metadata::getTopicMetadata() const
 {
-    if (!_handle) {
-        throw HandleException("Null");
-    }
-    return _handle->get_metadata(getTopicObject());
+    return impl()->getTopicMetadata();
 }
 
 cppkafka::TopicMetadata Metadata::getTopicMetadata(std::chrono::milliseconds timeout) const
 {
-    if (!_handle) {
-        throw HandleException("Null");
-    }
-    return _handle->get_metadata(getTopicObject(), timeout);
+    return impl()->getTopicMetadata(timeout);
 }
 
 std::string Metadata::getInternalName() const
 {
-    if (!_handle) {
-        throw HandleException("Null");
-    }
-    return _handle->get_name();
+    return impl()->getInternalName();
 }
 
 bool Metadata::isPartitionAvailable(int partition) const
 {
-    return getTopicObject().is_partition_available(partition);
+    return impl()->isPartitionAvailable(partition);
 }
 
 }

@@ -28,11 +28,11 @@ namespace corokafka {
 //                               class ConsumerManagerImpl
 //===========================================================================================
 ConsumerManagerImpl::ConsumerManagerImpl(quantum::Dispatcher& dispatcher,
-                                         ConnectorConfiguration connectorConfiguration,
+                                         const ConnectorConfiguration& connectorConfiguration,
                                          const ConfigMap& configs,
                                          std::atomic_bool& interrupt) :
     _dispatcher(dispatcher),
-    _connectorConfiguration(std::move(connectorConfiguration)),
+    _connectorConfiguration(connectorConfiguration),
     _interrupt(interrupt),
     _shutdownIoWaitTimeoutMs(connectorConfiguration.getShutdownIoWaitTimeout())
 {
@@ -40,7 +40,7 @@ ConsumerManagerImpl::ConsumerManagerImpl(quantum::Dispatcher& dispatcher,
     for (const auto& entry : configs) {
         // Process each configuration
         auto it = _consumers.emplace(entry.first, ConsumerTopicEntry(nullptr,
-                                                                     connectorConfiguration,
+                                                                     _connectorConfiguration,
                                                                      entry.second,
                                                                      interrupt,
                                                                      dispatcher.getNumIoThreads(),
@@ -58,11 +58,11 @@ ConsumerManagerImpl::ConsumerManagerImpl(quantum::Dispatcher& dispatcher,
 }
 
 ConsumerManagerImpl::ConsumerManagerImpl(quantum::Dispatcher& dispatcher,
-                                         ConnectorConfiguration connectorConfiguration,
+                                         const ConnectorConfiguration& connectorConfiguration,
                                          ConfigMap&& configs,
                                          std::atomic_bool& interrupt) :
     _dispatcher(dispatcher),
-    _connectorConfiguration(std::move(connectorConfiguration)),
+    _connectorConfiguration(connectorConfiguration),
     _interrupt(interrupt),
     _shutdownIoWaitTimeoutMs(connectorConfiguration.getShutdownIoWaitTimeout())
 {
@@ -70,7 +70,7 @@ ConsumerManagerImpl::ConsumerManagerImpl(quantum::Dispatcher& dispatcher,
     for (auto&& entry : configs) {
         // Process each configuration
         auto it = _consumers.emplace(entry.first, ConsumerTopicEntry(nullptr,
-                                                                     connectorConfiguration,
+                                                                     _connectorConfiguration,
                                                                      std::move(entry.second),
                                                                      interrupt,
                                                                      dispatcher.getNumIoThreads(),
@@ -338,16 +338,28 @@ ConsumerMetadata ConsumerManagerImpl::getMetadata(const std::string& topic)
     return makeMetadata(it->second);
 }
 
-void ConsumerManagerImpl::setPreprocessing(bool enable)
+void ConsumerManagerImpl::enablePreprocessing()
 {
     for (auto&& consumer : _consumers) {
-        setPreprocessing(consumer.first, enable);
+        consumer.second._preprocess = true;
     }
 }
 
-void ConsumerManagerImpl::setPreprocessing(const std::string& topic, bool enable)
+void ConsumerManagerImpl::enablePreprocessing(const std::string& topic)
 {
-    findConsumer(topic)->second._preprocess = enable;
+    findConsumer(topic)->second._preprocess = true;
+}
+
+void ConsumerManagerImpl::disablePreprocessing()
+{
+    for (auto&& consumer : _consumers) {
+        consumer.second._preprocess = false;
+    }
+}
+
+void ConsumerManagerImpl::disablePreprocessing(const std::string& topic)
+{
+    findConsumer(topic)->second._preprocess = false;
 }
 
 void ConsumerManagerImpl::pause()
@@ -1335,7 +1347,7 @@ bool ConsumerManagerImpl::hasNewMessages(ConsumerTopicEntry& entry) const
     if (!entry._enableWatermarkCheck) {
         return true;
     }
-    Metadata::OffsetWatermarkList watermarks = makeMetadata(entry).getOffsetWatermarks();
+    OffsetWatermarkList watermarks = makeMetadata(entry).getOffsetWatermarks();
     if (entry._watermarks.empty()) {
         //update watermarks
         entry._watermarks = watermarks;

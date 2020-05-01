@@ -68,13 +68,13 @@ public:
                     DeserializerError&& error,
                     const OffsetPersistSettings& offsetSettings) const final {
         _func(ReceivedMessageType(committer,
-                               offsets,
-                               std::move(kafkaMessage),
-                               std::move(key),
-                               std::move(payload),
-                               std::move(headers),
-                               std::move(error),
-                               offsetSettings));
+                                   offsets,
+                                   std::move(kafkaMessage),
+                                   std::move(key),
+                                   std::move(payload),
+                                   std::move(headers),
+                                   std::move(error),
+                                   offsetSettings));
     }
     
     explicit operator bool() const final { return (bool)_func; }

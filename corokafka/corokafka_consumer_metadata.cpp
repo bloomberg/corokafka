@@ -14,6 +14,7 @@
 ** limitations under the License.
 */
 #include <corokafka/corokafka_consumer_metadata.h>
+#include <corokafka/impl/corokafka_consumer_metadata_impl.h>
 #include <corokafka/corokafka_exception.h>
 
 namespace Bloomberg {
@@ -26,8 +27,8 @@ namespace corokafka {
 ConsumerMetadata::ConsumerMetadata(const std::string& topic,
                                    cppkafka::Consumer* handle,
                                    PartitionStrategy strategy) :
-    Metadata(topic, cppkafka::Topic(), handle),
-    _strategy(strategy)
+    ImplType(std::make_shared<ConsumerMetadataImpl>(topic, handle, strategy)),
+    Metadata(std::static_pointer_cast<ConsumerMetadataImpl>(ImplType::impl()))
 {
 }
 
@@ -35,121 +36,65 @@ ConsumerMetadata::ConsumerMetadata(const std::string& topic,
                                    const cppkafka::Topic& kafkaTopic,
                                    cppkafka::Consumer* handle,
                                    PartitionStrategy strategy) :
-    Metadata(topic, kafkaTopic, handle),
-    _strategy(strategy)
+    ImplType(std::make_shared<ConsumerMetadataImpl>(topic, kafkaTopic, handle, strategy)),
+    Metadata(std::static_pointer_cast<ConsumerMetadataImpl>(ImplType::impl()))
 {
 }
 
-Metadata::OffsetWatermarkList ConsumerMetadata::queryOffsetWatermarks(std::chrono::milliseconds timeout) const
+ConsumerMetadata::ConsumerMetadata(std::shared_ptr<IConsumerMetadata> impl) :
+    ImplType(std::move(impl)),
+    Metadata(std::static_pointer_cast<ConsumerMetadataImpl>(ImplType::impl()))
 {
-    if (!_handle) {
-        throw HandleException("Null consumer");
-    }
-    OffsetWatermarkList offsets;
-    for (const auto& partition : getPartitionAssignment()) {
-        offsets.emplace_back(partition.get_partition(),
-                             _handle->query_offsets(partition, timeout));
-    }
-    return offsets;
 }
 
-Metadata::OffsetWatermarkList ConsumerMetadata::getOffsetWatermarks() const
+OffsetWatermarkList ConsumerMetadata::getOffsetWatermarks() const
 {
-    if (!_handle) {
-        throw HandleException("Null consumer");
-    }
-    OffsetWatermarkList offsets;
-    for (const auto& partition : getPartitionAssignment()) {
-        offsets.emplace_back(partition.get_partition(),
-                             static_cast<const cppkafka::Consumer*>(_handle)->get_offsets(partition));
-    }
-    return offsets;
-}
-
-cppkafka::TopicPartitionList ConsumerMetadata::queryOffsetsAtTime(Metadata::Timestamp timestamp,
-                                                                  std::chrono::milliseconds timeout) const
-{
-    if (!_handle) {
-        throw HandleException("Null consumer");
-    }
-    cppkafka::KafkaHandleBase::TopicPartitionsTimestampsMap timestampMap;
-    std::chrono::milliseconds epochTime = timestamp.time_since_epoch();
-    for (const auto& partition : getPartitionAssignment()) {
-        timestampMap[partition] = epochTime;
-    }
-    return _handle->get_offsets_for_times(timestampMap, timeout);
+    return ImplType::impl()->getOffsetWatermarks();
 }
 
 cppkafka::TopicPartitionList ConsumerMetadata::queryCommittedOffsets() const
 {
-    if (!_handle) {
-        throw HandleException("Null consumer");
-    }
-    return static_cast<const cppkafka::Consumer*>(_handle)->get_offsets_committed(getPartitionAssignment());
+    return ImplType::impl()->queryCommittedOffsets();
 }
 
 cppkafka::TopicPartitionList ConsumerMetadata::queryCommittedOffsets(std::chrono::milliseconds timeout) const
 {
-    if (!_handle) {
-        throw HandleException("Null consumer");
-    }
-    return static_cast<const cppkafka::Consumer*>(_handle)->get_offsets_committed(getPartitionAssignment(), timeout);
+    return ImplType::impl()->queryCommittedOffsets(timeout);
 }
 
 cppkafka::TopicPartitionList ConsumerMetadata::getOffsetPositions() const
 {
-    if (!_handle) {
-        throw HandleException("Null consumer");
-    }
-    return static_cast<const cppkafka::Consumer*>(_handle)->get_offsets_position(getPartitionAssignment());
+    return ImplType::impl()->getOffsetPositions();
 }
 
 const cppkafka::TopicPartitionList& ConsumerMetadata::getPartitionAssignment() const
 {
-    if (!_handle) {
-        throw HandleException("Null consumer");
-    }
-    if (_partitions.empty()) {
-        _partitions = static_cast<const cppkafka::Consumer*>(_handle)->get_assignment();
-    }
-    return _partitions;
+    return ImplType::impl()->getPartitionAssignment();
 }
 
 cppkafka::GroupInformation ConsumerMetadata::getGroupInformation() const
 {
-    if (!_handle) {
-        throw HandleException("Null consumer");
-    }
-    return _handle->get_consumer_group(static_cast<const cppkafka::Consumer*>(_handle)->get_member_id());
+    return ImplType::impl()->getGroupInformation();
 }
 
 cppkafka::GroupInformation ConsumerMetadata::getGroupInformation(std::chrono::milliseconds timeout) const
 {
-    if (!_handle) {
-        throw HandleException("Null consumer");
-    }
-    return _handle->get_consumer_group(static_cast<const cppkafka::Consumer*>(_handle)->get_member_id(), timeout);
+    return ImplType::impl()->getGroupInformation(timeout);
 }
 
 cppkafka::GroupInformationList ConsumerMetadata::getAllGroupsInformation() const
 {
-    if (!_handle) {
-        throw HandleException("Null consumer");
-    }
-    return _handle->get_consumer_groups();
+    return ImplType::impl()->getAllGroupsInformation();
 }
 
 cppkafka::GroupInformationList ConsumerMetadata::getAllGroupsInformation(std::chrono::milliseconds timeout) const
 {
-    if (!_handle) {
-        throw HandleException("Null consumer");
-    }
-    return _handle->get_consumer_groups(timeout);
+    return ImplType::impl()->getAllGroupsInformation(timeout);
 }
 
 PartitionStrategy ConsumerMetadata::getPartitionStrategy() const
 {
-    return _strategy;
+    return ImplType::impl()->getPartitionStrategy();
 }
 
 }

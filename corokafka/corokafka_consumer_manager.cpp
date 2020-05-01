@@ -24,135 +24,133 @@ ConsumerManager::ConsumerManager(quantum::Dispatcher& dispatcher,
                                  const ConnectorConfiguration& connectorConfiguration,
                                  const ConfigMap& config,
                                  std::atomic_bool& interrupt) :
-    _impl(std::make_unique<ConsumerManagerImpl>(dispatcher, connectorConfiguration, config, interrupt))
+    ImplType(std::make_shared<ConsumerManagerImpl>(dispatcher, connectorConfiguration, config, interrupt))
 {
-
 }
 
 ConsumerManager::ConsumerManager(quantum::Dispatcher& dispatcher,
                                  const ConnectorConfiguration& connectorConfiguration,
                                  ConfigMap&& config,
                                  std::atomic_bool& interrupt) :
-    _impl(std::make_unique<ConsumerManagerImpl>(dispatcher, connectorConfiguration, std::move(config), interrupt))
+    ImplType(std::make_shared<ConsumerManagerImpl>(dispatcher, connectorConfiguration, std::move(config), interrupt))
 {
-
 }
 
 ConsumerMetadata ConsumerManager::getMetadata(const std::string& topic)
 {
-    return _impl->getMetadata(topic);
+    return impl()->getMetadata(topic);
 }
 
 void ConsumerManager::enablePreprocessing()
 {
-    _impl->setPreprocessing(true);
+    impl()->enablePreprocessing();
 }
 
 void ConsumerManager::enablePreprocessing(const std::string& topic)
 {
-    _impl->setPreprocessing(topic, true);
+    impl()->enablePreprocessing(topic);
 }
 
 void ConsumerManager::disablePreprocessing()
 {
-    _impl->setPreprocessing(false);
+    impl()->disablePreprocessing();
 }
 
 void ConsumerManager::disablePreprocessing(const std::string& topic)
 {
-    _impl->setPreprocessing(topic, false);
+    impl()->disablePreprocessing(topic);
 }
 
 void ConsumerManager::pause()
 {
-    _impl->pause();
+    impl()->pause();
 }
 
 void ConsumerManager::pause(const std::string& topic)
 {
-    _impl->pause(topic);
+    impl()->pause(topic);
 }
 
 void ConsumerManager::resume()
 {
-    _impl->resume();
+    impl()->resume();
 }
 
 void ConsumerManager::resume(const std::string& topic)
 {
-    _impl->resume(topic);
+    impl()->resume(topic);
 }
 
 void ConsumerManager::subscribe(const cppkafka::TopicPartitionList& partitionList)
 {
-    _impl->subscribe(partitionList);
+    impl()->subscribe(partitionList);
 }
 
 void ConsumerManager::subscribe(const std::string& topic,
                                 const cppkafka::TopicPartitionList& partitionList)
 {
-    _impl->subscribe(topic, partitionList);
+    impl()->subscribe(topic, partitionList);
 }
 
 void ConsumerManager::unsubscribe()
 {
-    _impl->unsubscribe();
+    impl()->unsubscribe();
 }
 
 void ConsumerManager::unsubscribe(const std::string& topic)
 {
-    _impl->unsubscribe(topic);
+    impl()->unsubscribe(topic);
 }
 
 cppkafka::Error ConsumerManager::commit(const cppkafka::TopicPartition& topicPartition,
                                         ExecMode execMode,
                                         const void* opaque)
 {
-    return _impl->commit(topicPartition, execMode, opaque);
+    return impl()->commit(topicPartition, execMode, opaque);
 }
 
 cppkafka::Error ConsumerManager::commit(const cppkafka::TopicPartition& topicPartition,
                                         const void* opaque)
 {
-    return _impl->commit(topicPartition, opaque);
+    return impl()->commit(topicPartition, opaque);
 }
 
 cppkafka::Error ConsumerManager::commit(const cppkafka::TopicPartitionList& topicPartitions,
                                         ExecMode execMode,
                                         const void* opaque)
 {
-    return _impl->commit(topicPartitions, execMode, opaque);
+    return impl()->commit(topicPartitions, execMode, opaque);
 }
 
 cppkafka::Error ConsumerManager::commit(const cppkafka::TopicPartitionList& topicPartitions,
                                         const void* opaque)
 {
-    return _impl->commit(topicPartitions, opaque);
+    return impl()->commit(topicPartitions, opaque);
 }
 
 void ConsumerManager::shutdown()
 {
-    _impl->shutdown();
+    impl()->shutdown();
 }
 
 void ConsumerManager::poll()
 {
-    _impl->poll();
+    impl()->poll();
 }
 
 void ConsumerManager::pollEnd()
 {
-    _impl->pollEnd();
+    impl()->pollEnd();
 }
 
 const ConsumerConfiguration& ConsumerManager::getConfiguration(const std::string& topic) const
 {
-    return _impl->getConfiguration(topic);
+    return impl()->getConfiguration(topic);
 }
 
 std::vector<std::string> ConsumerManager::getTopics() const
 {
-    return _impl->getTopics();
+    return impl()->getTopics();
 }
 
 }

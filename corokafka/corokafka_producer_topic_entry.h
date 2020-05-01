@@ -19,7 +19,7 @@
 #include <memory>
 #include <chrono>
 #include <corokafka/corokafka_utils.h>
-#include <corokafka/corokafka_message.h>
+#include <corokafka/interface/corokafka_imessage.h>
 #include <corokafka/corokafka_producer_configuration.h>
 #include <corokafka/corokafka_connector_configuration.h>
 #include <corokafka/corokafka_throttle_control.h>

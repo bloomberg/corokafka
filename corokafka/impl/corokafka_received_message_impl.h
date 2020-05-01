@@ -13,16 +13,117 @@
 ** See the License for the specific language governing permissions and
 ** limitations under the License.
 */
+#ifndef BLOOMBERG_COROKAFKA_RECEIVED_MESSAGE_IMPL_H
+#define BLOOMBERG_COROKAFKA_RECEIVED_MESSAGE_IMPL_H
+
 #include <corokafka/corokafka_exception.h>
+#include <corokafka/interface/corokafka_ireceived_message.h>
 
 namespace Bloomberg {
 namespace corokafka {
+
+//Forward declaration
+template <typename KEY, typename PAYLOAD, typename HEADERS>
+class ReceivedMessage;
+
+//==========================================================================
+//                            OFFSET PERSIST SETTINGS
+//==========================================================================
+struct OffsetPersistSettings {
+    OffsetPersistStrategy _autoOffsetPersistStrategy;
+    ExecMode _autoCommitExec;
+    bool _autoOffsetPersist;
+    bool _autoOffsetPersistOnException;
+};
 
 //====================================================================================
 //                               RECEIVED MESSAGE
 //====================================================================================
 template <typename KEY, typename PAYLOAD, typename HEADERS>
-ReceivedMessage<KEY,PAYLOAD,HEADERS>::ReceivedMessage(
+class ReceivedMessageImpl : public IReceivedMessage<KEY, PAYLOAD, HEADERS>
+{
+public:
+    using KeyType = KEY;
+    using PayloadType = PAYLOAD;
+    using HeadersType = HEADERS;
+    using HeaderTypes = typename HEADERS::HeaderTypes;
+    
+    ReceivedMessageImpl(cppkafka::BackoffCommitter& committer,
+                        OffsetMap& offsets,
+                        cppkafka::Message&& kafkaMessage,
+                        boost::any&& key,
+                        boost::any&& payload,
+                        HeaderPack&& headers,
+                        DeserializerError&& error,
+                        const OffsetPersistSettings& offsetSettings);
+    
+    ~ReceivedMessageImpl();
+    
+    //==========================================================================
+    //                         IMessage interface
+    //==========================================================================
+    const cppkafka::Buffer& getKeyBuffer() const final;
+    const cppkafka::Message::HeaderListType& getHeaderList() const final;
+    const cppkafka::Buffer& getPayloadBuffer() const final;
+    uint64_t getHandle() const final;
+    cppkafka::Error getError() const final;
+    int getHeaderNumWithError() const;
+    std::string getTopic() const final;
+    int getPartition() const final;
+    int64_t getOffset() const final;
+    std::chrono::milliseconds getTimestamp() const final;
+    explicit operator bool() const final;
+    
+    //==========================================================================
+    //                         IReceivedMessage interface
+    //==========================================================================
+    bool skip() const final;
+    void setOpaque(const void* opaque) final;
+    cppkafka::Error commit(const void* opaque = nullptr) final;
+    cppkafka::Error commit(ExecMode execMode,
+                           const void* opaque = nullptr) final;
+    bool isEof() const final;
+    
+    //==========================================================================
+    //                     Deserialized type accessors
+    //==========================================================================
+    const KeyType& getKey() const final;
+    KeyType& getKey() final;
+    const PayloadType& getPayload() const final;
+    PayloadType& getPayload() final;
+    template <size_t I, std::enable_if_t<I<HeadersType::NumHeaders, int> = 0>
+    const typename std::tuple_element<I,HeaderTypes>::type& getHeaderAt() const;
+    template <size_t I, std::enable_if_t<I<HeadersType::NumHeaders, int> = 0>
+    typename std::tuple_element<I,HeaderTypes>::type& getHeaderAt();
+    template <size_t I, std::enable_if_t<I<HeadersType::NumHeaders, int> = 0>
+    bool isHeaderValidAt() const;
+    const HeaderPack& getHeaders() const final;
+    HeaderPack& getHeaders() final;
+    
+private:
+    void validateMessageError() const;
+    void validateKeyError() const;
+    void validatePayloadError() const;
+    void validateHeadersError() const;
+    cppkafka::Error doCommit(ExecMode execMode);
+    
+    cppkafka::BackoffCommitter& _committer;
+    OffsetMap&                  _offsets;
+    cppkafka::Message           _message;
+    boost::any                  _key;
+    boost::any                  _payload;
+    HeaderPack                  _headers;
+    DeserializerError           _error;
+    const void*                 _opaque{nullptr};
+    bool                        _isPersisted{false};
+    OffsetPersistSettings       _offsetSettings;
+};
+
+//=========================================================================
+//                          IMPLEMENTATIONS
+//=========================================================================
+template <typename KEY, typename PAYLOAD, typename HEADERS>
+ReceivedMessageImpl<KEY,PAYLOAD,HEADERS>::ReceivedMessageImpl(
                                 cppkafka::BackoffCommitter& committer,
                                 OffsetMap& offsets,
                                 cppkafka::Message&& kafkaMessage,
@@ -47,7 +148,7 @@ ReceivedMessage<KEY,PAYLOAD,HEADERS>::ReceivedMessage(
 }
 
 template <typename KEY, typename PAYLOAD, typename HEADERS>
-ReceivedMessage<KEY,PAYLOAD,HEADERS>::~ReceivedMessage()
+ReceivedMessageImpl<KEY,PAYLOAD,HEADERS>::~ReceivedMessageImpl()
 {
     if (!_offsetSettings._autoOffsetPersist || _isPersisted) {
         // auto-persistence is turned off or the offset has been persisted manually
@@ -60,62 +161,62 @@ ReceivedMessage<KEY,PAYLOAD,HEADERS>::~ReceivedMessage()
 }
 
 template <typename KEY, typename PAYLOAD, typename HEADERS>
-uint64_t ReceivedMessage<KEY,PAYLOAD,HEADERS>::getHandle() const
+uint64_t ReceivedMessageImpl<KEY,PAYLOAD,HEADERS>::getHandle() const
 {
     return reinterpret_cast<uint64_t>(_message.get_handle());
 }
 
 template <typename KEY, typename PAYLOAD, typename HEADERS>
-const cppkafka::Buffer& ReceivedMessage<KEY,PAYLOAD,HEADERS>::getKeyBuffer() const
+const cppkafka::Buffer& ReceivedMessageImpl<KEY,PAYLOAD,HEADERS>::getKeyBuffer() const
 {
     return _message.get_key();
 }
 
 template <typename KEY, typename PAYLOAD, typename HEADERS>
-const IMessage::HeaderListType&
-ReceivedMessage<KEY,PAYLOAD,HEADERS>::getHeaderList() const
+const cppkafka::Message::HeaderListType&
+ReceivedMessageImpl<KEY,PAYLOAD,HEADERS>::getHeaderList() const
 {
     return _message.get_header_list();
 }
 
 template <typename KEY, typename PAYLOAD, typename HEADERS>
-const cppkafka::Buffer& ReceivedMessage<KEY,PAYLOAD,HEADERS>::getPayloadBuffer() const
+const cppkafka::Buffer& ReceivedMessageImpl<KEY,PAYLOAD,HEADERS>::getPayloadBuffer() const
 {
     return _message.get_payload();
 }
 
 template <typename KEY, typename PAYLOAD, typename HEADERS>
-cppkafka::Error ReceivedMessage<KEY,PAYLOAD,HEADERS>::getError() const
+cppkafka::Error ReceivedMessageImpl<KEY,PAYLOAD,HEADERS>::getError() const
 {
     return _error._error;
 }
 
 template <typename KEY, typename PAYLOAD, typename HEADERS>
-int ReceivedMessage<KEY,PAYLOAD,HEADERS>::getHeaderNumWithError() const
+int ReceivedMessageImpl<KEY,PAYLOAD,HEADERS>::getHeaderNumWithError() const
 {
     return _error._headerNum;
 }
 
 template <typename KEY, typename PAYLOAD, typename HEADERS>
-std::string ReceivedMessage<KEY,PAYLOAD,HEADERS>::getTopic() const
+std::string ReceivedMessageImpl<KEY,PAYLOAD,HEADERS>::getTopic() const
 {
     return _message.get_topic();
 }
 
 template <typename KEY, typename PAYLOAD, typename HEADERS>
-int ReceivedMessage<KEY,PAYLOAD,HEADERS>::getPartition() const
+int ReceivedMessageImpl<KEY,PAYLOAD,HEADERS>::getPartition() const
 {
     return _message.get_partition();
 }
 
 template <typename KEY, typename PAYLOAD, typename HEADERS>
-int64_t ReceivedMessage<KEY,PAYLOAD,HEADERS>::getOffset() const
+int64_t ReceivedMessageImpl<KEY,PAYLOAD,HEADERS>::getOffset() const
 {
     return _message.get_offset();
 }
 
 template <typename KEY, typename PAYLOAD, typename HEADERS>
-std::chrono::milliseconds ReceivedMessage<KEY,PAYLOAD,HEADERS>::getTimestamp() const
+std::chrono::milliseconds ReceivedMessageImpl<KEY,PAYLOAD,HEADERS>::getTimestamp() const
 {
     boost::optional<cppkafka::MessageTimestamp> timestamp = _message.get_timestamp();
     if (!timestamp) {
@@ -125,31 +226,31 @@ std::chrono::milliseconds ReceivedMessage<KEY,PAYLOAD,HEADERS>::getTimestamp() c
 }
 
 template <typename KEY, typename PAYLOAD, typename HEADERS>
-ReceivedMessage<KEY,PAYLOAD,HEADERS>::operator bool() const
+ReceivedMessageImpl<KEY,PAYLOAD,HEADERS>::operator bool() const
 {
     return (bool)_message;
 }
 
 template <typename KEY, typename PAYLOAD, typename HEADERS>
-bool ReceivedMessage<KEY,PAYLOAD,HEADERS>::skip() const
+bool ReceivedMessageImpl<KEY,PAYLOAD,HEADERS>::skip() const
 {
     return _error.hasError(DeserializerError::Source::Preprocessor);
 }
 
 template <typename KEY, typename PAYLOAD, typename HEADERS>
-void ReceivedMessage<KEY,PAYLOAD,HEADERS>::setOpaque(const void* opaque)
+void ReceivedMessageImpl<KEY,PAYLOAD,HEADERS>::setOpaque(const void* opaque)
 {
     _opaque = opaque;
 }
 
 template <typename KEY, typename PAYLOAD, typename HEADERS>
-cppkafka::Error ReceivedMessage<KEY,PAYLOAD,HEADERS>::commit(const void* opaque)
+cppkafka::Error ReceivedMessageImpl<KEY,PAYLOAD,HEADERS>::commit(const void* opaque)
 {
     return commit(_offsetSettings._autoCommitExec, opaque);
 }
 
 template <typename KEY, typename PAYLOAD, typename HEADERS>
-cppkafka::Error ReceivedMessage<KEY,PAYLOAD,HEADERS>::commit(ExecMode execMode,
+cppkafka::Error ReceivedMessageImpl<KEY,PAYLOAD,HEADERS>::commit(ExecMode execMode,
                                                              const void* opaque)
 {
     if (!_message) {
@@ -169,57 +270,43 @@ cppkafka::Error ReceivedMessage<KEY,PAYLOAD,HEADERS>::commit(ExecMode execMode,
 }
 
 template <typename KEY, typename PAYLOAD, typename HEADERS>
-bool ReceivedMessage<KEY,PAYLOAD,HEADERS>::isEof() const
+bool ReceivedMessageImpl<KEY,PAYLOAD,HEADERS>::isEof() const
 {
     return _message.is_eof();
 }
 
 template <typename KEY, typename PAYLOAD, typename HEADERS>
-const KEY& ReceivedMessage<KEY,PAYLOAD,HEADERS>::getKey() const &
+const KEY& ReceivedMessageImpl<KEY,PAYLOAD,HEADERS>::getKey() const
 {
     validateKeyError();
     return boost::any_cast<const KEY&>(_key);
 }
 
 template <typename KEY, typename PAYLOAD, typename HEADERS>
-KEY& ReceivedMessage<KEY,PAYLOAD,HEADERS>::getKey() &
+KEY& ReceivedMessageImpl<KEY,PAYLOAD,HEADERS>::getKey()
 {
     validateKeyError();
     return boost::any_cast<KEY&>(_key);
 }
 
 template <typename KEY, typename PAYLOAD, typename HEADERS>
-KEY&& ReceivedMessage<KEY,PAYLOAD,HEADERS>::getKey() &&
-{
-    validateKeyError();
-    return boost::any_cast<KEY&&>(_key);
-}
-
-template <typename KEY, typename PAYLOAD, typename HEADERS>
-const PAYLOAD& ReceivedMessage<KEY,PAYLOAD,HEADERS>::getPayload() const &
+const PAYLOAD& ReceivedMessageImpl<KEY,PAYLOAD,HEADERS>::getPayload() const
 {
     validatePayloadError();
     return boost::any_cast<const PAYLOAD&>(_payload);
 }
 
 template <typename KEY, typename PAYLOAD, typename HEADERS>
-PAYLOAD& ReceivedMessage<KEY,PAYLOAD,HEADERS>::getPayload() &
+PAYLOAD& ReceivedMessageImpl<KEY,PAYLOAD,HEADERS>::getPayload()
 {
     validatePayloadError();
     return boost::any_cast<PAYLOAD&>(_payload);
 }
 
 template <typename KEY, typename PAYLOAD, typename HEADERS>
-PAYLOAD&& ReceivedMessage<KEY,PAYLOAD,HEADERS>::getPayload() &&
-{
-    validatePayloadError();
-    return boost::any_cast<PAYLOAD&&>(_payload);
-}
-
-template <typename KEY, typename PAYLOAD, typename HEADERS>
 template <size_t I, std::enable_if_t<I<HEADERS::NumHeaders, int>>
 const typename std::tuple_element<I,typename HEADERS::HeaderTypes>::type&
-ReceivedMessage<KEY,PAYLOAD,HEADERS>::getHeaderAt() const &
+ReceivedMessageImpl<KEY,PAYLOAD,HEADERS>::getHeaderAt() const
 {
     using Header = typename std::tuple_element<I,typename HEADERS::HeaderTypes>::type;
     validateHeadersError();
@@ -232,7 +319,7 @@ ReceivedMessage<KEY,PAYLOAD,HEADERS>::getHeaderAt() const &
 template <typename KEY, typename PAYLOAD, typename HEADERS>
 template <size_t I, std::enable_if_t<I<HEADERS::NumHeaders, int>>
 typename std::tuple_element<I,typename HEADERS::HeaderTypes>::type&
-ReceivedMessage<KEY,PAYLOAD,HEADERS>::getHeaderAt() &
+ReceivedMessageImpl<KEY,PAYLOAD,HEADERS>::getHeaderAt()
 {
     using Header = typename std::tuple_element<I,typename HEADERS::HeaderTypes>::type;
     validateHeadersError();
@@ -244,47 +331,27 @@ ReceivedMessage<KEY,PAYLOAD,HEADERS>::getHeaderAt() &
 
 template <typename KEY, typename PAYLOAD, typename HEADERS>
 template <size_t I, std::enable_if_t<I<HEADERS::NumHeaders, int>>
-typename std::tuple_element<I,typename HEADERS::HeaderTypes>::type&&
-ReceivedMessage<KEY,PAYLOAD,HEADERS>::getHeaderAt() &&
-{
-    using Header = typename std::tuple_element<I,typename HEADERS::HeaderTypes>::type;
-    validateHeadersError();
-    if (!_headers.isValidAt(I)) {
-        throw InvalidArgumentException(0, "Header is invalid (empty)");
-    }
-    return _headers.getAt<Header>(I).value();
-}
-
-template <typename KEY, typename PAYLOAD, typename HEADERS>
-template <size_t I, std::enable_if_t<I<HEADERS::NumHeaders, int>>
-bool ReceivedMessage<KEY,PAYLOAD,HEADERS>::isHeaderValidAt() const
+bool ReceivedMessageImpl<KEY,PAYLOAD,HEADERS>::isHeaderValidAt() const
 {
     return _headers.isValidAt(I);
 }
 
 template <typename KEY, typename PAYLOAD, typename HEADERS>
-const HeaderPack& ReceivedMessage<KEY,PAYLOAD,HEADERS>::getHeaders() const &
+const HeaderPack& ReceivedMessageImpl<KEY,PAYLOAD,HEADERS>::getHeaders() const
 {
     validateHeadersError();
     return _headers;
 }
 
 template <typename KEY, typename PAYLOAD, typename HEADERS>
-HeaderPack& ReceivedMessage<KEY,PAYLOAD,HEADERS>::getHeaders() &
+HeaderPack& ReceivedMessageImpl<KEY,PAYLOAD,HEADERS>::getHeaders()
 {
     validateHeadersError();
     return _headers;
 }
 
 template <typename KEY, typename PAYLOAD, typename HEADERS>
-HeaderPack&& ReceivedMessage<KEY,PAYLOAD,HEADERS>::getHeaders() &&
-{
-    validateHeadersError();
-    return std::move(_headers);
-}
-
-template <typename KEY, typename PAYLOAD, typename HEADERS>
-void ReceivedMessage<KEY,PAYLOAD,HEADERS>::validateMessageError() const
+void ReceivedMessageImpl<KEY,PAYLOAD,HEADERS>::validateMessageError() const
 {
     if (_error.hasError(DeserializerError::Source::Preprocessor)) {
         throw MessageException("Dropped message");
@@ -295,7 +362,7 @@ void ReceivedMessage<KEY,PAYLOAD,HEADERS>::validateMessageError() const
 }
 
 template <typename KEY, typename PAYLOAD, typename HEADERS>
-void ReceivedMessage<KEY,PAYLOAD,HEADERS>::validateKeyError() const
+void ReceivedMessageImpl<KEY,PAYLOAD,HEADERS>::validateKeyError() const
 {
     validateMessageError();
     if (_error.hasError(DeserializerError::Source::Key)) {
@@ -304,7 +371,7 @@ void ReceivedMessage<KEY,PAYLOAD,HEADERS>::validateKeyError() const
 }
 
 template <typename KEY, typename PAYLOAD, typename HEADERS>
-void ReceivedMessage<KEY,PAYLOAD,HEADERS>::validatePayloadError() const
+void ReceivedMessageImpl<KEY,PAYLOAD,HEADERS>::validatePayloadError() const
 {
     validateMessageError();
     if (_error.hasError(DeserializerError::Source::Payload)) {
@@ -313,7 +380,7 @@ void ReceivedMessage<KEY,PAYLOAD,HEADERS>::validatePayloadError() const
 }
 
 template <typename KEY, typename PAYLOAD, typename HEADERS>
-void ReceivedMessage<KEY,PAYLOAD,HEADERS>::validateHeadersError() const
+void ReceivedMessageImpl<KEY,PAYLOAD,HEADERS>::validateHeadersError() const
 {
     validateMessageError();
     if (_error.hasError(DeserializerError::Source::Header)) {
@@ -322,7 +389,7 @@ void ReceivedMessage<KEY,PAYLOAD,HEADERS>::validateHeadersError() const
 }
 
 template <typename KEY, typename PAYLOAD, typename HEADERS>
-cppkafka::Error ReceivedMessage<KEY,PAYLOAD,HEADERS>::doCommit(ExecMode execMode)
+cppkafka::Error ReceivedMessageImpl<KEY,PAYLOAD,HEADERS>::doCommit(ExecMode execMode)
 {
     try {
         if (!_message) {
@@ -369,3 +436,5 @@ cppkafka::Error ReceivedMessage<KEY,PAYLOAD,HEADERS>::doCommit(ExecMode execMode
 
 }
 }
+
+#endif //BLOOMBERG_COROKAFKA_RECEIVED_MESSAGE_IMPL_H

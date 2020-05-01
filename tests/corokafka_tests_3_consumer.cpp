@@ -425,8 +425,8 @@ TEST(Consumer, ReadTopicWithoutHeadersUsingConfig1)
               consumerMessageWithoutHeadersTracker()._offsets);
     
     ConsumerMetadata meta = connector.consumer().getMetadata(topicWithoutHeaders().topic());
-    Metadata::OffsetWatermarkList water1 = meta.getOffsetWatermarks();
-    Metadata::OffsetWatermarkList water2 = meta.queryOffsetWatermarks(std::chrono::milliseconds(1000));
+    OffsetWatermarkList water1 = meta.getOffsetWatermarks();
+    OffsetWatermarkList water2 = meta.queryOffsetWatermarks(std::chrono::milliseconds(1000));
     auto off1 = meta.getOffsetPositions();
     auto off2 = meta.queryCommittedOffsets(std::chrono::milliseconds(1000));
     
@@ -646,7 +646,8 @@ TEST(Consumer, OffsetCommitManagerRelative)
     }
     //Check commits via offset manager
     loops = MaxLoops;
-    while (static_cast<size_t>(callbackCounters()._offsetCommit) < (relativeOffset * NumPartitions) && loops--) {
+    while ((callbackCounters()._offsetCommit < (relativeOffset * NumPartitions)) &&
+           loops--) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
     EXPECT_EQ(relativeOffset * NumPartitions, callbackCounters()._offsetCommit);
@@ -693,7 +694,7 @@ TEST(Consumer, OffsetCommitManagerFromStored)
         }
         //Check commits via offset manager
         loops = MaxLoops;
-        while (static_cast<size_t>(callbackCounters()._offsetCommit) < callbackCounters()._maxProcessedOffsets*NumPartitions &&
+        while ((callbackCounters()._offsetCommit < (callbackCounters()._maxProcessedOffsets * NumPartitions)) &&
                loops--) {
             std::this_thread::sleep_for(std::chrono::seconds(1));
         }
@@ -734,7 +735,7 @@ TEST(Consumer, OffsetCommitManagerFromStored)
         }
         //Check commits via offset manager
         loops = MaxLoops;
-        while (static_cast<size_t>(callbackCounters()._offsetCommit) < (remaining * NumPartitions) &&
+        while ((callbackCounters()._offsetCommit < (remaining * NumPartitions)) &&
                loops--) {
             std::this_thread::sleep_for(std::chrono::seconds(1));
         }

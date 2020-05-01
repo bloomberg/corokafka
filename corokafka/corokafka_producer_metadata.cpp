@@ -15,6 +15,7 @@
 */
 #include <corokafka/corokafka_producer_metadata.h>
 #include <corokafka/corokafka_exception.h>
+#include <corokafka/impl/corokafka_producer_metadata_impl.h>
 
 namespace Bloomberg {
 namespace corokafka {
@@ -25,69 +26,38 @@ namespace corokafka {
 
 ProducerMetadata::ProducerMetadata(const std::string& topic,
                                    cppkafka::BufferedProducer<ByteArray>* producer) :
-    Metadata(topic, cppkafka::Topic(), producer ? &producer->get_producer() : nullptr),
-    _bufferedProducer(producer)
+    ImplType(std::make_shared<ProducerMetadataImpl>(topic, producer)),
+    Metadata(std::static_pointer_cast<ProducerMetadataImpl>(ImplType::impl()))
 {
 }
 
 ProducerMetadata::ProducerMetadata(const std::string& topic,
                                    const cppkafka::Topic& kafkaTopic,
                                    cppkafka::BufferedProducer<ByteArray>* producer) :
-    Metadata(topic, kafkaTopic, producer ? &producer->get_producer() : nullptr),
-    _bufferedProducer(producer)
+    ImplType(std::make_shared<ProducerMetadataImpl>(topic, kafkaTopic, producer)),
+    Metadata(std::static_pointer_cast<ProducerMetadataImpl>(ImplType::impl()))
+{
+}
+
+ProducerMetadata::ProducerMetadata(std::shared_ptr<IProducerMetadata> impl) :
+    ImplType(std::move(impl)),
+    Metadata(std::static_pointer_cast<ProducerMetadataImpl>(ImplType::impl()))
 {
 }
 
 const cppkafka::TopicPartitionList& ProducerMetadata::getTopicPartitions() const
 {
-    if (_partitions.empty()) {
-        for (const auto& meta : getTopicMetadata().get_partitions()) {
-            _partitions.emplace_back(_topic, meta.get_id());
-        }
-    }
-    return _partitions;
-}
-
-Metadata::OffsetWatermarkList ProducerMetadata::queryOffsetWatermarks(std::chrono::milliseconds timeout) const
-{
-    if (!_handle) {
-        throw HandleException("Null producer");
-    }
-    OffsetWatermarkList offsets;
-    for (const auto& partition : getTopicPartitions()) {
-        offsets.emplace_back(partition.get_partition(), _handle->query_offsets(partition, timeout));
-    }
-    return offsets;
-}
-
-cppkafka::TopicPartitionList ProducerMetadata::queryOffsetsAtTime(Timestamp timestamp,
-                                                                  std::chrono::milliseconds timeout) const
-{
-    if (!_handle) {
-        throw HandleException("Null producer");
-    }
-    cppkafka::KafkaHandleBase::TopicPartitionsTimestampsMap timestampMap;
-    std::chrono::milliseconds epochTime = timestamp.time_since_epoch();
-    for (const auto& partition : getTopicPartitions()) {
-        timestampMap[partition] = epochTime;
-    }
-    return _handle->get_offsets_for_times(timestampMap, timeout);
+    return ImplType::impl()->getTopicPartitions();
 }
 
 size_t ProducerMetadata::getOutboundQueueLength() const
 {
-    if (!_handle) {
-        throw HandleException("Null producer");
-    }
-    return _handle->get_out_queue_length();
+    return ImplType::impl()->getOutboundQueueLength();
 }
 
 size_t ProducerMetadata::getInternalQueueLength() const
 {
-    if (!_handle) {
-        throw HandleException("Null producer");
-    }
-    return _bufferedProducer->get_buffer_size();
+    return ImplType::impl()->getInternalQueueLength();
 }
 
 }

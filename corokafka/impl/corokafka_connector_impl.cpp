@@ -22,21 +22,61 @@
 namespace Bloomberg {
 namespace corokafka {
 
-ConnectorImpl::ConnectorImpl(const ConfigurationBuilder& builder,
-                             quantum::Dispatcher& dispatcher) :
-    ProducerManager(dispatcher,
-                    builder.connectorConfiguration(),
-                    builder.producerConfigurations(),
-                    _interrupt),
-    ConsumerManager(dispatcher,
-                    builder.connectorConfiguration(),
-                    builder.consumerConfigurations(),
-                    _interrupt),
-    _config(builder.connectorConfiguration()),
-    _dispatcher(dispatcher),
+ConnectorImpl::ConnectorImpl(const ConfigurationBuilder& builder) :
+    _connectorConfiguration(builder.connectorConfiguration()),
+    _dispatcherPtr(std::make_unique<quantum::Dispatcher>(_connectorConfiguration.getDispatcherConfiguration())),
+    _dispatcher(*_dispatcherPtr),
+    _producerPtr(new ProducerManager(_dispatcher,
+                _connectorConfiguration,
+                builder.producerConfigurations(),
+                _interrupt)),
+    _consumerPtr(new ConsumerManager(_dispatcher,
+                 _connectorConfiguration,
+                 builder.consumerConfigurations(),
+                 _interrupt)),
     _pollThread(std::bind(&ConnectorImpl::poll, this))
 {
-    maxMessageBuilderOutputLength() = _config.getMaxMessagePayloadOutputLength();
+    maxMessageBuilderOutputLength() = _connectorConfiguration.getMaxMessagePayloadOutputLength();
+#if (__GLIBC__ >= 2) && (__GLIBC_MINOR__ >= 12)
+    setThreadName(_pollThread.native_handle(), "poll:", 0);
+#endif
+}
+
+ConnectorImpl::ConnectorImpl(const ConfigurationBuilder& builder,
+                             quantum::Dispatcher& dispatcher) :
+    _connectorConfiguration(builder.connectorConfiguration()),
+    _dispatcher(dispatcher),
+    _producerPtr(new ProducerManager(_dispatcher,
+                _connectorConfiguration,
+                builder.producerConfigurations(),
+                _interrupt)),
+    _consumerPtr(new ConsumerManager(_dispatcher,
+                 _connectorConfiguration,
+                 builder.consumerConfigurations(),
+                 _interrupt)),
+    _pollThread(std::bind(&ConnectorImpl::poll, this))
+{
+    maxMessageBuilderOutputLength() = _connectorConfiguration.getMaxMessagePayloadOutputLength();
+#if (__GLIBC__ >= 2) && (__GLIBC_MINOR__ >= 12)
+    setThreadName(_pollThread.native_handle(), "poll:", 0);
+#endif
+}
+
+ConnectorImpl::ConnectorImpl(ConfigurationBuilder&& builder) :
+    _connectorConfiguration(std::move(builder.connectorConfiguration())),
+    _dispatcherPtr(std::make_unique<quantum::Dispatcher>(_connectorConfiguration.getDispatcherConfiguration())),
+    _dispatcher(*_dispatcherPtr),
+    _producerPtr(new ProducerManager(_dispatcher,
+                _connectorConfiguration,
+                std::move(builder.producerConfigurations()),
+                _interrupt)),
+    _consumerPtr(new ConsumerManager(_dispatcher,
+                 _connectorConfiguration,
+                 std::move(builder.consumerConfigurations()),
+                 _interrupt)),
+    _pollThread(std::bind(&ConnectorImpl::poll, this))
+{
+    maxMessageBuilderOutputLength() = _connectorConfiguration.getMaxMessagePayloadOutputLength();
 #if (__GLIBC__ >= 2) && (__GLIBC_MINOR__ >= 12)
     setThreadName(_pollThread.native_handle(), "poll:", 0);
 #endif
@@ -44,46 +84,66 @@ ConnectorImpl::ConnectorImpl(const ConfigurationBuilder& builder,
 
 ConnectorImpl::ConnectorImpl(ConfigurationBuilder&& builder,
                              quantum::Dispatcher& dispatcher) :
-    ProducerManager(dispatcher,
-                    builder.connectorConfiguration(),
-                    std::move(builder.producerConfigurations()),
-                    _interrupt),
-    ConsumerManager(dispatcher,
-                    builder.connectorConfiguration(),
-                    std::move(builder.consumerConfigurations()),
-                    _interrupt),
-    _config(std::move(builder.connectorConfiguration())),
+    _connectorConfiguration(std::move(builder.connectorConfiguration())),
     _dispatcher(dispatcher),
+    _producerPtr(new ProducerManager(_dispatcher,
+                _connectorConfiguration,
+                std::move(builder.producerConfigurations()),
+                _interrupt)),
+    _consumerPtr(new ConsumerManager(_dispatcher,
+                 _connectorConfiguration,
+                 std::move(builder.consumerConfigurations()),
+                 _interrupt)),
     _pollThread(std::bind(&ConnectorImpl::poll, this))
 {
-    maxMessageBuilderOutputLength() = _config.getMaxMessagePayloadOutputLength();
+    maxMessageBuilderOutputLength() = _connectorConfiguration.getMaxMessagePayloadOutputLength();
 #if (__GLIBC__ >= 2) && (__GLIBC_MINOR__ >= 12)
     setThreadName(_pollThread.native_handle(), "poll:", 0);
 #endif
 }
 
-void ConnectorImpl::shutdown(bool drain,
-                             std::chrono::milliseconds drainTimeout)
+ConnectorImpl::~ConnectorImpl() noexcept
+{
+    shutdown();
+}
+
+ConsumerManager& ConnectorImpl::consumer()
+{
+    return *_consumerPtr;
+}
+
+ProducerManager& ConnectorImpl::producer()
+{
+    return *_producerPtr;
+}
+
+void ConnectorImpl::shutdown()
+{
+    shutdown(std::chrono::milliseconds(EnumValue(TimerValues::Unlimited)));
+}
+
+void ConnectorImpl::shutdown(std::chrono::milliseconds drainTimeout)
 {
     if (!_shutdownInitiated.test_and_set())
     {
         _interrupt = true;
-        ProducerManager::shutdown();
-        ConsumerManager::shutdown();
+        _producerPtr->shutdown();
+        _consumerPtr->shutdown();
         
         // Wait on the poll thread
         try {
             _pollThread.join();
         }
         catch (const std::system_error& ex) {
-            if (_config.getLogCallback()) {
+            if (_connectorConfiguration.getLogCallback()) {
                 std::ostringstream oss;
                 oss << "Joining on poll thread failed with error: " << ex.what();
-                _config.getLogCallback()(cppkafka::LogLevel::LogErr, "corokafka", oss.str());
+                _connectorConfiguration.getLogCallback()(cppkafka::LogLevel::LogErr, "corokafka", oss.str());
             }
         }
         
-        if (drain) {
+        if (_dispatcherPtr) {
+            //This is an internal dispatcher, therefore we can drain it
             _dispatcher.drain(drainTimeout, true);
         }
     }
@@ -94,24 +154,24 @@ void ConnectorImpl::poll()
     while (!_interrupt) {
         auto start = std::chrono::high_resolution_clock::now();
         try {
-            ProducerManager::poll(); //flush the producers
-            ConsumerManager::poll(); //poll the consumers
+            _producerPtr->poll(); //flush the producers
+            _consumerPtr->poll(); //poll the consumers
         }
         catch (const std::exception& ex) {
-            if (_config.getLogCallback()) {
+            if (_connectorConfiguration.getLogCallback()) {
                 std::ostringstream oss;
                 oss << "Caught exception while polling: " << ex.what();
-                _config.getLogCallback()(cppkafka::LogLevel::LogErr, "corokafka", oss.str());
+                _connectorConfiguration.getLogCallback()(cppkafka::LogLevel::LogErr, "corokafka", oss.str());
             }
         }
         auto end = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end-start);
-        if (duration < _config.getPollInterval()) {
-            std::this_thread::sleep_for(_config.getPollInterval()-duration);
+        if (duration < _connectorConfiguration.getPollInterval()) {
+            std::this_thread::sleep_for(_connectorConfiguration.getPollInterval()-duration);
         }
     }
-    ProducerManager::pollEnd();
-    ConsumerManager::pollEnd();
+    _producerPtr->pollEnd();
+    _consumerPtr->pollEnd();
 }
 
 }}

@@ -24,65 +24,74 @@ ProducerManager::ProducerManager(quantum::Dispatcher& dispatcher,
                                  const ConnectorConfiguration& connectorConfiguration,
                                  const ConfigMap& config,
                                  std::atomic_bool& interrupt) :
-    _impl(std::make_unique<ProducerManagerImpl>(dispatcher, connectorConfiguration, config, interrupt))
+    ImplType(std::make_shared<ProducerManagerImpl>(dispatcher, connectorConfiguration, config, interrupt)),
+    _producerPtr(static_cast<ProducerManagerImpl*>(impl().get()))
 {
-
 }
 
 ProducerManager::ProducerManager(quantum::Dispatcher& dispatcher,
                                  const ConnectorConfiguration& connectorConfiguration,
                                  ConfigMap&& config,
                                  std::atomic_bool& interrupt) :
-    _impl(std::make_unique<ProducerManagerImpl>(dispatcher, connectorConfiguration, std::move(config), interrupt))
+    ImplType(std::make_shared<ProducerManagerImpl>(dispatcher, connectorConfiguration, std::move(config), interrupt)),
+    _producerPtr(static_cast<ProducerManagerImpl*>(impl().get()))
 {
-
 }
-
 
 ProducerMetadata ProducerManager::getMetadata(const std::string& topic)
 {
-    return _impl->getMetadata(topic);
+    return impl()->getMetadata(topic);
 }
 
 const ProducerConfiguration& ProducerManager::getConfiguration(const std::string& topic) const
 {
-    return _impl->getConfiguration(topic);
+    return impl()->getConfiguration(topic);
 }
 
 std::vector<std::string> ProducerManager::getTopics() const
 {
-    return _impl->getTopics();
+    return impl()->getTopics();
 }
 
 void ProducerManager::resetQueueFullTrigger(const std::string& topic)
 {
-    return _impl->resetQueueFullTrigger(topic);
+    return impl()->resetQueueFullTrigger(topic);
 }
 
 bool ProducerManager::waitForAcks(const std::string& topic)
 {
-    return _impl->waitForAcks(topic);
+    return impl()->waitForAcks(topic);
 }
 
 bool ProducerManager::waitForAcks(const std::string& topic,
                                   std::chrono::milliseconds timeout)
 {
-    return _impl->waitForAcks(topic, timeout);
+    return impl()->waitForAcks(topic, timeout);
 }
 
 void ProducerManager::shutdown()
 {
-    _impl->shutdown();
+    impl()->shutdown();
 }
 
 void ProducerManager::poll()
 {
-    _impl->poll();
+    impl()->poll();
 }
 
 void ProducerManager::pollEnd()
 {
-    _impl->pollEnd();
+    impl()->pollEnd();
+}
+
+DeliveryReport ProducerManager::send()
+{
+    return impl()->send();
+}
+
+quantum::GenericFuture<DeliveryReport> ProducerManager::post()
+{
+    return impl()->post();
 }
 
 }
