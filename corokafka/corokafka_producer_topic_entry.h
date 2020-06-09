@@ -39,7 +39,7 @@ enum class QueueFullNotification {
     EdgeTriggered
 };
 
-struct ProducerTopicEntry : public Interruptible {
+struct ProducerTopicEntry {
     ProducerTopicEntry(ProducerPtr producer,
                        const ConnectorConfiguration& connectorConfiguration,
                        ProducerConfiguration configuration,

@@ -26,7 +26,7 @@ namespace Bloomberg {
 namespace corokafka {
 
 namespace mocks {
-    class ConnectorMock;
+    struct ConnectorMock;
 }
 
 /**
@@ -135,7 +135,7 @@ public:
     
 private:
     friend class ConnectorImpl;
-    friend class mocks::ConnectorMock;
+    friend struct mocks::ConnectorMock;
     using ImplType = Impl<IConsumerManager>;
     using ConfigMap = ConfigurationBuilder::ConfigMap<ConsumerConfiguration>;
     
@@ -152,7 +152,7 @@ private:
     /**
      * @brief For mocking only via dependency injection
      */
-    using ImplType::Impl;
+    using ImplType::ImplType;
     
     void poll() final;
     

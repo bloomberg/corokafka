@@ -230,10 +230,9 @@ private:
     // Members
     quantum::Dispatcher&            _dispatcher;
     const ConnectorConfiguration&   _connectorConfiguration;
-    Consumers                   _consumers;
-    std::atomic_bool&           _interrupt;
-    std::atomic_flag            _shutdownInitiated{false};
-    std::chrono::milliseconds   _shutdownIoWaitTimeoutMs{2000};
+    Consumers                       _consumers;
+    std::atomic_flag                _shutdownInitiated{false};
+    std::chrono::milliseconds       _shutdownIoWaitTimeoutMs{2000};
 };
 
 }}

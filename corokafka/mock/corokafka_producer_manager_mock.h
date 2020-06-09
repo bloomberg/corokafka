@@ -113,6 +113,7 @@ public:
         else if (_mock) {
             return _mock->send();
         }
+        assert(false);
     }
     
     template <typename TOPIC, typename K, typename P, typename ...H>
@@ -129,6 +130,7 @@ public:
         else if (_mock) {
             return _mock->post();
         }
+        assert(false);
     }
     
     bool waitForAcks(const std::string& topic)
@@ -139,6 +141,7 @@ public:
         else if (_mock) {
             return _mock->waitForAcks(topic);
         }
+        assert(false);
     }
     
     bool waitForAcks(const std::string& topic,
@@ -150,6 +153,7 @@ public:
         else if (_mock) {
             return _mock->waitForAcks(topic, timeout);
         }
+        assert(false);
     }
     
     void shutdown()
@@ -160,6 +164,7 @@ public:
         else if (_mock) {
             _mock->shutdown();
         }
+        assert(false);
     }
     
     ProducerMetadata getMetadata(const std::string& topic)
@@ -170,6 +175,7 @@ public:
         else if (_mock) {
             return _mock->getMetadata(topic);
         }
+        assert(false);
     }
     
     const ProducerConfiguration& getConfiguration(const std::string& topic) const
@@ -180,6 +186,7 @@ public:
         else if (_mock) {
             return _mock->getConfiguration(topic);
         }
+        assert(false);
     }
     
     std::vector<std::string> getTopics() const
@@ -190,6 +197,7 @@ public:
         else if (_mock) {
             return _mock->getTopics();
         }
+        assert(false);
     }
     
     void resetQueueFullTrigger(const std::string& topic)
@@ -200,6 +208,7 @@ public:
         else if (_mock) {
             _mock->resetQueueFullTrigger(topic);
         }
+        assert(false);
     }
     
 private:

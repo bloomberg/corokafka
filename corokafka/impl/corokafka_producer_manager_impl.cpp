@@ -37,7 +37,6 @@ ProducerManagerImpl::ProducerManagerImpl(quantum::Dispatcher& dispatcher,
                                          std::atomic_bool& interrupt) :
     _dispatcher(dispatcher),
     _connectorConfiguration(connectorConfiguration),
-    _interrupt(interrupt),
     _shutdownInitiated{false},
     _shutdownIoWaitTimeoutMs(connectorConfiguration.getShutdownIoWaitTimeout())
 {
@@ -67,7 +66,6 @@ ProducerManagerImpl::ProducerManagerImpl(quantum::Dispatcher& dispatcher,
                                          std::atomic_bool& interrupt) :
     _dispatcher(dispatcher),
     _connectorConfiguration(connectorConfiguration),
-    _interrupt(interrupt),
     _shutdownInitiated{false},
     _shutdownIoWaitTimeoutMs(connectorConfiguration.getShutdownIoWaitTimeout())
 {

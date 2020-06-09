@@ -33,7 +33,6 @@ ConsumerManagerImpl::ConsumerManagerImpl(quantum::Dispatcher& dispatcher,
                                          std::atomic_bool& interrupt) :
     _dispatcher(dispatcher),
     _connectorConfiguration(connectorConfiguration),
-    _interrupt(interrupt),
     _shutdownIoWaitTimeoutMs(connectorConfiguration.getShutdownIoWaitTimeout())
 {
     //Create a consumer for each topic and apply the appropriate configuration
@@ -63,7 +62,6 @@ ConsumerManagerImpl::ConsumerManagerImpl(quantum::Dispatcher& dispatcher,
                                          std::atomic_bool& interrupt) :
     _dispatcher(dispatcher),
     _connectorConfiguration(connectorConfiguration),
-    _interrupt(interrupt),
     _shutdownIoWaitTimeoutMs(connectorConfiguration.getShutdownIoWaitTimeout())
 {
     //Create a consumer for each topic and apply the appropriate configuration
@@ -650,7 +648,7 @@ void ConsumerManagerImpl::poll()
 {
     auto now = std::chrono::steady_clock::now();
     for (auto&& entry : _consumers) {
-        if (_interrupt) {
+        if (entry.second._interrupt) {
             continue; //stop polling
         }
         // Adjust throttling if necessary

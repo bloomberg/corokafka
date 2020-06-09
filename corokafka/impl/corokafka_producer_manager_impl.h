@@ -188,10 +188,9 @@ private:
     // Members
     quantum::Dispatcher&            _dispatcher;
     const ConnectorConfiguration&   _connectorConfiguration;
-    Producers                   _producers;
-    std::atomic_bool&           _interrupt;
-    std::atomic_flag            _shutdownInitiated{false};
-    std::chrono::milliseconds   _shutdownIoWaitTimeoutMs{2000};
+    Producers                       _producers;
+    std::atomic_flag                _shutdownInitiated{false};
+    std::chrono::milliseconds       _shutdownIoWaitTimeoutMs{2000};
 };
 
 template <typename BufferType>

@@ -91,7 +91,7 @@ public:
      * @brief For mocking only via dependency injection
      */
     using ImplType = Impl<ISentMessage>;
-    using ImplType::Impl;
+    using ImplType::ImplType;
 
 private:
     friend class ProducerManagerImpl;

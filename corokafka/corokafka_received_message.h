@@ -16,6 +16,7 @@
 #ifndef BLOOMBERG_COROKAFKA_RECEIVED_MESSAGE_H
 #define BLOOMBERG_COROKAFKA_RECEIVED_MESSAGE_H
 
+#include <corokafka/interface/corokafka_impl.h>
 #include <corokafka/interface/corokafka_ireceived_message.h>
 #include <corokafka/impl/corokafka_received_message_impl.h>
 #include <corokafka/interface/corokafka_impl.h>
@@ -189,7 +190,7 @@ public:
      * @brief For mocking only via dependency injection
      */
     using ImplType = Impl<Interface>;
-    using ImplType::Impl;
+    using ImplType::ImplType;
 
 private:
     friend class ConcreteReceiver<Topic<KEY,PAYLOAD,HEADERS>>;
@@ -203,7 +204,7 @@ private:
                     DeserializerError &&error,
                     const OffsetPersistSettings &offsetSettings);
     
-    ReceivedMessageImpl<KEY, PAYLOAD, HEADERS>* _concretePtr{nullptr};
+    ReceivedMessageImpl<KEY, PAYLOAD, HEADERS>* _concrete{nullptr};
 };
 
 //=========================================================================
@@ -227,7 +228,7 @@ ReceivedMessage<KEY, PAYLOAD, HEADERS>::ReceivedMessage(
                                         std::move(headers),
                                         std::move(error),
                                         offsetSettings)),
-    _concretePtr(static_cast<Concrete*>(this->impl().get()))
+    _concrete(static_cast<Concrete*>(this->impl().get()))
 {
 }
 
@@ -337,8 +338,8 @@ template<typename KEY, typename PAYLOAD, typename HEADERS>
 template<size_t I, std::enable_if_t<I < HEADERS::NumHeaders, int>>
 const typename std::tuple_element<I, typename HEADERS::HeaderTypes>::type &
 ReceivedMessage<KEY, PAYLOAD, HEADERS>::getHeaderAt() const {
-    if (_concretePtr) {
-        return const_cast<const Concrete&>(*_concretePtr).template getHeaderAt<I>();
+    if (_concrete) {
+        return const_cast<const Concrete&>(*_concrete).template getHeaderAt<I>();
     }
     //Mock access only
     using Header = typename std::tuple_element<I, HeaderTypes>::type;
@@ -349,8 +350,8 @@ template<typename KEY, typename PAYLOAD, typename HEADERS>
 template<size_t I, std::enable_if_t<I < HEADERS::NumHeaders, int>>
 typename std::tuple_element<I, typename HEADERS::HeaderTypes>::type &
 ReceivedMessage<KEY, PAYLOAD, HEADERS>::getHeaderAt() {
-    if (_concretePtr) {
-        return const_cast<Concrete&>(*_concretePtr).template getHeaderAt<I>();
+    if (_concrete) {
+        return const_cast<Concrete&>(*_concrete).template getHeaderAt<I>();
     }
     //Mock access only
     using Header = typename std::tuple_element<I, HeaderTypes>::type;
@@ -360,8 +361,8 @@ ReceivedMessage<KEY, PAYLOAD, HEADERS>::getHeaderAt() {
 template<typename KEY, typename PAYLOAD, typename HEADERS>
 template<size_t I, std::enable_if_t<I < HEADERS::NumHeaders, int>>
 bool ReceivedMessage<KEY, PAYLOAD, HEADERS>::isHeaderValidAt() const {
-    if (_concretePtr) {
-        return _concretePtr->template isHeaderValidAt<I>();
+    if (_concrete) {
+        return _concrete->template isHeaderValidAt<I>();
     }
     //Mock access only
     using Header = typename std::tuple_element<I, HeaderTypes>::type;

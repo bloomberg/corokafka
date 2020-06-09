@@ -45,7 +45,7 @@ public:
      * @brief For mocking only via dependency injection
      */
     using ImplType = Impl<IConnector>;
-    using ImplType::Impl;
+    using ImplType::ImplType;
     
     /**
      * @brief Creates an instance from a ConfigurationBuilder object and using the supplied quantum dispatcher.
