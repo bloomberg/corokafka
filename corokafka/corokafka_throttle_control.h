@@ -32,7 +32,7 @@ struct ThrottleControl
     {
         Status status = Status::Unchanged;
         if (_autoThrottle) {
-            quantum::Mutex::Guard guard(_throttleMutex);
+            quantum::Mutex::Guard guard(quantum::local::context(), _throttleMutex);
             if (isThrottleOn(throttleDuration)) {
                 status = Status::On;
             }
@@ -48,7 +48,7 @@ struct ThrottleControl
     bool reduceThrottling(const std::chrono::steady_clock::time_point& currentTime)
     {
         if (_autoThrottle) {
-            quantum::Mutex::Guard guard(_throttleMutex);
+            quantum::Mutex::Guard guard(quantum::local::context(), _throttleMutex);
             if (_throttleDuration > std::chrono::milliseconds::zero()) {
                 auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - _throttleTime);
                 if (elapsed > _throttleDuration) {
@@ -62,7 +62,7 @@ struct ThrottleControl
     }
     
     void reset() {
-        quantum::Mutex::Guard guard(_throttleMutex);
+        quantum::Mutex::Guard guard(quantum::local::context(), _throttleMutex);
         _throttleDuration = std::chrono::milliseconds::zero();
         _throttleTime = std::chrono::steady_clock::time_point{};
     }
