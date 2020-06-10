@@ -16,12 +16,11 @@
 #ifndef BLOOMBERG_COROKAFKA_PRODUCER_MANAGER_IMPL_H
 #define BLOOMBERG_COROKAFKA_PRODUCER_MANAGER_IMPL_H
 
-#include <corokafka/corokafka_message.h>
-#include <corokafka/corokafka_metadata.h>
+#include <corokafka/interface/corokafka_imessage.h>
+#include <corokafka/interface/corokafka_iproducer_manager.h>
 #include <corokafka/corokafka_configuration_builder.h>
 #include <corokafka/corokafka_callbacks.h>
 #include <corokafka/corokafka_producer_topic_entry.h>
-#include <corokafka/corokafka_delivery_report.h>
 #include <corokafka/corokafka_packed_opaque.h>
 #include <unordered_map>
 #include <atomic>
@@ -32,7 +31,7 @@
 namespace Bloomberg {
 namespace corokafka {
 
-class ProducerManagerImpl
+class ProducerManagerImpl : public IProducerManager
 {
 public:
     using ConfigMap = ConfigurationBuilder::ConfigMap<ProducerConfiguration>;
@@ -44,22 +43,26 @@ public:
                                          StringEqualCompare>; //index by topic
     
     ProducerManagerImpl(quantum::Dispatcher& dispatcher,
-                        ConnectorConfiguration connectorConfiguration,
+                        const ConnectorConfiguration& connectorConfiguration,
                         const ConfigMap& configs,
                         std::atomic_bool& interrupt);
     
     ProducerManagerImpl(quantum::Dispatcher& dispatcher,
-                        ConnectorConfiguration connectorConfiguration,
+                        const ConnectorConfiguration& connectorConfiguration,
                         ConfigMap&& configs,
                         std::atomic_bool& interrupt);
     
     ~ProducerManagerImpl();
     
-    ProducerMetadata getMetadata(const std::string& topic);
+    ProducerMetadata getMetadata(const std::string& topic) final;
     
-    const ProducerConfiguration& getConfiguration(const std::string& topic) const;
+    const ProducerConfiguration& getConfiguration(const std::string& topic) const final;
     
-    std::vector<std::string> getTopics() const;
+    std::vector<std::string> getTopics() const final;
+    
+    DeliveryReport send() final;
+    
+    quantum::GenericFuture<DeliveryReport> post() final;
 
     template <typename TOPIC, typename K, typename P, typename ...H>
     DeliveryReport send(const TOPIC& topic,
@@ -85,18 +88,18 @@ public:
              P&& payload,
              H&&... headers);
     
-    bool waitForAcks(const std::string& topic);
+    bool waitForAcks(const std::string& topic) final;
     
     bool waitForAcks(const std::string& topic,
-                     std::chrono::milliseconds timeout);
+                     std::chrono::milliseconds timeout) final;
     
-    void shutdown();
+    void shutdown() final;
     
-    void poll();
+    void poll() final;
     
-    void pollEnd();
+    void pollEnd() final;
     
-    void resetQueueFullTrigger(const std::string& topic);
+    void resetQueueFullTrigger(const std::string& topic) final;
     
     // Callbacks
     static int32_t partitionerCallback(ProducerTopicEntry& topicEntry,
@@ -183,12 +186,11 @@ public:
     
 private:
     // Members
-    quantum::Dispatcher&        _dispatcher;
-    ConnectorConfiguration      _connectorConfiguration;
-    Producers                   _producers;
-    std::atomic_bool&           _interrupt;
-    std::atomic_flag            _shutdownInitiated{false};
-    std::chrono::milliseconds   _shutdownIoWaitTimeoutMs{2000};
+    quantum::Dispatcher&            _dispatcher;
+    const ConnectorConfiguration&   _connectorConfiguration;
+    Producers                       _producers;
+    std::atomic_flag                _shutdownInitiated{false};
+    std::chrono::milliseconds       _shutdownIoWaitTimeoutMs{2000};
 };
 
 template <typename BufferType>

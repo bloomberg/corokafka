@@ -16,25 +16,31 @@
 #ifndef BLOOMBERG_COROKAFKA_PRODUCER_MANAGER_H
 #define BLOOMBERG_COROKAFKA_PRODUCER_MANAGER_H
 
+#include <corokafka/interface/corokafka_impl.h>
+#include <corokafka/corokafka_utils.h>
+#include <corokafka/corokafka_configuration_builder.h>
+#include <corokafka/interface/corokafka_iproducer_manager.h>
+#include <corokafka/impl/corokafka_producer_manager_impl.h>
+#include <corokafka/interface/corokafka_imessage.h>
+#include <corokafka/corokafka_delivery_report.h>
+#include <corokafka/corokafka_header_pack.h>
+#include <quantum/quantum.h>
 #include <vector>
 #include <map>
 #include <chrono>
 #include <future>
-#include <corokafka/corokafka_utils.h>
-#include <corokafka/corokafka_configuration_builder.h>
-#include <corokafka/impl/corokafka_producer_manager_impl.h>
-#include <corokafka/corokafka_message.h>
-#include <corokafka/corokafka_delivery_report.h>
-#include <corokafka/corokafka_header_pack.h>
-#include <quantum/quantum.h>
 
 namespace Bloomberg {
 namespace corokafka {
 
+namespace mocks {
+    struct ConnectorMock;
+}
+
 /**
  * @brief The ProducerManager is the object through which producers send messages.
  */
-class ProducerManager
+class ProducerManager : public Impl<IProducerManager>
 {
 public:
     /**
@@ -101,7 +107,7 @@ public:
      *          'internal.producer.wait.for.acks.timeout.ms' or if not specified,
      *          the 'internal.producer.timeout.ms'
      */
-    bool waitForAcks(const std::string& topic);
+    bool waitForAcks(const std::string& topic) final;
     
     /**
      * @brief Wait for all pending 'posted' messages to be ack-ed by the broker.
@@ -111,42 +117,45 @@ public:
      * @warning This function may throw.
      */
     bool waitForAcks(const std::string& topic,
-                     std::chrono::milliseconds timeout);
+                     std::chrono::milliseconds timeout) final;
     
     /**
      * @brief Gracefully shut down all producers and wait until all buffered messages are sent.
      * @remark Note that this method is automatically called in the destructor.
      */
-    void shutdown();
+    void shutdown() final;
     
     /**
      * @brief Get Kafka metadata associated with this topic.
      * @param topic The topic to query.
      * @return The metadata object.
      */
-    ProducerMetadata getMetadata(const std::string& topic);
+    ProducerMetadata getMetadata(const std::string& topic) final;
     
     /**
      * @brief Get the configuration associated with this topic.
      * @param topic The topic.
      * @return A reference to the configuration.
      */
-    const ProducerConfiguration& getConfiguration(const std::string& topic) const;
+    const ProducerConfiguration& getConfiguration(const std::string& topic) const final;
     
     /**
      * @brief Get all the managed topics.
      * @return The topic list.
      */
-    std::vector<std::string> getTopics() const;
+    std::vector<std::string> getTopics() const final;
     
     /**
      * @brief In edgeTriggered mode, re-enable the queue full notification callback.
      * @param topic The topic for which to reset the callback.
      * @note This method only works if the application has previously registered a QueueFullCallback with this topic.
      */
-    void resetQueueFullTrigger(const std::string& topic);
+    void resetQueueFullTrigger(const std::string& topic) final;
     
-protected:
+private:
+    friend class ConnectorImpl;
+    friend struct mocks::ConnectorMock;
+    using ImplType = Impl<IProducerManager>;
     using ConfigMap = ConfigurationBuilder::ConfigMap<ProducerConfiguration>;
     
     ProducerManager(quantum::Dispatcher& dispatcher,
@@ -159,13 +168,20 @@ protected:
                     ConfigMap&& config,
                     std::atomic_bool& interrupt);
     
-    virtual ~ProducerManager() = default;
+    /**
+     * @brief For mocking only via dependency injection
+     */
+    using ImplType::ImplType;
     
-    void poll();
-    void pollEnd();
+    void poll() final;
+    void pollEnd() final;
     
-private:
-    std::unique_ptr<ProducerManagerImpl>  _impl;
+    //empty stubs
+    DeliveryReport send() final;
+    quantum::GenericFuture<DeliveryReport> post() final;
+    
+    //members
+    ProducerManagerImpl*   _producerPtr{nullptr};
 };
 
 // Implementations
@@ -180,7 +196,15 @@ ProducerManager::send(const TOPIC& topic,
     static_assert(std::is_same<typename TOPIC::KeyType, std::decay_t<K>>::value, "Invalid key type");
     static_assert(std::is_same<typename TOPIC::PayloadType, std::decay_t<P>>::value, "Invalid payload type");
     static_assert(matchAllTypes<typename TOPIC::HeadersType::HeaderTypes, std::decay_t<H>...>(), "Invalid header types");
-    return _impl->template send<TOPIC,K,P,H...>(topic, opaque, key, payload, headers...);
+    if (_producerPtr) {
+        return _producerPtr->template send<TOPIC, K, P, H...>(
+                topic,
+                opaque,
+                key,
+                payload,
+                headers...);
+    }
+    return impl()->send(); //call stub
 }
 
 template <typename TOPIC, typename K, typename P, typename ...H>
@@ -194,12 +218,15 @@ ProducerManager::post(const TOPIC& topic,
     static_assert(std::is_same<typename TOPIC::KeyType, std::decay_t<K>>::value, "Invalid key type");
     static_assert(std::is_same<typename TOPIC::PayloadType, std::decay_t<P>>::value, "Invalid payload type");
     static_assert(matchAllTypes<typename TOPIC::HeadersType::HeaderTypes, std::decay_t<H>...>(), "Invalid header types");
-    return _impl->template post<TOPIC,K,P,H...>(
-        topic,
-        opaque,
-        std::forward<K>(key),
-        std::forward<P>(payload),
-        std::forward<H>(headers)...);
+    if (_producerPtr) {
+        return _producerPtr->template post<TOPIC, K, P, H...>(
+                topic,
+                opaque,
+                std::forward<K>(key),
+                std::forward<P>(payload),
+                std::forward<H>(headers)...);
+    }
+    return impl()->post(); //call stub
 }
 
 }}

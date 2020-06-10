@@ -16,7 +16,10 @@
 #ifndef BLOOMBERG_COROKAFKA_RECEIVED_MESSAGE_H
 #define BLOOMBERG_COROKAFKA_RECEIVED_MESSAGE_H
 
-#include <corokafka/corokafka_message.h>
+#include <corokafka/interface/corokafka_impl.h>
+#include <corokafka/interface/corokafka_ireceived_message.h>
+#include <corokafka/impl/corokafka_received_message_impl.h>
+#include <corokafka/interface/corokafka_impl.h>
 #include <corokafka/corokafka_header_pack.h>
 #include <corokafka/corokafka_topic.h>
 #include <boost/any.hpp>
@@ -24,17 +27,7 @@
 namespace Bloomberg {
 namespace corokafka {
 
-//==========================================================================
-//                     Offset settings
-//==========================================================================
-struct OffsetPersistSettings {
-    OffsetPersistStrategy   _autoOffsetPersistStrategy;
-    ExecMode                _autoCommitExec;
-    bool                    _autoOffsetPersist;
-    bool                    _autoOffsetPersistOnException;
-};
-
-template <typename TOPIC>
+template<typename TOPIC>
 class ConcreteReceiver;
 
 /**
@@ -43,10 +36,11 @@ class ConcreteReceiver;
  * @tparam PAYLOAD Payload type
  * @tparam HEADERS Headers type i.e. Headers<...>
  */
-template <typename KEY, typename PAYLOAD, typename HEADERS = Headers<>>
-class ReceivedMessage : public IMessage
+template<typename KEY, typename PAYLOAD, typename HEADERS = Headers<>>
+class ReceivedMessage : public Impl<IReceivedMessage<KEY, PAYLOAD, HEADERS>>
 {
-    friend class ConcreteReceiver<Topic<KEY,PAYLOAD,HEADERS>>;
+    using Interface = IReceivedMessage<KEY, PAYLOAD, HEADERS>;
+    using Concrete = ReceivedMessageImpl<KEY, PAYLOAD, HEADERS>;
 public:
     using KeyType = KEY;
     using PayloadType = PAYLOAD;
@@ -56,15 +50,15 @@ public:
     /**
      * Copy ctor's and assignment operators
      */
-    ReceivedMessage(const ReceivedMessage&) = delete;
-    ReceivedMessage(ReceivedMessage&& rhs) = default;
-    ReceivedMessage& operator=(const ReceivedMessage&) = delete;
-    ReceivedMessage& operator=(ReceivedMessage&& rhs) = default;
+    ReceivedMessage(const ReceivedMessage &) = delete;
+    ReceivedMessage(ReceivedMessage &&rhs) = default;
+    ReceivedMessage &operator=(const ReceivedMessage &) = delete;
+    ReceivedMessage &operator=(ReceivedMessage &&rhs) = default;
     /**
      * @brief Destructor. Calls commit() if it has not been called previously. Commit will optionally pass
      *        the opaque application pointer set with setOpaque().
      */
-    ~ReceivedMessage();
+    ~ReceivedMessage() = default;
     
     //==========================================================================
     //                         IMessage interface
@@ -72,17 +66,17 @@ public:
     /**
      * @sa IMessage::getKeyBuffer
      */
-    const cppkafka::Buffer& getKeyBuffer() const final;
+    const cppkafka::Buffer &getKeyBuffer() const final;
     /**
      * @sa IMessage::getHeaderList
      * @note This functions returns a const reference to the Kafka raw headers.
      *       To get or modify the de-serialized headers, use the getHeaders() API.
      */
-    const HeaderListType& getHeaderList() const final;
+    const cppkafka::Message::HeaderListType &getHeaderList() const final;
     /**
      * @sa IMessage::getPayloadBuffer
      */
-    const cppkafka::Buffer& getPayloadBuffer() const final;
+    const cppkafka::Buffer &getPayloadBuffer() const final;
     /**
      * @sa IMessage::getHandle
      */
@@ -129,7 +123,7 @@ public:
      * @warning This library does not extend the lifetime of this pointer. The application must ensure the
      *          memory location is still valid until the callback is invoked.
      */
-    void setOpaque(const void* opaque);
+    void setOpaque(const void *opaque);
     /**
      * @brief Commits message with the retry strategy specified in the config for this topic.
      * @param opaque Application-specific pointer which will be returned inside the offset commit callback.
@@ -141,9 +135,9 @@ public:
      *         'internal.consumer.auto.offset.persist=true'.
      * @remark This will actually commit (or store) the message offset + 1.
      */
-    cppkafka::Error commit(const void* opaque = nullptr);
+    cppkafka::Error commit(const void *opaque = nullptr);
     cppkafka::Error commit(ExecMode execMode,
-                           const void* opaque = nullptr);
+                           const void *opaque = nullptr);
     /**
      * @brief Helper function to indicate if the message error is an EOF.
      * @return True if EOF was encountered for the partition, False otherwise.
@@ -157,76 +151,234 @@ public:
      * @brief Get the key object reference
      * @return The reference
      */
-    const KeyType& getKey() const &;
-    KeyType& getKey() &;
-    KeyType&& getKey() &&;
+    const KeyType& getKey() const;
+    KeyType& getKey();
+    
     /**
      * @brief Get the payload object reference
      * @return The reference
      */
-    const PayloadType& getPayload() const &;
-    PayloadType& getPayload() &;
-    PayloadType&& getPayload() &&;
+    const PayloadType& getPayload() const;
+    PayloadType& getPayload();
+    
     /**
      * @brief Get the header at the specified position (type-safe)
      * @return The header
      * @note The position specified should match the type in the HEADERS template argument.
      */
-    template <size_t I, std::enable_if_t<I<HeadersType::NumHeaders, int> = 0>
-    const typename std::tuple_element<I,HeaderTypes>::type& getHeaderAt() const &;
-    template <size_t I, std::enable_if_t<I<HeadersType::NumHeaders, int> = 0>
-    typename std::tuple_element<I,HeaderTypes>::type& getHeaderAt() &;
-    template <size_t I, std::enable_if_t<I<HeadersType::NumHeaders, int> = 0>
-    typename std::tuple_element<I,HeaderTypes>::type&& getHeaderAt() &&;
-    
+    template<size_t I, std::enable_if_t<I < HeadersType::NumHeaders, int> = 0>
+    const typename std::tuple_element<I, HeaderTypes>::type& getHeaderAt() const;
+    template<size_t I, std::enable_if_t<I < HeadersType::NumHeaders, int> = 0>
+    typename std::tuple_element<I, HeaderTypes>::type& getHeaderAt();
     /**
      * @brief Determine if the header at the specified position is valid
      * @tparam I The position of the header
      * @return True if it's valid.
      */
-    template <size_t I, std::enable_if_t<I<HeadersType::NumHeaders, int> = 0>
+    template<size_t I, std::enable_if_t<I < HeadersType::NumHeaders, int> = 0>
     bool isHeaderValidAt() const;
-    
     /**
      * @brief Get the header pack
      * @return The reference to the pack
      * @warning Accessing headers via the HeaderPack is not type-safe. Casting to incorrect type may
      *          to undefined behavior or 'std::bad_cast' being thrown.
      */
-    const HeaderPack& getHeaders() const &;
-    HeaderPack& getHeaders() &;
-    HeaderPack&& getHeaders() &&;
+    const HeaderPack& getHeaders() const;
+    HeaderPack& getHeaders();
     
+    /**
+     * @brief For mocking only via dependency injection
+     */
+    using ImplType = Impl<Interface>;
+    using ImplType::ImplType;
+
 private:
-    ReceivedMessage(cppkafka::BackoffCommitter& committer,
-                    OffsetMap& offsets,
-                    cppkafka::Message&& kafkaMessage,
-                    boost::any&& key,
-                    boost::any&& payload,
-                    HeaderPack&& headers,
-                    DeserializerError&& error,
-                    const OffsetPersistSettings& offsetSettings);
-    void validateMessageError() const;
-    void validateKeyError() const;
-    void validatePayloadError() const;
-    void validateHeadersError() const;
-    cppkafka::Error doCommit(ExecMode execMode);
+    friend class ConcreteReceiver<Topic<KEY,PAYLOAD,HEADERS>>;
     
-    cppkafka::BackoffCommitter& _committer;
-    OffsetMap&                  _offsets;
-    cppkafka::Message           _message;
-    boost::any                  _key;
-    boost::any                  _payload;
-    HeaderPack                  _headers;
-    DeserializerError           _error;
-    const void*                 _opaque{nullptr};
-    bool                        _isPersisted{false};
-    OffsetPersistSettings       _offsetSettings;
+    ReceivedMessage(cppkafka::BackoffCommitter &committer,
+                    OffsetMap &offsets,
+                    cppkafka::Message &&kafkaMessage,
+                    boost::any &&key,
+                    boost::any &&payload,
+                    HeaderPack &&headers,
+                    DeserializerError &&error,
+                    const OffsetPersistSettings &offsetSettings);
+    
+    ReceivedMessageImpl<KEY, PAYLOAD, HEADERS>* _concrete{nullptr};
 };
 
-}
+//=========================================================================
+//                          IMPLEMENTATIONS
+//=========================================================================
+template<typename KEY, typename PAYLOAD, typename HEADERS>
+ReceivedMessage<KEY, PAYLOAD, HEADERS>::ReceivedMessage(
+                    cppkafka::BackoffCommitter &committer,
+                    OffsetMap &offsets,
+                    cppkafka::Message &&kafkaMessage,
+                    boost::any &&key,
+                    boost::any &&payload,
+                    HeaderPack &&headers,
+                    DeserializerError &&error,
+                    const OffsetPersistSettings &offsetSettings) :
+    ImplType(std::make_shared<Concrete>(committer,
+                                        offsets,
+                                        std::move(kafkaMessage),
+                                        std::move(key),
+                                        std::move(payload),
+                                        std::move(headers),
+                                        std::move(error),
+                                        offsetSettings)),
+    _concrete(static_cast<Concrete*>(this->impl().get()))
+{
 }
 
-#include <corokafka/impl/corokafka_received_message_impl.h>
+template<typename KEY, typename PAYLOAD, typename HEADERS>
+uint64_t ReceivedMessage<KEY, PAYLOAD, HEADERS>::getHandle() const {
+    return this->impl()->getHandle();
+}
+
+template<typename KEY, typename PAYLOAD, typename HEADERS>
+const cppkafka::Buffer &ReceivedMessage<KEY, PAYLOAD, HEADERS>::getKeyBuffer() const {
+    return this->impl()->getKeyBuffer();
+}
+
+template<typename KEY, typename PAYLOAD, typename HEADERS>
+const cppkafka::Message::HeaderListType &
+ReceivedMessage<KEY, PAYLOAD, HEADERS>::getHeaderList() const {
+    return this->impl()->getHeaderList();
+}
+
+template<typename KEY, typename PAYLOAD, typename HEADERS>
+const cppkafka::Buffer &ReceivedMessage<KEY, PAYLOAD, HEADERS>::getPayloadBuffer() const {
+    return this->impl()->getPayloadBuffer();
+}
+
+template<typename KEY, typename PAYLOAD, typename HEADERS>
+cppkafka::Error ReceivedMessage<KEY, PAYLOAD, HEADERS>::getError() const {
+    return this->impl()->getError();
+}
+
+template<typename KEY, typename PAYLOAD, typename HEADERS>
+int ReceivedMessage<KEY, PAYLOAD, HEADERS>::getHeaderNumWithError() const {
+    return this->impl()->getHeaderNumWithError();
+}
+
+template<typename KEY, typename PAYLOAD, typename HEADERS>
+std::string ReceivedMessage<KEY, PAYLOAD, HEADERS>::getTopic() const {
+    return this->impl()->getTopic();
+}
+
+template<typename KEY, typename PAYLOAD, typename HEADERS>
+int ReceivedMessage<KEY, PAYLOAD, HEADERS>::getPartition() const {
+    return this->impl()->getPartition();
+}
+
+template<typename KEY, typename PAYLOAD, typename HEADERS>
+int64_t ReceivedMessage<KEY, PAYLOAD, HEADERS>::getOffset() const {
+    return this->impl()->getOffset();
+}
+
+template<typename KEY, typename PAYLOAD, typename HEADERS>
+std::chrono::milliseconds ReceivedMessage<KEY, PAYLOAD, HEADERS>::getTimestamp() const {
+    return this->impl()->getTimestamp();
+}
+
+template<typename KEY, typename PAYLOAD, typename HEADERS>
+ReceivedMessage<KEY, PAYLOAD, HEADERS>::operator bool() const {
+    return this->impl()->operator bool();
+}
+
+template<typename KEY, typename PAYLOAD, typename HEADERS>
+bool ReceivedMessage<KEY, PAYLOAD, HEADERS>::skip() const {
+    return this->impl()->skip();
+}
+
+template<typename KEY, typename PAYLOAD, typename HEADERS>
+void ReceivedMessage<KEY, PAYLOAD, HEADERS>::setOpaque(const void *opaque) {
+    this->impl()->setOpaque(opaque);
+}
+
+template<typename KEY, typename PAYLOAD, typename HEADERS>
+cppkafka::Error ReceivedMessage<KEY, PAYLOAD, HEADERS>::commit(const void *opaque) {
+    return this->impl()->commit(opaque);
+}
+
+template<typename KEY, typename PAYLOAD, typename HEADERS>
+cppkafka::Error ReceivedMessage<KEY, PAYLOAD, HEADERS>::commit(ExecMode execMode,
+                                                               const void *opaque) {
+    return this->impl()->commit(execMode, opaque);
+}
+
+template<typename KEY, typename PAYLOAD, typename HEADERS>
+bool ReceivedMessage<KEY, PAYLOAD, HEADERS>::isEof() const {
+    return this->impl()->isEof();
+}
+
+template<typename KEY, typename PAYLOAD, typename HEADERS>
+const KEY& ReceivedMessage<KEY, PAYLOAD, HEADERS>::getKey() const {
+    return const_cast<const Interface&>(*this->impl()).getKey();
+}
+
+template<typename KEY, typename PAYLOAD, typename HEADERS>
+KEY& ReceivedMessage<KEY, PAYLOAD, HEADERS>::getKey() {
+    return const_cast<Interface&>(*this->impl()).getKey();
+}
+
+template<typename KEY, typename PAYLOAD, typename HEADERS>
+const PAYLOAD& ReceivedMessage<KEY, PAYLOAD, HEADERS>::getPayload() const {
+    return const_cast<const Interface&>(*this->impl()).getPayload();
+}
+
+template<typename KEY, typename PAYLOAD, typename HEADERS>
+PAYLOAD& ReceivedMessage<KEY, PAYLOAD, HEADERS>::getPayload() {
+    return const_cast<Interface&>(*this->impl()).getPayload();
+}
+
+template<typename KEY, typename PAYLOAD, typename HEADERS>
+template<size_t I, std::enable_if_t<I < HEADERS::NumHeaders, int>>
+const typename std::tuple_element<I, typename HEADERS::HeaderTypes>::type &
+ReceivedMessage<KEY, PAYLOAD, HEADERS>::getHeaderAt() const {
+    if (_concrete) {
+        return const_cast<const Concrete&>(*_concrete).template getHeaderAt<I>();
+    }
+    //Mock access only
+    using Header = typename std::tuple_element<I, HeaderTypes>::type;
+    return std::dynamic_pointer_cast<IHeaderAccessor<Header>>(this->impl())->getHeaderAt(I);
+}
+
+template<typename KEY, typename PAYLOAD, typename HEADERS>
+template<size_t I, std::enable_if_t<I < HEADERS::NumHeaders, int>>
+typename std::tuple_element<I, typename HEADERS::HeaderTypes>::type &
+ReceivedMessage<KEY, PAYLOAD, HEADERS>::getHeaderAt() {
+    if (_concrete) {
+        return const_cast<Concrete&>(*_concrete).template getHeaderAt<I>();
+    }
+    //Mock access only
+    using Header = typename std::tuple_element<I, HeaderTypes>::type;
+    return std::dynamic_pointer_cast<IHeaderAccessor<Header>>(this->impl())->getHeaderAt(I);
+}
+
+template<typename KEY, typename PAYLOAD, typename HEADERS>
+template<size_t I, std::enable_if_t<I < HEADERS::NumHeaders, int>>
+bool ReceivedMessage<KEY, PAYLOAD, HEADERS>::isHeaderValidAt() const {
+    if (_concrete) {
+        return _concrete->template isHeaderValidAt<I>();
+    }
+    //Mock access only
+    using Header = typename std::tuple_element<I, HeaderTypes>::type;
+    return std::dynamic_pointer_cast<IHeaderAccessor<Header>>(this->impl())->isHeaderValidAt(I);
+}
+
+template<typename KEY, typename PAYLOAD, typename HEADERS>
+const HeaderPack &ReceivedMessage<KEY, PAYLOAD, HEADERS>::getHeaders() const {
+    return const_cast<const Interface&>(*this->impl()).getHeaders();
+}
+
+template<typename KEY, typename PAYLOAD, typename HEADERS>
+HeaderPack &ReceivedMessage<KEY, PAYLOAD, HEADERS>::getHeaders() {
+    return const_cast<Interface&>(*this->impl()).getHeaders();
+}
+
+}}
 
 #endif //BLOOMBERG_COROKAFKA_RECEIVED_MESSAGE_H

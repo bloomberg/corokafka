@@ -28,19 +28,18 @@ namespace corokafka {
 //                               class ConsumerManagerImpl
 //===========================================================================================
 ConsumerManagerImpl::ConsumerManagerImpl(quantum::Dispatcher& dispatcher,
-                                         ConnectorConfiguration connectorConfiguration,
+                                         const ConnectorConfiguration& connectorConfiguration,
                                          const ConfigMap& configs,
                                          std::atomic_bool& interrupt) :
     _dispatcher(dispatcher),
-    _connectorConfiguration(std::move(connectorConfiguration)),
-    _interrupt(interrupt),
+    _connectorConfiguration(connectorConfiguration),
     _shutdownIoWaitTimeoutMs(connectorConfiguration.getShutdownIoWaitTimeout())
 {
     //Create a consumer for each topic and apply the appropriate configuration
     for (const auto& entry : configs) {
         // Process each configuration
         auto it = _consumers.emplace(entry.first, ConsumerTopicEntry(nullptr,
-                                                                     connectorConfiguration,
+                                                                     _connectorConfiguration,
                                                                      entry.second,
                                                                      interrupt,
                                                                      dispatcher.getNumIoThreads(),
@@ -58,19 +57,18 @@ ConsumerManagerImpl::ConsumerManagerImpl(quantum::Dispatcher& dispatcher,
 }
 
 ConsumerManagerImpl::ConsumerManagerImpl(quantum::Dispatcher& dispatcher,
-                                         ConnectorConfiguration connectorConfiguration,
+                                         const ConnectorConfiguration& connectorConfiguration,
                                          ConfigMap&& configs,
                                          std::atomic_bool& interrupt) :
     _dispatcher(dispatcher),
-    _connectorConfiguration(std::move(connectorConfiguration)),
-    _interrupt(interrupt),
+    _connectorConfiguration(connectorConfiguration),
     _shutdownIoWaitTimeoutMs(connectorConfiguration.getShutdownIoWaitTimeout())
 {
     //Create a consumer for each topic and apply the appropriate configuration
     for (auto&& entry : configs) {
         // Process each configuration
         auto it = _consumers.emplace(entry.first, ConsumerTopicEntry(nullptr,
-                                                                     connectorConfiguration,
+                                                                     _connectorConfiguration,
                                                                      std::move(entry.second),
                                                                      interrupt,
                                                                      dispatcher.getNumIoThreads(),
@@ -338,16 +336,28 @@ ConsumerMetadata ConsumerManagerImpl::getMetadata(const std::string& topic)
     return makeMetadata(it->second);
 }
 
-void ConsumerManagerImpl::setPreprocessing(bool enable)
+void ConsumerManagerImpl::enablePreprocessing()
 {
     for (auto&& consumer : _consumers) {
-        setPreprocessing(consumer.first, enable);
+        consumer.second._preprocess = true;
     }
 }
 
-void ConsumerManagerImpl::setPreprocessing(const std::string& topic, bool enable)
+void ConsumerManagerImpl::enablePreprocessing(const std::string& topic)
 {
-    findConsumer(topic)->second._preprocess = enable;
+    findConsumer(topic)->second._preprocess = true;
+}
+
+void ConsumerManagerImpl::disablePreprocessing()
+{
+    for (auto&& consumer : _consumers) {
+        consumer.second._preprocess = false;
+    }
+}
+
+void ConsumerManagerImpl::disablePreprocessing(const std::string& topic)
+{
+    findConsumer(topic)->second._preprocess = false;
 }
 
 void ConsumerManagerImpl::pause()
@@ -638,7 +648,7 @@ void ConsumerManagerImpl::poll()
 {
     auto now = std::chrono::steady_clock::now();
     for (auto&& entry : _consumers) {
-        if (_interrupt) {
+        if (entry.second._interrupt) {
             continue; //stop polling
         }
         // Adjust throttling if necessary
@@ -1335,7 +1345,7 @@ bool ConsumerManagerImpl::hasNewMessages(ConsumerTopicEntry& entry) const
     if (!entry._enableWatermarkCheck) {
         return true;
     }
-    Metadata::OffsetWatermarkList watermarks = makeMetadata(entry).getOffsetWatermarks();
+    OffsetWatermarkList watermarks = makeMetadata(entry).getOffsetWatermarks();
     if (entry._watermarks.empty()) {
         //update watermarks
         entry._watermarks = watermarks;

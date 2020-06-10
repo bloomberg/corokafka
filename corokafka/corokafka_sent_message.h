@@ -16,15 +16,14 @@
 #ifndef BLOOMBERG_COROKAFKA_SENT_MESSAGE_H
 #define BLOOMBERG_COROKAFKA_SENT_MESSAGE_H
 
-#include <corokafka/corokafka_message.h>
-#include <corokafka/corokafka_utils.h>
+#include <corokafka/interface/corokafka_isent_message.h>
+#include <corokafka/interface/corokafka_impl.h>
 
 namespace Bloomberg {
 namespace corokafka {
 
-class SentMessage : public IMessage
+class SentMessage : public Impl<ISentMessage>
 {
-    friend class ProducerManagerImpl;
 public:    
     /**
      * @sa IMessage::getKeyBuffer
@@ -33,7 +32,7 @@ public:
     /**
      * @sa IMessage::getHeaderList
      */
-    const HeaderListType& getHeaderList() const final;
+    const cppkafka::Message::HeaderListType& getHeaderList() const final;
     /**
      * @sa IMessage::getPayloadBuffer
      */
@@ -70,14 +69,14 @@ public:
      * @brief Return the opaque application-specific pointer set when send() or sendAsync() were called.
      * @return The opaque pointer.
      */
-    void* getOpaque() const;
+    void* getOpaque() const final;
     
 #if (RD_KAFKA_VERSION >= RD_KAFKA_MESSAGE_STATUS_SUPPORT_VERSION)
     /**
      * @brief Gets the message persistence status.
      * @note Only available if SentMessage was build with a Message type.
      */
-    rd_kafka_msg_status_t getStatus() const;
+    rd_kafka_msg_status_t getStatus() const final;
 #endif
 
 #if RD_KAFKA_VERSION >= RD_KAFKA_MESSAGE_LATENCY_SUPPORT_VERSION
@@ -85,17 +84,20 @@ public:
      * @brief Gets the message latency in microseconds as measured from the produce() call.
      * @return The latency in microseconds
      */
-    std::chrono::microseconds getLatency() const;
+    std::chrono::microseconds getLatency() const final;
 #endif
+    
+    /**
+     * @brief For mocking only via dependency injection
+     */
+    using ImplType = Impl<ISentMessage>;
+    using ImplType::ImplType;
 
 private:
+    friend class ProducerManagerImpl;
+    
     SentMessage(const cppkafka::Message& kafkaMessage, const void* opaque);
     SentMessage(const cppkafka::MessageBuilder& builder, cppkafka::Error error, const void* opaque);
-    
-    const cppkafka::Message*          _message;
-    const cppkafka::MessageBuilder*   _builder;
-    cppkafka::Error                   _error;
-    const void*                       _opaque;
 };
 
 }}

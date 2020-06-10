@@ -16,18 +16,18 @@
 #ifndef BLOOMBERG_COROKAFKA_CONSUMER_MANAGER_H
 #define BLOOMBERG_COROKAFKA_CONSUMER_MANAGER_H
 
-#include <vector>
-#include <map>
-#include <chrono>
-#include <corokafka/corokafka_utils.h>
-#include <corokafka/corokafka_metadata.h>
+#include <corokafka/interface/corokafka_impl.h>
+#include <corokafka/interface/corokafka_iconsumer_manager.h>
 #include <corokafka/corokafka_configuration_builder.h>
 #include <quantum/quantum.h>
+#include <map>
 
 namespace Bloomberg {
 namespace corokafka {
 
-class ConsumerManagerImpl;
+namespace mocks {
+    struct ConnectorMock;
+}
 
 /**
  * @brief The ConsumerManager is the object through which consumers commit messages as well
@@ -36,22 +36,22 @@ class ConsumerManagerImpl;
  *        receiver callback, which means they don't need to interface with this class.
  * @note Committing messages can also be done via the message object itself.
  */
-class ConsumerManager
+class ConsumerManager : public Impl<IConsumerManager>
 {
 public:
     /**
      * @brief Pause all consumption from this topic.
      * @param topic The topic name. If the topic is not specified, the function will apply to all topics.
      */
-    void pause();
-    void pause(const std::string& topic);
+    void pause() final;
+    void pause(const std::string& topic) final;
     
     /**
      * @brief Resume all consumption from this topic.
      * @param topic The topic name. If the topic is not specified, the function will apply to all topics.
      */
-    void resume();
-    void resume(const std::string& topic);
+    void resume() final;
+    void resume(const std::string& topic) final;
     
     /**
      * @brief Subscribe a previously unsubscribed consumer.
@@ -63,15 +63,15 @@ public:
      *       shall be used with offsets set to RD_KAFKA_OFFSET_INVALID.
      */
     void subscribe(const std::string& topic,
-                   const cppkafka::TopicPartitionList& partitionList);
-    void subscribe(const cppkafka::TopicPartitionList& partitionList);
+                   const cppkafka::TopicPartitionList& partitionList) final;
+    void subscribe(const cppkafka::TopicPartitionList& partitionList) final;
     
     /**
      * @brief Unsubscribe from this topic.
      * @param topic The topic name. If the topic is not specified, the function will apply to all topics.
      */
-    void unsubscribe();
-    void unsubscribe(const std::string& topic);
+    void unsubscribe() final;
+    void unsubscribe(const std::string& topic) final;
     
     /**
      * @brief Commits an offset. The behavior of this function depends on the 'internal.consumer.offset.persist.strategy' value.
@@ -87,54 +87,58 @@ public:
      *          should be made via the ReceivedMessage::commit() API.
      */
     cppkafka::Error commit(const cppkafka::TopicPartition& topicPartition,
-                           const void* opaque = nullptr);
+                           const void* opaque = nullptr) final;
     cppkafka::Error commit(const cppkafka::TopicPartition& topicPartition,
                            ExecMode execMode,
-                           const void* opaque = nullptr);
+                           const void* opaque = nullptr) final;
     cppkafka::Error commit(const cppkafka::TopicPartitionList& topicPartitions,
                            ExecMode execMode,
-                           const void* opaque = nullptr);
+                           const void* opaque = nullptr) final;
     cppkafka::Error commit(const cppkafka::TopicPartitionList& topicPartitions,
-                           const void* opaque = nullptr);
+                           const void* opaque = nullptr) final;
     
     /**
      * @brief Gracefully shut down all consumers and unsubscribe from all topics.
      * @remark Note that this method is automatically called in the destructor.
      */
-    void shutdown();
+    void shutdown() final;
     
     /**
      * @brief Get Kafka metadata associated with this topic
      * @param topic The topic to query
      * @return The metadata object
      */
-    ConsumerMetadata getMetadata(const std::string& topic);
+    ConsumerMetadata getMetadata(const std::string& topic) final;
     
     /**
      * @brief Enable/disable the preprocessor callback (if registered).
      * @param topic The topic name. If not set, this operation will apply to all topics.
      * @remark Note that the preprocessor is enabled by default
      */
-    void enablePreprocessing();
-    void enablePreprocessing(const std::string& topic);
-    void disablePreprocessing();
-    void disablePreprocessing(const std::string& topic);
+    void enablePreprocessing() final;
+    void enablePreprocessing(const std::string& topic) final;
+    void disablePreprocessing() final;
+    void disablePreprocessing(const std::string& topic) final;
     
     /**
      * @brief Get the configuration associated with this topic.
      * @param topic The topic.
      * @return A reference to the configuration.
      */
-    const ConsumerConfiguration& getConfiguration(const std::string& topic) const;
+    const ConsumerConfiguration& getConfiguration(const std::string& topic) const final;
     
     /**
      * @brief Get all the managed topics
      * @return The topic list.
      */
-    std::vector<std::string> getTopics() const;
+    std::vector<std::string> getTopics() const final;
     
-protected:
+private:
+    friend class ConnectorImpl;
+    friend struct mocks::ConnectorMock;
+    using ImplType = Impl<IConsumerManager>;
     using ConfigMap = ConfigurationBuilder::ConfigMap<ConsumerConfiguration>;
+    
     ConsumerManager(quantum::Dispatcher& dispatcher,
                     const ConnectorConfiguration& connectorConfiguration,
                     const ConfigMap& config,
@@ -145,14 +149,14 @@ protected:
                     ConfigMap&& config,
                     std::atomic_bool& interrupt);
     
-    virtual ~ConsumerManager() = default;
+    /**
+     * @brief For mocking only via dependency injection
+     */
+    using ImplType::ImplType;
     
-    void poll();
+    void poll() final;
     
-    void pollEnd();
-    
-private:
-    std::unique_ptr<ConsumerManagerImpl>  _impl;
+    void pollEnd() final;
 };
 
 }}

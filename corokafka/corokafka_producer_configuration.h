@@ -37,8 +37,6 @@ namespace corokafka {
  */
 class ProducerConfiguration : public TopicConfiguration
 {
-    friend class TopicConfiguration;
-    friend class ProducerManagerImpl;
 public:
     /**
      * @brief Internal CoroKafka-specific options for the producer. They are used to control this
@@ -117,6 +115,9 @@ public:
      */
     const Callbacks::QueueFullCallback& getQueueFullCallback() const;
 private:
+    friend class TopicConfiguration;
+    friend class ProducerManagerImpl;
+    
     static const OptionExtractorFunc& extract(const std::string& option);
     
     Callbacks::DeliveryReportCallback           _deliveryReportCallback;

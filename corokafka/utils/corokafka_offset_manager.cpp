@@ -64,7 +64,7 @@ void OffsetManager::queryOffsetsFromBroker(const std::string& topic,
 {
     //Query offsets and watermarks from broker
     cppkafka::TopicPartitionList committedOffsets;
-    Metadata::OffsetWatermarkList watermarks;
+    OffsetWatermarkList watermarks;
     ConsumerMetadata metadata = _consumerManager.getMetadata(topic);
     if (_brokerTimeout == std::chrono::milliseconds((int)TimerValues::Disabled)) {
         committedOffsets = metadata.queryCommittedOffsets();
@@ -97,7 +97,7 @@ const cppkafka::TopicPartition& OffsetManager::findPartition(const cppkafka::Top
     return it == partitions.end() ? notFound : *it;
 }
 
-const OffsetWatermark& OffsetManager::findWatermark(const Metadata::OffsetWatermarkList& watermarks,
+const OffsetWatermark& OffsetManager::findWatermark(const OffsetWatermarkList& watermarks,
                                                     int partition)
 {
     static OffsetWatermark notFound;

@@ -32,12 +32,11 @@ namespace corokafka {
 using namespace std::placeholders;
 
 ProducerManagerImpl::ProducerManagerImpl(quantum::Dispatcher& dispatcher,
-                                         ConnectorConfiguration connectorConfiguration,
+                                         const ConnectorConfiguration& connectorConfiguration,
                                          const ConfigMap& configs,
                                          std::atomic_bool& interrupt) :
     _dispatcher(dispatcher),
-    _connectorConfiguration(std::move(connectorConfiguration)),
-    _interrupt(interrupt),
+    _connectorConfiguration(connectorConfiguration),
     _shutdownInitiated{false},
     _shutdownIoWaitTimeoutMs(connectorConfiguration.getShutdownIoWaitTimeout())
 {
@@ -45,7 +44,7 @@ ProducerManagerImpl::ProducerManagerImpl(quantum::Dispatcher& dispatcher,
     for (const auto& entry : configs) {
         // Process each configuration
         auto it = _producers.emplace(entry.first, ProducerTopicEntry(nullptr,
-                                                                     connectorConfiguration,
+                                                                     _connectorConfiguration,
                                                                      entry.second,
                                                                      interrupt,
                                                                      _dispatcher.getNumIoThreads()));
@@ -62,12 +61,11 @@ ProducerManagerImpl::ProducerManagerImpl(quantum::Dispatcher& dispatcher,
 }
 
 ProducerManagerImpl::ProducerManagerImpl(quantum::Dispatcher& dispatcher,
-                                         ConnectorConfiguration connectorConfiguration,
+                                         const ConnectorConfiguration& connectorConfiguration,
                                          ConfigMap&& configs,
                                          std::atomic_bool& interrupt) :
     _dispatcher(dispatcher),
-    _connectorConfiguration(std::move(connectorConfiguration)),
-    _interrupt(interrupt),
+    _connectorConfiguration(connectorConfiguration),
     _shutdownInitiated{false},
     _shutdownIoWaitTimeoutMs(connectorConfiguration.getShutdownIoWaitTimeout())
 {
@@ -75,7 +73,7 @@ ProducerManagerImpl::ProducerManagerImpl(quantum::Dispatcher& dispatcher,
     for (auto&& entry : configs) {
         // Process each configuration
         auto it = _producers.emplace(entry.first, ProducerTopicEntry(nullptr,
-                                                                     connectorConfiguration,
+                                                                     _connectorConfiguration,
                                                                      std::move(entry.second),
                                                                      interrupt,
                                                                      _dispatcher.getNumIoThreads()));
@@ -292,6 +290,16 @@ std::vector<std::string> ProducerManagerImpl::getTopics() const
         topics.emplace_back(entry.first);
     }
     return topics;
+}
+
+DeliveryReport ProducerManagerImpl::send()
+{
+    return {};
+}
+
+quantum::GenericFuture<DeliveryReport> ProducerManagerImpl::post()
+{
+    return {};
 }
 
 bool ProducerManagerImpl::waitForAcks(const std::string& topic)

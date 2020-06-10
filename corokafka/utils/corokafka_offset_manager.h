@@ -142,7 +142,7 @@ private:
                   int partition);
     
     static const OffsetWatermark&
-    findWatermark(const Metadata::OffsetWatermarkList& watermarks,
+    findWatermark(const OffsetWatermarkList& watermarks,
                   int partition);
     
     void queryOffsetsFromBroker(const std::string& topic,

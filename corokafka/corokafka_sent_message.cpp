@@ -15,6 +15,7 @@
 */
 #include <corokafka/corokafka_sent_message.h>
 #include <corokafka/corokafka_exception.h>
+#include <corokafka/impl/corokafka_sent_message_impl.h>
 
 namespace Bloomberg {
 namespace corokafka {
@@ -24,102 +25,83 @@ namespace corokafka {
 //====================================================================================
 SentMessage::SentMessage(const cppkafka::Message& kafkaMessage,
                          const void* opaque) :
-    _message(&kafkaMessage),
-    _builder(nullptr),
-    _error(kafkaMessage.get_error()),
-    _opaque(opaque)
+    ImplType(std::make_shared<SentMessageImpl>(kafkaMessage, opaque))
 {
 }
 
 SentMessage::SentMessage(const cppkafka::MessageBuilder& builder,
                          cppkafka::Error error,
                          const void* opaque) :
-    _message(nullptr),
-    _builder(&builder),
-    _error(error),
-    _opaque(opaque)
+    ImplType(std::make_shared<SentMessageImpl>(builder, error, opaque))
 {
 }
 
 uint64_t SentMessage::getHandle() const
 {
-    return _message ? reinterpret_cast<uint64_t>(_message->get_handle()) : 0;
+    return impl()->getHandle();
 }
 
 const cppkafka::Buffer& SentMessage::getKeyBuffer() const
 {
-    return _message ? _message->get_key() : _builder->key();
+    return impl()->getKeyBuffer();
 }
 
-const IMessage::HeaderListType& SentMessage::getHeaderList() const
+const cppkafka::Message::HeaderListType& SentMessage::getHeaderList() const
 {
-    return _message ? _message->get_header_list() : _builder->header_list();
+    return impl()->getHeaderList();
 }
 
 const cppkafka::Buffer& SentMessage::getPayloadBuffer() const
 {
-    return _message ? _message->get_payload() : _builder->payload();
+    return impl()->getPayloadBuffer();
 }
 
 cppkafka::Error SentMessage::getError() const
 {
-    return _error;
+    return impl()->getError();
 }
 
 std::string SentMessage::getTopic() const
 {
-    return _message ? _message->get_topic() : _builder->topic();
+    return impl()->getTopic();
 }
 
 int SentMessage::getPartition() const
 {
-    return _message ? _message->get_partition() : _builder->partition();
+    return impl()->getPartition();
 }
 
 int64_t SentMessage::getOffset() const
 {
-    return _message ? _message->get_offset() : static_cast<int64_t>(cppkafka::TopicPartition::OFFSET_INVALID);
+    return impl()->getOffset();
 }
 
 std::chrono::milliseconds SentMessage::getTimestamp() const
 {
-    if (_message) {
-        boost::optional<cppkafka::MessageTimestamp> timestamp = _message->get_timestamp();
-        if (!timestamp) {
-            throw MessageException("Timestamp not set");
-        }
-        return timestamp.get().get_timestamp();
-    }
-    return _builder->timestamp();
+    return impl()->getTimestamp();
 }
 
 SentMessage::operator bool() const
 {
-    return _message ? (bool)*_message : true;
+    return impl()->operator bool();
 }
 
 void* SentMessage::getOpaque() const
 {
-    return const_cast<void*>(_opaque);
+    return impl()->getOpaque();
 }
 
 #if (RD_KAFKA_VERSION >= RD_KAFKA_MESSAGE_STATUS_SUPPORT_VERSION)
 rd_kafka_msg_status_t SentMessage::getStatus() const
 {
-    if (!_message) {
-        throw MessageException("Status not available");
-    }
-    return _message->get_status();
+    return impl()->getStatus();
 }
 #endif
 
 #if RD_KAFKA_VERSION >= RD_KAFKA_MESSAGE_LATENCY_SUPPORT_VERSION
 std::chrono::microseconds SentMessage::getLatency() const
 {
-    if (!_message) {
-        throw MessageException("Latency not available");
-    }
-    return _message->get_latency();
+    return impl()->getLatency();
 }
 #endif
 

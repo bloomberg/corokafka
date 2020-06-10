@@ -16,38 +16,44 @@
 #ifndef BLOOMBERG_COROKAFKA_CONNECTOR_IMPL_H
 #define BLOOMBERG_COROKAFKA_CONNECTOR_IMPL_H
 
-#include <vector>
-#include <map>
-#include <chrono>
 #include <corokafka/corokafka_utils.h>
 #include <corokafka/corokafka_configuration_builder.h>
 #include <corokafka/corokafka_metadata.h>
-#include <corokafka/corokafka_producer_manager.h>
-#include <corokafka/corokafka_consumer_manager.h>
+#include <corokafka/interface/corokafka_iconnector.h>
 #include <quantum/quantum.h>
+#include <vector>
+#include <map>
+#include <chrono>
 
 namespace Bloomberg {
 namespace corokafka {
 
-class ConnectorImpl : public Interruptible,
-                      public ProducerManager,
-                      public ConsumerManager
+class ConnectorImpl : public IConnector,
+                      public Interruptible
 {
 public:
+    explicit ConnectorImpl(const ConfigurationBuilder& builder);
+    explicit ConnectorImpl(ConfigurationBuilder&& builder);
     ConnectorImpl(const ConfigurationBuilder& builder,
                   quantum::Dispatcher& dispatcher);
     ConnectorImpl(ConfigurationBuilder&& builder,
                   quantum::Dispatcher& dispatcher);
-    void shutdown(bool drain,
-                  std::chrono::milliseconds drainTimeout);
+    ~ConnectorImpl() noexcept;
+    ConsumerManager& consumer() final;
+    ProducerManager& producer() final;
+    void shutdown() final;
+    void shutdown(std::chrono::milliseconds drainTimeout) final;
     void poll();
     
 private:
     // members
-    const ConnectorConfiguration    _config;
-    quantum::Dispatcher&            _dispatcher;
-    std::thread                     _pollThread;
-    std::atomic_flag                _shutdownInitiated{false};
+    const ConnectorConfiguration            _connectorConfiguration;
+    std::unique_ptr<quantum::Dispatcher>    _dispatcherPtr;
+    quantum::Dispatcher&                    _dispatcher;
+    std::unique_ptr<ProducerManager>        _producerPtr;
+    std::unique_ptr<ConsumerManager>        _consumerPtr;
+    std::thread                             _pollThread;
+    std::atomic_flag                        _shutdownInitiated{false};
 };
 
 }}

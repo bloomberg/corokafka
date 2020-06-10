@@ -33,7 +33,6 @@ namespace corokafka {
  */
 class ConfigurationBuilder
 {
-    friend class ConnectorImpl;
 public:
     template <typename Config>
     using ConfigMap = std::unordered_map<std::string, Config>;
@@ -77,6 +76,7 @@ public:
     ConnectorConfiguration& connectorConfiguration();
     
 private:
+    friend class ConnectorImpl;
     // Members
     ConnectorConfiguration            _connectorConfiguration;
     ConfigMap<ProducerConfiguration>  _producerConfigurations;

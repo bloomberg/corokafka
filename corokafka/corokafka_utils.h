@@ -17,7 +17,7 @@
 #define BLOOMBERG_COROKAFKA_UTILS_H
 
 #include <corokafka/utils/corokafka_json_builder.h>
-#include <corokafka/third_party/cppkafka/cppkafka.h>
+#include <cppkafka/cppkafka.h>
 #include <quantum/quantum.h>
 #include <functional>
 #include <algorithm>
@@ -27,6 +27,7 @@
 #include <atomic>
 #include <typeinfo>
 #include <cstring>
+#include <stdio.h>
 #if (__GLIBC__ >= 2) && (__GLIBC_MINOR__ >= 12)
 #include <pthread.h> //pthread_setname_np()
 #endif
@@ -59,8 +60,8 @@ class Metadata;
 
 enum class KafkaType : char
 {
-    Consumer,
-    Producer
+    Consumer, ///< A consumer type
+    Producer ///< A producer type
 };
 enum class PartitionStrategy : char
 {
@@ -397,22 +398,13 @@ void setThreadName(std::thread::native_handle_type threadHandle,
                    const char* name, //max 7 letters. 6 letters if threadId >= 10
                    int threadId = -1) //0-99
 {
-    int idx = 0;
-    char buf[16] = {0};
-    std::strncpy(buf, "corokf:", 7); idx += 7;
+    char buf[16];
     if (threadId == -1) {
-        //no digits used for thread id
-        int len = std::min(8, (int)std::strlen(name));
-        std::strncpy(buf+idx, name, len); idx += len;
+        snprintf(buf, 16, "corokf:%.8s", name);
     }
     else {
-        //use 1 digit for string
-        std::string id = std::to_string(threadId);
-        int len = std::min((int)(8-id.length()), (int)std::strlen(name));
-        std::strncpy(buf+idx, name, len); idx += len;
-        std::strncpy(buf+idx, id.c_str(), id.length()); idx += id.length();
+        snprintf(buf, 16, "corokf:%.6s%.2i", name, threadId);
     }
-    buf[idx]=0;
     pthread_setname_np(threadHandle, buf);
 }
 #endif

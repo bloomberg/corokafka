@@ -37,7 +37,6 @@ namespace corokafka {
  */
 class HeaderPack
 {
-    friend class ConsumerManagerImpl;
 public:
     using HeaderNode = std::pair<std::string, boost::any>;
     using ListType = std::deque<HeaderNode>;
@@ -193,6 +192,7 @@ public:
     bool isValid(const std::string& name, size_t relativePosition = 1) const;
     
 private:
+    friend class ConsumerManagerImpl;
     template <typename H>
     HeaderPack& push_front(const std::string& name, H&& header);
     template <typename H>
