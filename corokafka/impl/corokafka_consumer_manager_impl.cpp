@@ -18,6 +18,7 @@
 #include <cmath>
 #include <tuple>
 #include <algorithm>
+#include <iterator>
 
 using namespace std::placeholders;
 
@@ -306,7 +307,7 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
     
     extract(ConsumerConfiguration::Options::pollStrategy, topicEntry._pollStrategy);
     if (topicEntry._pollStrategy == PollStrategy::RoundRobin) {
-        topicEntry._poller = std::make_unique<cppkafka::RoundRobinPollStrategy>(*topicEntry._consumer);
+        topicEntry._roundRobinPoller = std::make_unique<cppkafka::RoundRobinPollStrategy>(*topicEntry._consumer);
     }
     
     //dynamically subscribe or statically assign partitions to this consumer
@@ -327,7 +328,20 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
         topicEntry._pollTimeout = topicEntry._consumer->get_timeout();
     }
     
-    extract(ConsumerConfiguration::Options::minRoundRobinPollTimeoutMs, topicEntry._minRoundRobinPollTimeout);
+    extract(ConsumerConfiguration::Options::minRoundRobinPollTimeoutMs, topicEntry._minPollInterval); //deprecated
+    if (topicEntry._minPollInterval.count() == EnumValue(TimerValues::Disabled)) {
+        extract(ConsumerConfiguration::Options::minPollIntervalMs, topicEntry._minPollInterval);
+    }
+    if (topicEntry._minPollInterval.count() == EnumValue(TimerValues::Disabled)) {
+        //set default value
+        topicEntry._minPollInterval = std::chrono::milliseconds(10);
+    }
+    //The interval cannot be larger than the poll timeout
+    if ((topicEntry._pollTimeout >= std::chrono::milliseconds::zero()) &&
+        ((topicEntry._minPollInterval > topicEntry._pollTimeout) ||
+        (topicEntry._minPollInterval.count() == EnumValue(TimerValues::Unlimited)))) {
+        throw InvalidOptionException(topic, ConsumerConfiguration::Options::minPollIntervalMs, "Must be smaller than poll timeout or -2.");
+    }
 }
 
 ConsumerMetadata ConsumerManagerImpl::getMetadata(const std::string& topic)
@@ -443,7 +457,7 @@ void ConsumerManagerImpl::subscribeImpl(ConsumerTopicEntry& topicEntry,
             throw ConsumerException(topic, "Empty partition assignment");
         }
         if (topicEntry._pollStrategy == PollStrategy::RoundRobin) {
-            topicEntry._poller->assign(assignment);
+            topicEntry._roundRobinPoller->assign(assignment);
         }
         //invoke the assignment callback manually
         ConsumerManagerImpl::assignmentCallback(topicEntry, assignment);
@@ -476,7 +490,7 @@ void ConsumerManagerImpl::unsubscribeImpl(ConsumerTopicEntry& topicEntry)
     if (topicEntry._isSubscribed) {
         if (topicEntry._configuration.getPartitionStrategy() == PartitionStrategy::Static) {
             if (topicEntry._pollStrategy == PollStrategy::RoundRobin) {
-                topicEntry._poller->revoke();
+                topicEntry._roundRobinPoller->revoke();
             }
             //invoke the revocation callback manually
             ConsumerManagerImpl::revocationCallback(topicEntry, topicEntry._consumer->get_assignment());
@@ -648,9 +662,6 @@ void ConsumerManagerImpl::poll()
 {
     auto now = std::chrono::steady_clock::now();
     for (auto&& entry : _consumers) {
-        if (entry.second._interrupt) {
-            continue; //stop polling
-        }
         // Adjust throttling if necessary
         adjustThrottling(entry.second, now);
         
@@ -891,96 +902,33 @@ void ConsumerManagerImpl::report(
 
 MessageBatch ConsumerManagerImpl::messageBatchReceiveTask(ConsumerTopicEntry& entry, IoTracker)
 {
-    if (entry._interrupt) {
-        return {};
-    }
+    MessageBatch batch;
     try {
-        return entry._consumer->poll_batch(entry._readSize, entry._pollTimeout);
-    }
-    catch (const std::exception& ex) {
-        exceptionHandler(ex, entry);
-        return {};
-    }
-}
-
-int ConsumerManagerImpl::messageRoundRobinReceiveTask(quantum::ThreadPromise<MessageContainer>::Ptr promise,
-                                                      ConsumerTopicEntry& entry,
-                                                      IoTracker)
-{
-    try {
-        int readSize = entry._readSize;
-        std::chrono::milliseconds timeout = entry._pollTimeout;
-        std::chrono::milliseconds timeoutPerRound = (timeout.count() == EnumValue(TimerValues::Unlimited)) ?
-                                                    entry._minRoundRobinPollTimeout :
-                                                    std::max(timeout/static_cast<int64_t>(entry._readSize),
-                                                             entry._minRoundRobinPollTimeout);
-        auto endTime = std::chrono::steady_clock::now() + timeout;
-        
-        //Get messages until the batch is filled or until the timeout expires
-        while (((entry._readSize == EnumValue(SizeLimits::Unlimited)) || (readSize > 0)) &&
-               ((timeout.count() == EnumValue(TimerValues::Unlimited)) || (std::chrono::steady_clock::now() < endTime))) {
-            if (entry._interrupt) {
-                //Exit early
-                break;
-            }
-            cppkafka::Message message = entry._poller->poll(std::chrono::milliseconds::zero());
-            if (message) {
-                --readSize;
-                //We have a valid message
-                promise->push(std::move(message));
-            }
-            else {
-                std::this_thread::sleep_for(timeoutPerRound);
-            }
+        if (entry._pollTimeout >= std::chrono::milliseconds::zero()) {
+            //make a single poll
+            batch = entry._consumer->poll_batch(entry._readSize, entry._pollTimeout);
         }
-    }
-    catch (const std::exception& ex) {
-        exceptionHandler(ex, entry);
-    }
-    return promise->closeBuffer();
-}
-
-int ConsumerManagerImpl::messageSerialReceiveTask(quantum::ThreadPromise<MessageContainer>::Ptr promise,
-                                                  ConsumerTopicEntry& entry,
-                                                  IoTracker)
-{
-    try {
-        int readSize = entry._readSize;
-        auto endTime = std::chrono::steady_clock::now() + entry._pollTimeout;
-        
-        //Get messages until the batch is filled or until the timeout expires
-        cppkafka::Message message;
-        while ((entry._readSize == EnumValue(SizeLimits::Unlimited)) || (readSize > 0)) {
-            if (entry._interrupt) {
-                //Exit early
-                break;
-            }
-            //Do a non-blocking poll to see if there are any messages in the queue
-            message = entry._consumer->poll(std::chrono::milliseconds::zero());
-            if (!message) {
-                //Do a blocking poll
-                std::chrono::milliseconds remaining(EnumValue(TimerValues::Unlimited));
-                if (entry._pollTimeout.count() != EnumValue(TimerValues::Unlimited)) {
-                    //calculate the next timeout value
-                    remaining = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - std::chrono::steady_clock::now());
-                    if (remaining < std::chrono::milliseconds::zero()) {
-                        //we have exceeded the poll time
-                        break;
-                    }
+        else {
+            //break the call into smaller chunks so we don't block permanently if shutting down
+            while (!entry._interrupt && (batch.size() < entry._readSize)) {
+                MessageBatch tempBatch = entry._consumer->poll_batch(entry._readSize, entry._minPollInterval);
+                if (batch.empty()) {
+                    std::swap(batch, tempBatch);
                 }
-                message = entry._consumer->poll(remaining);
-            }
-            if (message) {
-                --readSize;
-                //We have a valid message
-                promise->push(std::move(message));
+                else {
+                    //merge batches
+                    batch.reserve(entry._readSize);
+                    batch.insert(batch.end(),
+                                 std::move_iterator(tempBatch.begin()),
+                                 std::move_iterator(tempBatch.end()));
+                }
             }
         }
     }
     catch (const std::exception& ex) {
         exceptionHandler(ex, entry);
     }
-    return promise->closeBuffer();
+    return batch;
 }
 
 DeserializedMessage
@@ -1061,6 +1009,9 @@ int ConsumerManagerImpl::invokeReceiver(ConsumerTopicEntry& entry,
                                         cppkafka::Message&& kafkaMessage,
                                         IoTracker)
 {
+    if (entry._interrupt) {
+        return 0; //nothing to do
+    }
     DeserializedMessage deserializedMessage;
     //pre-process message
     if (entry._preprocess &&
@@ -1104,7 +1055,8 @@ ConsumerManagerImpl::pollCoro(quantum::VoidContextPtr ctx,
         if (entry._pollStrategy == PollStrategy::Serial) {
             future = ctx->postAsyncIo(static_cast<int>(entry._pollIoThreadId),
                                       false,
-                                      messageSerialReceiveTask,
+                                      messageReceiveTask<cppkafka::Consumer>,
+                                      *entry._consumer,
                                       entry,
                                       IoTracker(tracker));
         }
@@ -1112,7 +1064,8 @@ ConsumerManagerImpl::pollCoro(quantum::VoidContextPtr ctx,
             //Round robin
             future = ctx->postAsyncIo(static_cast<int>(entry._pollIoThreadId),
                                       false,
-                                      messageRoundRobinReceiveTask,
+                                      messageReceiveTask<cppkafka::PollStrategyBase>,
+                                      *entry._roundRobinPoller,
                                       entry,
                                       IoTracker(tracker));
         }
@@ -1138,7 +1091,7 @@ void ConsumerManagerImpl::processMessageBatch(quantum::VoidContextPtr ctx,
                                               ConsumerTopicEntry& entry,
                                               MessageBatch&& kafkaMessages)
 {
-    if (kafkaMessages.empty()) {
+    if (kafkaMessages.empty() || entry._interrupt) {
         return; //nothing to do
     }
     if (entry._receiverThread == ThreadType::IO) {

@@ -251,14 +251,14 @@ cppkafka::Error ReceivedMessageImpl<KEY,PAYLOAD,HEADERS>::commit(const void* opa
 
 template <typename KEY, typename PAYLOAD, typename HEADERS>
 cppkafka::Error ReceivedMessageImpl<KEY,PAYLOAD,HEADERS>::commit(ExecMode execMode,
-                                                             const void* opaque)
+                                                                 const void* opaque)
 {
     if (!_message) {
         return RD_KAFKA_RESP_ERR__BAD_MSG;
     }
-    if (_message.is_eof()) {
+    if (_message.get_error()) {
         //nothing to commit
-        return RD_KAFKA_RESP_ERR__PARTITION_EOF;
+        return _message.get_error();
     }
     _opaque = opaque;
     if ((_opaque != nullptr) &&

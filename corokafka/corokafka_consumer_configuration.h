@@ -48,13 +48,14 @@ public:
         static constexpr const char* autoOffsetPersistOnException =     "internal.consumer.auto.offset.persist.on.exception";
         static constexpr const char* autoThrottle =                     "internal.consumer.auto.throttle";
         static constexpr const char* autoThrottleMultiplier =           "internal.consumer.auto.throttle.multiplier";
+        static constexpr const char* batchPrefetch =                    "internal.consumer.batch.prefetch";
         static constexpr const char* commitBackoffStrategy =            "internal.consumer.commit.backoff.strategy";
         static constexpr const char* commitBackoffIntervalMs =          "internal.consumer.commit.backoff.interval.ms";
         static constexpr const char* commitExec =                       "internal.consumer.commit.exec";
         static constexpr const char* commitMaxBackoffMs =               "internal.consumer.commit.max.backoff.ms";
         static constexpr const char* commitNumRetries =                 "internal.consumer.commit.num.retries";
         static constexpr const char* logLevel =                         "internal.consumer.log.level";
-        static constexpr const char* batchPrefetch =                    "internal.consumer.batch.prefetch";
+        static constexpr const char* minPollIntervalMs =                "internal.consumer.min.poll.interval.ms";
         static constexpr const char* offsetPersistStrategy =            "internal.consumer.offset.persist.strategy";
         static constexpr const char* pauseOnStart =                     "internal.consumer.pause.on.start";
         static constexpr const char* pollIoThreadId =                   "internal.consumer.poll.io.thread.id";
@@ -68,7 +69,7 @@ public:
         static constexpr const char* receiveCallbackThreadRangeLow =    "internal.consumer.receive.callback.thread.range.low";
         static constexpr const char* receiveCallbackThreadRangeHigh =   "internal.consumer.receive.callback.thread.range.high";
         static constexpr const char* receiveInvokeThread =              "internal.consumer.receive.invoke.thread";
-        static constexpr const char* minRoundRobinPollTimeoutMs =       "internal.consumer.min.roundrobin.poll.timeout.ms";
+        static constexpr const char* minRoundRobinPollTimeoutMs =       "internal.consumer.min.roundrobin.poll.timeout.ms"; //deprecated
         static constexpr const char* skipUnknownHeaders =               "internal.consumer.skip.unknown.headers";
         static constexpr const char* timeoutMs =                        "internal.consumer.timeout.ms";
         static constexpr const char* startupTimeoutMs =                 "internal.consumer.startup.timeout.ms";

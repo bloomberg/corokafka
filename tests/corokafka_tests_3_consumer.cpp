@@ -155,7 +155,14 @@ TEST(ConsumerConfiguration, InternalConsumerPollTimeoutMs)
 
 TEST(ConsumerConfiguration, InternalConsumerRoundRobinMinPollTimeoutMs)
 {
+    //Deprecated
     testConsumerOption<InvalidOptionException>("InvalidOptionException", "internal.consumer.min.roundrobin.poll.timeout.ms",
+        {{"0",true},{"10",false}});
+}
+
+TEST(ConsumerConfiguration, InternalConsumerMinPollIntervalMs)
+{
+    testConsumerOption<InvalidOptionException>("InvalidOptionException", "internal.consumer.min.poll.interval.ms",
         {{"0",true},{"10",false}});
 }
 
