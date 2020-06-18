@@ -174,7 +174,7 @@ const Callbacks::QueueFullCallback& ProducerConfiguration::getQueueFullCallback(
 const Configuration::OptionExtractorFunc&
 ProducerConfiguration::extract(const std::string& option)
 {
-    return s_internalOptions.at(option);
+    return Configuration::extractOption(s_internalOptions, option);
 }
 
 }

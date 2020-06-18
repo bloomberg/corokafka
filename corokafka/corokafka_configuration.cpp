@@ -335,5 +335,18 @@ cppkafka::LogLevel Configuration::extractLogLevel(const std::string& topic,
     throw InvalidOptionException(topic, optionName, level);
 }
 
+const Configuration::OptionExtractorFunc&
+Configuration::extractOption(const OptionMap& options,
+                             const std::string& option)
+{
+    auto it = options.find(option);
+    if (it == options.end()) {
+        std::ostringstream oss;
+        oss << "Invalid option: " << option;
+        throw std::out_of_range(oss.str());
+    }
+    return it->second;
+}
+
 }
 }

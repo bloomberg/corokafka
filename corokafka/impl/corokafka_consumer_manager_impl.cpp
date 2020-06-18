@@ -561,7 +561,10 @@ cppkafka::Error ConsumerManagerImpl::commitImpl(ConsumerTopicEntry& entry,
                                                 const void* opaque)
 {
     try {
-        const cppkafka::TopicPartition& headPartition = topicPartitions.at(0);
+        if (topicPartitions.empty()) {
+            return RD_KAFKA_RESP_ERR_INVALID_PARTITIONS;
+        }
+        const cppkafka::TopicPartition& headPartition = topicPartitions[0];
         if (entry._committer->get_consumer().get_configuration().get_offset_commit_callback() && (opaque != nullptr)) {
             entry._offsets.insert(headPartition, opaque);
         }
@@ -910,7 +913,7 @@ MessageBatch ConsumerManagerImpl::messageBatchReceiveTask(ConsumerTopicEntry& en
         }
         else {
             //break the call into smaller chunks so we don't block permanently if shutting down
-            while (!entry._interrupt && (batch.size() < entry._readSize)) {
+            while (!entry._interrupt && ((ssize_t)batch.size() < entry._readSize)) {
                 MessageBatch tempBatch = entry._consumer->poll_batch(entry._readSize, entry._minPollInterval);
                 if (batch.empty()) {
                     std::swap(batch, tempBatch);

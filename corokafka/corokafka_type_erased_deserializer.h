@@ -43,9 +43,9 @@ struct TypeErasedDeserializer
         };
     }
     
-    DeserializerPtr                         _keyDeserializer;
-    DeserializerPtr                         _payloadDeserializer;
-    DeserializerMap                         _headerDeserializers;
+    DeserializerPtr                               _keyDeserializer;
+    DeserializerPtr                               _payloadDeserializer;
+    DeserializerMap                               _headerDeserializers;
     std::vector<DeserializerMap::const_iterator>  _headerEntries;
 };
 

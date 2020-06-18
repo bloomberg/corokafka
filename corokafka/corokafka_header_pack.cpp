@@ -140,8 +140,7 @@ size_t HeaderPack::numValidHeaders() const {
 
 bool HeaderPack::isValidAt(size_t index) const
 {
-    const auto& entry = _headers.at(index);
-    return !entry.second.empty();
+    return !_headers.at(index).second.empty();
 }
 
 bool HeaderPack::isValid(const std::string& name, size_t relativePosition) const

@@ -116,10 +116,10 @@ private:
     using InsertReturnType = OffsetMap::InsertReturnType;
     using Iterator = OffsetMap::Iterator;
     struct OffsetRanges {
-        int64_t         _beginOffset{cppkafka::TopicPartition::Offset::OFFSET_INVALID};
-        int64_t         _currentOffset{cppkafka::TopicPartition::Offset::OFFSET_INVALID};
-        quantum::Mutex  _offsetsMutex; //protect offset map
-        OffsetMap       _offsets;
+        int64_t                 _beginOffset{cppkafka::TopicPartition::Offset::OFFSET_INVALID};
+        int64_t                 _currentOffset{cppkafka::TopicPartition::Offset::OFFSET_INVALID};
+        mutable quantum::Mutex  _offsetsMutex; //protect offset map
+        OffsetMap               _offsets;
     };
     using PartitionMap = std::unordered_map<int, OffsetRanges>;
     struct TopicSettings {
@@ -147,6 +147,11 @@ private:
     
     void queryOffsetsFromBroker(const std::string& topic,
                                 TopicSettings& settings);
+    
+    TopicSettings& getTopicSettings(const cppkafka::TopicPartition& partition);
+    
+    OffsetRanges& getOffsetRanges(TopicSettings& settings,
+                                  const cppkafka::TopicPartition& partition);
     
     template <typename...EXEC_MODE>
     cppkafka::Error saveOffsetImpl(const cppkafka::TopicPartition& offset,
@@ -188,8 +193,7 @@ cppkafka::Error OffsetManager::saveOffsetImpl(const cppkafka::TopicPartition& of
         if (offset.get_offset() < 0) {
             return RD_KAFKA_RESP_ERR_OFFSET_OUT_OF_RANGE;
         }
-        TopicSettings& settings = _topicMap.at(offset.get_topic());
-        OffsetRanges& ranges = settings._partitions.at(offset.get_partition());
+        OffsetRanges& ranges = getOffsetRanges(getTopicSettings(offset), offset);
         Range<int64_t> range(-1,-1);
         {//locked scope
             quantum::Mutex::Guard guard(quantum::local::context(), ranges._offsetsMutex);
@@ -254,8 +258,7 @@ cppkafka::Error OffsetManager::forceCommitPartitionImpl(const cppkafka::TopicPar
 {
     try {
         Range<int64_t> range(-1,-1);
-        TopicSettings& settings = _topicMap.at(partition.get_topic());
-        OffsetRanges& ranges = settings._partitions.at(partition.get_partition());
+        OffsetRanges& ranges = getOffsetRanges(getTopicSettings(partition), partition);
         { //locked scope
             quantum::Mutex::Guard guard(quantum::local::context(), ranges._offsetsMutex);
             Iterator it = ranges._offsets.begin();
