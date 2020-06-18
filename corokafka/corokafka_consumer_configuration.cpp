@@ -262,6 +262,13 @@ const Configuration::OptionMap ConsumerConfiguration::s_internalOptions = {
         if (value) *reinterpret_cast<std::chrono::milliseconds*>(value) = temp;
         return true;
      }},
+     {Options::minPollIntervalMs,
+     [](const std::string& topic, const cppkafka::ConfigurationOption* option, void* value)->bool{
+        if (!option) return false;
+        std::chrono::milliseconds temp{Configuration::extractCounterValue(topic, Options::minPollIntervalMs, *option, 1)};
+        if (value) *reinterpret_cast<std::chrono::milliseconds*>(value) = temp;
+        return true;
+     }},
     {Options::skipUnknownHeaders,
      [](const std::string& topic, const cppkafka::ConfigurationOption* option, void* value)->bool{
         if (!option) return false;

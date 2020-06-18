@@ -149,12 +149,12 @@ public:
     
     //Coroutines and async IO
     static MessageBatch messageBatchReceiveTask(ConsumerTopicEntry& entry, IoTracker);
-    static int messageRoundRobinReceiveTask(quantum::ThreadPromise<MessageContainer>::Ptr promise,
-                                            ConsumerTopicEntry& entry,
-                                            IoTracker);
-    static int messageSerialReceiveTask(quantum::ThreadPromise<MessageContainer>::Ptr promise,
-                                        ConsumerTopicEntry& entry,
-                                        IoTracker);
+
+    template <typename POLLER>
+    static int messageReceiveTask(quantum::ThreadPromise<MessageContainer>::Ptr promise,
+                                  POLLER& poller,
+                                  ConsumerTopicEntry& entry,
+                                  IoTracker);
     static int pollCoro(quantum::VoidContextPtr ctx,
                         ConsumerTopicEntry& entry,
                         IoTracker);
@@ -234,6 +234,36 @@ private:
     std::atomic_flag                _shutdownInitiated{false};
     std::chrono::milliseconds       _shutdownIoWaitTimeoutMs{2000};
 };
+
+template <typename POLLER>
+int ConsumerManagerImpl::messageReceiveTask(quantum::ThreadPromise<MessageContainer>::Ptr promise,
+                                            POLLER& poller,
+                                            ConsumerTopicEntry& entry,
+                                            IoTracker)
+{
+    try {
+        int readSize = entry._readSize;
+        auto endTime = std::chrono::steady_clock::now() + entry._pollTimeout;
+        auto timeout = (entry._minPollInterval.count() == EnumValue(TimerValues::Disabled)) ?
+                entry._pollTimeout : entry._minPollInterval;
+        
+        //Get messages until the batch is filled or until the timeout expires
+        while (((entry._readSize == EnumValue(SizeLimits::Unlimited)) || (readSize > 0)) &&
+               ((entry._pollTimeout.count() == EnumValue(TimerValues::Unlimited)) || (std::chrono::steady_clock::now() < endTime)) &&
+               !entry._interrupt) {
+            cppkafka::Message message = poller.poll(timeout);
+            if (message) {
+                --readSize;
+                //We have a valid message
+                promise->push(std::move(message));
+            }
+        }
+    }
+    catch (const std::exception& ex) {
+        exceptionHandler(ex, entry);
+    }
+    return promise->closeBuffer();
+}
 
 }}
 

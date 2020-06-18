@@ -1,6 +1,7 @@
 # Configuration
 
 The following configuration options are complementary to the RdKafka [options](https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md) and affect exclusively the functionality of this library.
+**Note that values `-1` and `-2` carry special meanings.**
           
 ## Connector configuration
 
@@ -19,7 +20,8 @@ The following configuration options are complementary to the RdKafka [options](h
 | internal.consumer.timeout.ms | \>= -1 | 1000 | Sets the timeout on any operations requiring a timeout such as poll, query offsets, etc. Set to **-1** for infinite timeout. |
 | internal.consumer.startup.timeout.ms | \>= -1 | 1000 | Sets the timeout on startup operations such as partition assignment and subscriptions in cases when brokers may take longer to come up. |
 | internal.consumer.poll.timeout.ms | \>= -1 | N/A | If set, overrides the 'internal.consumer.timeout.ms' default setting for polling only. Set to **-1** for infinite timeout. |
-| internal.consumer.auto.offset.persist | true, false | false | Enables auto-commit/auto-store inside the `ReceivedMessage` destructor. |
+| internal.consumer.min.poll.interval.ms | -2, \> 0 | 10 | Recurring time interval for which to block and wait for messages. This allows for faster shutdown detection. The cumulative time for all intervals shall not exceed **internal.consumer.poll.timeout.ms**. To disable, set to **-2**. If **internal.consumer.poll.timeout.ms** is infinite, this interval cannot be disabled. |
+| internal.consumer.auto.offset.persist | true, false | true | Enables auto-commit/auto-store inside the `ReceivedMessage` destructor. |
 | internal.consumer.auto.offset.persist.on.exception | true, false | false | Dictates if the offset persist should be aborted as a result of an exception. This could allow the application to reprocess a message following an exception. This is only valid if **internal.consumer.auto.offset.persist=true**. |
 | internal.consumer.offset.persist.strategy | commit, store | store | Determines if offsets are committed or stored locally. Some RdKafka settings will be changed according to **note 2** below. If **store** is chosen, **auto.commit.interval.ms > 0** must be set. Note that the **store** option is only valid for RdKafka versions >= **0.9.5.1** |
 | internal.consumer.commit.exec | sync, async | async | Dictates if offset commits should be synchronous or asynchronous. |
@@ -28,7 +30,7 @@ The following configuration options are complementary to the RdKafka [options](h
 | internal.consumer.commit.backoff.interval.ms | \> 0 | 100 | Time in ms between retries. |
 | internal.consumer.commit.max.backoff.ms | \>= **internal.consumer.commit.backoff.interval.ms** | 1000 | Maximum back-off time for retries. If set, this has higher precedence than **internal.consumer.commit.num.retries**. |
 | internal.consumer.poll.strategy | batch, serial, roundrobin | serial | Determines how messages are read from RdKafka queues. The **batch** strategy is to read the entire batch of messages from the main consumer queue and is more _performant_. If **roundrobin** strategy is selected, messages are read in round-robin fashion from each partition at a time. In this mode, the **timeout.ms** and **poll.timeout.ms** are divided by the **read.size** up to a minimum of **roundrobin.min.timeout.ms**. |
-| internal.consumer.roundrobin.min.poll.timeout.ms | \> 0 | 10 | Minimum poll timeout when consuming messages in **roundrobin** mode. |
+| internal.consumer.roundrobin.min.poll.timeout.ms | \> 0 | 10 | Deprecated. See **internal.consumer.poll.interval.timeout.ms** |
 | internal.consumer.read.size | -1, \> 0 | 100 | Number of messages to read on each poll interval. In **roundrobin** or **serial** mode, setting this to -1 will block the **internal.consumer.poll.io.thread.id** thread exclusively for polling until the Consumer is destroyed. See `ConnectorConfiguration::setPollInterval()` for more details.|
 | internal.consumer.message.prefetch | true, false | false | If **internal.consumer.poll.strategy=batch**, start pre-fetching the next series of messages while processing the current ones. This increases performance but may cause additional burden on the broker. |
 | internal.consumer.receive.callback.thread.range.low | [0, \<quantum_IO_threads\>) | 0 | Specifies the lowest thread id on which receive callbacks will be called. See **note 1** below for more details. |

@@ -84,10 +84,10 @@ struct ConsumerTopicEntry {
     cppkafka::Queue                 _eventQueue; //queue event polling
     cppkafka::TopicPartitionList    _partitionAssignment;
     CommitterPtr                    _committer;
-    PollStrategyBasePtr             _poller;
+    PollStrategyBasePtr             _roundRobinPoller;
     PollStrategy                    _pollStrategy{PollStrategy::Serial};
     OffsetMap                       _offsets;
-    OffsetWatermarkList   _watermarks;
+    OffsetWatermarkList             _watermarks;
     bool                            _enableWatermarkCheck{false};
     std::atomic_bool                _isPaused{false};
     bool                            _setOffsetsOnStart{true};
@@ -98,7 +98,7 @@ struct ConsumerTopicEntry {
     quantum::IQueue::QueueId        _processCoroThreadId{quantum::IQueue::QueueId::Any};
     quantum::IQueue::QueueId        _pollIoThreadId{quantum::IQueue::QueueId::Any};
     std::chrono::milliseconds       _pollTimeout{EnumValue(TimerValues::Disabled)};
-    std::chrono::milliseconds       _minRoundRobinPollTimeout{10};
+    std::chrono::milliseconds       _minPollInterval{EnumValue(TimerValues::Disabled)};
     std::pair<int,int>              _coroQueueIdRangeForAny;
     int                             _numIoThreads;
     std::pair<int,int>              _receiveCallbackThreadRange;
