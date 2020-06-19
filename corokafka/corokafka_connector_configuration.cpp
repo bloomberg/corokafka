@@ -110,7 +110,7 @@ const Callbacks::ConnectorLogCallback& ConnectorConfiguration::getLogCallback() 
 const Configuration::OptionExtractorFunc&
 ConnectorConfiguration::extract(const std::string& option)
 {
-    return s_internalOptions.at(option);
+    return Configuration::extractOption(s_internalOptions, option);
 }
 
 }

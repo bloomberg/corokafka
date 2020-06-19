@@ -156,8 +156,7 @@ cppkafka::Error OffsetManager::saveOffset(const cppkafka::TopicPartition& offset
 
 cppkafka::TopicPartition OffsetManager::getCurrentOffset(const cppkafka::TopicPartition& partition)
 {
-    TopicSettings& settings = _topicMap.at(partition.get_topic());
-    OffsetRanges& ranges = settings._partitions.at(partition.get_partition());
+    const OffsetRanges& ranges = getOffsetRanges(getTopicSettings(partition), partition);
     quantum::Mutex::Guard guard(quantum::local::context(), ranges._offsetsMutex);
     return cppkafka::TopicPartition(partition.get_topic(),
                                     partition.get_partition(),
@@ -166,8 +165,7 @@ cppkafka::TopicPartition OffsetManager::getCurrentOffset(const cppkafka::TopicPa
 
 cppkafka::TopicPartition OffsetManager::getBeginOffset(const cppkafka::TopicPartition& partition)
 {
-    TopicSettings& settings = _topicMap.at(partition.get_topic());
-    OffsetRanges& ranges = settings._partitions.at(partition.get_partition());
+    const OffsetRanges& ranges = getOffsetRanges(getTopicSettings(partition), partition);
     //NOTE: no need to lock here as the begin offset is read-only
     return cppkafka::TopicPartition(partition.get_topic(),
                                     partition.get_partition(),
@@ -247,6 +245,31 @@ void OffsetManager::resetPartitionOffsets(const std::string& topic)
     TopicSettings& topicSettings = _topicMap[topic];
     topicSettings._partitions.clear();
     queryOffsetsFromBroker(topic, topicSettings);
+}
+
+OffsetManager::TopicSettings&
+OffsetManager::getTopicSettings(const cppkafka::TopicPartition& partition)
+{
+    auto it = _topicMap.find(partition.get_topic());
+    if (it == _topicMap.end()) {
+        std::ostringstream oss;
+        oss << "Unknown topic: " << partition.get_topic();
+        throw std::out_of_range(oss.str());
+    }
+    return it->second;
+}
+
+OffsetManager::OffsetRanges&
+OffsetManager::getOffsetRanges(TopicSettings& settings,
+                               const cppkafka::TopicPartition& partition)
+{
+    auto it = settings._partitions.find(partition.get_partition());
+    if (it == settings._partitions.end()) {
+        std::ostringstream oss;
+        oss << "Unknown partition: " << partition.get_partition();
+        throw std::out_of_range(oss.str());
+    }
+    return it->second;
 }
 
 }}

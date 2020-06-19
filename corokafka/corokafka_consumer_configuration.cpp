@@ -360,7 +360,7 @@ const Receiver& ConsumerConfiguration::getTypeErasedReceiver() const
 const Configuration::OptionExtractorFunc&
 ConsumerConfiguration::extract(const std::string& option)
 {
-    return s_internalOptions.at(option);
+    return Configuration::extractOption(s_internalOptions, option);
 }
 
 }

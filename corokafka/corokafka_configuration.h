@@ -114,6 +114,9 @@ protected:
     static cppkafka::LogLevel extractLogLevel(const std::string& topic,
                                               const char* optionName,
                                               const std::string &level);
+    static const OptionExtractorFunc& extractOption(const OptionMap& options,
+                                                    const std::string& option);
+    
     // Members
     std::array<OptionList, 3>  _options; //indexed by OptionType
 };
