@@ -395,9 +395,9 @@ cppkafka::Error ReceivedMessageImpl<KEY,PAYLOAD,HEADERS>::doCommit(ExecMode exec
         if (!_message) {
             return RD_KAFKA_RESP_ERR__BAD_MSG;
         }
-        if (_message.is_eof()) {
+        if (_message.get_error()) {
             //nothing to commit
-            return RD_KAFKA_RESP_ERR__PARTITION_EOF;
+            return _message.get_error();
         }
         if (_offsetSettings._autoOffsetPersistStrategy == OffsetPersistStrategy::Commit) {
             if (execMode == ExecMode::Sync) {
