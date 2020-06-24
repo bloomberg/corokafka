@@ -428,7 +428,9 @@ void ConsumerManagerImpl::subscribe(const std::string& topic,
 void ConsumerManagerImpl::subscribeImpl(ConsumerTopicEntry& topicEntry,
                                         const cppkafka::TopicPartitionList& partitionList)
 {
-    if (topicEntry._isSubscribed) {
+    quantum::Mutex::Guard lock(quantum::local::context(),
+                               topicEntry._subscription._mutex);
+    if (topicEntry._subscription._isSubscribed) {
         return; //nothing to do
     }
     //process partitions and make sure offsets are valid
@@ -448,7 +450,7 @@ void ConsumerManagerImpl::subscribeImpl(ConsumerTopicEntry& topicEntry,
     }
     if (assignment.empty()) {
         //use updated current assignment
-        assignment = topicEntry._partitionAssignment;
+        assignment = topicEntry._subscription._partitionAssignment;
     }
     //assign or subscribe
     if (topicEntry._configuration.getPartitionStrategy() == PartitionStrategy::Static) {
@@ -460,14 +462,14 @@ void ConsumerManagerImpl::subscribeImpl(ConsumerTopicEntry& topicEntry,
             topicEntry._roundRobinPoller->assign(assignment);
         }
         //invoke the assignment callback manually
-        ConsumerManagerImpl::assignmentCallback(topicEntry, assignment);
+        ConsumerManagerImpl::assignmentCallbackImpl(topicEntry, assignment);
         topicEntry._consumer->assign(assignment);
     }
     else { //Dynamic strategy
         if (!assignment.empty()) {
-            topicEntry._setOffsetsOnStart = true;
+            topicEntry._subscription._setOffsetsOnStart = true;
             //overwrite original if any so that offsets may be used when the assignment callback is invoked
-            topicEntry._partitionAssignment = assignment;
+            topicEntry._subscription._partitionAssignment = assignment;
         }
         topicEntry._consumer->subscribe({topic});
     }
@@ -487,18 +489,21 @@ void ConsumerManagerImpl::unsubscribe(const std::string& topic)
 
 void ConsumerManagerImpl::unsubscribeImpl(ConsumerTopicEntry& topicEntry)
 {
-    if (topicEntry._isSubscribed) {
-        if (topicEntry._configuration.getPartitionStrategy() == PartitionStrategy::Static) {
-            if (topicEntry._pollStrategy == PollStrategy::RoundRobin) {
-                topicEntry._roundRobinPoller->revoke();
-            }
-            //invoke the revocation callback manually
-            ConsumerManagerImpl::revocationCallback(topicEntry, topicEntry._consumer->get_assignment());
-            topicEntry._consumer->unassign();
+    quantum::Mutex::Guard lock(quantum::local::context(),
+                               topicEntry._subscription._mutex);
+    if (!topicEntry._subscription._isSubscribed) {
+        return;
+    }
+    if (topicEntry._configuration.getPartitionStrategy() == PartitionStrategy::Static) {
+        if (topicEntry._pollStrategy == PollStrategy::RoundRobin) {
+            topicEntry._roundRobinPoller->revoke();
         }
-        else {
-            topicEntry._consumer->unsubscribe();
-        }
+        //invoke the revocation callback manually
+        ConsumerManagerImpl::revocationCallbackImpl(topicEntry, topicEntry._consumer->get_assignment());
+        topicEntry._consumer->unassign();
+    }
+    else {
+        topicEntry._consumer->unsubscribe();
     }
 }
 
@@ -826,14 +831,23 @@ void ConsumerManagerImpl::assignmentCallback(
                         ConsumerTopicEntry& topicEntry,
                         cppkafka::TopicPartitionList& topicPartitions)
 {
+    quantum::Mutex::Guard lock(quantum::local::context(),
+                               topicEntry._subscription._mutex);
+    assignmentCallbackImpl(topicEntry, topicPartitions);
+}
+
+void ConsumerManagerImpl::assignmentCallbackImpl(
+                        ConsumerTopicEntry& topicEntry,
+                        cppkafka::TopicPartitionList& topicPartitions)
+{
+    topicEntry._subscription._isSubscribed = true;
     // Clear any throttling we may have
-    topicEntry._isSubscribed = true;
     topicEntry._throttleControl.reset();
     PartitionStrategy strategy = topicEntry._configuration.getPartitionStrategy();
     if ((strategy == PartitionStrategy::Dynamic) &&
-        !topicEntry._partitionAssignment.empty() &&
-        topicEntry._setOffsetsOnStart) {
-        topicEntry._setOffsetsOnStart = false;
+        !topicEntry._subscription._partitionAssignment.empty() &&
+        topicEntry._subscription._setOffsetsOnStart) {
+        topicEntry._subscription._setOffsetsOnStart = false;
         //perform first offset assignment based on user config
         for (auto&& partition : topicPartitions) {
             auto it = std::find_if(topicEntry._configuration.getInitialPartitionAssignment().begin(),
@@ -846,7 +860,7 @@ void ConsumerManagerImpl::assignmentCallback(
             }
         }
     }
-    topicEntry._partitionAssignment = topicPartitions; //overwrite original if any
+    topicEntry._subscription._partitionAssignment = topicPartitions; //overwrite original if any
     cppkafka::CallbackInvoker<Callbacks::RebalanceCallback>
         ("assignment", topicEntry._configuration.getRebalanceCallback(), topicEntry._consumer.get())
             (makeMetadata(topicEntry), cppkafka::Error(RD_KAFKA_RESP_ERR__ASSIGN_PARTITIONS), topicPartitions);
@@ -856,9 +870,17 @@ void ConsumerManagerImpl::revocationCallback(
                         ConsumerTopicEntry& topicEntry,
                         const cppkafka::TopicPartitionList& topicPartitions)
 {
-    topicEntry._isSubscribed = false;
+    quantum::Mutex::Guard lock(quantum::local::context(),
+                               topicEntry._subscription._mutex);
+    revocationCallbackImpl(topicEntry, topicPartitions);
+}
+
+void ConsumerManagerImpl::revocationCallbackImpl(
+                        ConsumerTopicEntry& topicEntry,
+                        const cppkafka::TopicPartitionList& topicPartitions)
+{
+    topicEntry._subscription.reset();
     PartitionStrategy strategy = topicEntry._configuration.getPartitionStrategy();
-    topicEntry._partitionAssignment.clear(); //clear assignment
     topicEntry._watermarks.clear(); //clear offset watermarks
     cppkafka::CallbackInvoker<Callbacks::RebalanceCallback>
         ("revocation", topicEntry._configuration.getRebalanceCallback(), topicEntry._consumer.get())
@@ -869,9 +891,17 @@ void ConsumerManagerImpl::rebalanceErrorCallback(
                         ConsumerTopicEntry& topicEntry,
                         cppkafka::Error error)
 {
-    topicEntry._isSubscribed = false;
+    quantum::Mutex::Guard lock(quantum::local::context(),
+                               topicEntry._subscription._mutex);
+    rebalanceErrorCallbackImpl(topicEntry, error);
+}
+
+void ConsumerManagerImpl::rebalanceErrorCallbackImpl(
+                        ConsumerTopicEntry& topicEntry,
+                        cppkafka::Error error)
+{
+    topicEntry._subscription.reset();
     PartitionStrategy strategy = topicEntry._configuration.getPartitionStrategy();
-    topicEntry._partitionAssignment.clear(); //clear assignment
     topicEntry._watermarks.clear(); //clear offset watermarks
     cppkafka::TopicPartitionList topicPartitions;
     cppkafka::CallbackInvoker<Callbacks::RebalanceCallback>
@@ -958,39 +988,58 @@ ConsumerManagerImpl::deserializeMessage(ConsumerTopicEntry& entry,
     
     //Deserialize the headers if any
     HeaderPack headers(deserializer._headerEntries.size());
+    using Header = cppkafka::Header<cppkafka::Buffer>;
+    const cppkafka::HeaderList<Header>& kafkaHeaders = kafkaMessage.get_header_list();
+    std::vector<const Header*> unknownHeaders;
+    unknownHeaders.reserve(kafkaHeaders.size());
     int num = 0;
-    const cppkafka::HeaderList<cppkafka::Header<cppkafka::Buffer>>& kafkaHeaders = kafkaMessage.get_header_list();
     for (const auto& header : kafkaHeaders) {
-        try {
-            const TypeErasedDeserializer::HeaderEntry& headerEntry = deserializer._headerDeserializers.at(header.get_name());
-            headers[headerEntry._pos].first = header.get_name();
-            headers[headerEntry._pos].second = cppkafka::CallbackInvoker<Deserializer>("header_deserializer",
-                                                                                       *headerEntry._deserializer,
-                                                                                       entry._consumer.get())
-                                                                         (toppar, header.get_value());
-            if (headers[headerEntry._pos].second.empty()) {
-                // Decoding failed
-                de._error = RD_KAFKA_RESP_ERR__VALUE_DESERIALIZATION;
-                de.setError(DeserializerError::Source::Header);
-                de._headerNum = num;
-                std::ostringstream oss;
-                oss << "Failed to deserialize header: " << header.get_name();
-                report(entry, cppkafka::LogLevel::LogErr, RD_KAFKA_RESP_ERR__VALUE_DESERIALIZATION, oss.str(), &kafkaMessage);
-                break;
-            }
-        }
-        catch (const std::exception& ex) {
+        //Find appropriate deserializer
+        auto deserIter = deserializer._headerDeserializers.find(header.get_name());
+        if (deserIter == deserializer._headerDeserializers.end()) {
             if (entry._skipUnknownHeaders) {
-                report(entry, cppkafka::LogLevel::LogWarning, {}, ex.what(), &kafkaMessage);
+                unknownHeaders.push_back(&header);
                 continue;
             }
+            //Always log error
+            std::ostringstream oss;
+            oss << "Unknown headers found in topic " << toppar.get_topic() << ": " << header.get_name();
             de._error = RD_KAFKA_RESP_ERR__NOT_IMPLEMENTED;
             de.setError(DeserializerError::Source::Header);
             de._headerNum = num;
-            report(entry, cppkafka::LogLevel::LogErr, RD_KAFKA_RESP_ERR__NOT_IMPLEMENTED, ex.what(), &kafkaMessage);
+            report(entry, cppkafka::LogLevel::LogErr, RD_KAFKA_RESP_ERR__NOT_IMPLEMENTED, oss.str(), &kafkaMessage);
+            break;
+        }
+        //Decode header
+        const TypeErasedDeserializer::HeaderEntry& headerEntry = deserIter->second;
+        headers[headerEntry._pos].first = header.get_name();
+        headers[headerEntry._pos].second = cppkafka::CallbackInvoker<Deserializer>("header_deserializer",
+                                                                                   *headerEntry._deserializer,
+                                                                                   entry._consumer.get())
+                                                                     (toppar, header.get_value());
+        if (headers[headerEntry._pos].second.empty()) {
+            // Decoding failed
+            de._error = RD_KAFKA_RESP_ERR__VALUE_DESERIALIZATION;
+            de.setError(DeserializerError::Source::Header);
+            de._headerNum = num;
+            std::ostringstream oss;
+            oss << "Failed to deserialize header: " << header.get_name();
+            report(entry, cppkafka::LogLevel::LogErr, RD_KAFKA_RESP_ERR__VALUE_DESERIALIZATION, oss.str(), &kafkaMessage);
             break;
         }
         ++num;
+    }
+    //Output a warning for all unknown headers
+    if (!unknownHeaders.empty()) {
+        std::ostringstream oss;
+        oss << "Unknown headers found in topic " << toppar.get_topic() << ": ";
+        for (size_t h = 0; h < unknownHeaders.size(); ++h) {
+            oss << unknownHeaders[h]->get_name();
+            if (h != unknownHeaders.size()-1) {
+                oss << ",";
+            }
+        }
+        report(entry, cppkafka::LogLevel::LogWarning, RD_KAFKA_RESP_ERR__NOT_IMPLEMENTED, oss.str(), &kafkaMessage);
     }
     
     //Deserialize the payload
