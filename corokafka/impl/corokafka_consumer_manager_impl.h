@@ -133,10 +133,16 @@ public:
                                      const cppkafka::Message& rawMessage);
     static void assignmentCallback(ConsumerTopicEntry& topicEntry,
                                    cppkafka::TopicPartitionList& topicPartitions);
+    static void assignmentCallbackImpl(ConsumerTopicEntry& topicEntry,
+                                       cppkafka::TopicPartitionList& topicPartitions);
     static void revocationCallback(ConsumerTopicEntry& topicEntry,
                                    const cppkafka::TopicPartitionList& topicPartitions);
+    static void revocationCallbackImpl(ConsumerTopicEntry& topicEntry,
+                                       const cppkafka::TopicPartitionList& topicPartitions);
     static void rebalanceErrorCallback(ConsumerTopicEntry& topicEntry,
                                        cppkafka::Error error);
+    static void rebalanceErrorCallbackImpl(ConsumerTopicEntry& topicEntry,
+                                           cppkafka::Error error);
     //log + error callback wrapper
     static void report(ConsumerTopicEntry& topicEntry,
                        cppkafka::LogLevel level,

@@ -46,6 +46,19 @@ enum class Field : int {
     Error = 3
 };
 
+struct Subscription
+{
+    void reset() {
+        _partitionAssignment.clear();
+        _setOffsetsOnStart = true;
+        _isSubscribed = false;
+    }
+    cppkafka::TopicPartitionList    _partitionAssignment;
+    bool                            _setOffsetsOnStart{true};
+    bool                            _isSubscribed{false};
+    mutable quantum::Mutex          _mutex;
+};
+
 struct ConsumerTopicEntry {
     ConsumerTopicEntry(ConsumerPtr consumer,
                        const ConnectorConfiguration& connectorConfiguration,
@@ -57,24 +70,26 @@ struct ConsumerTopicEntry {
         _configuration(std::move(configuration)),
         _consumer(std::move(consumer)),
         _interrupt(interrupt),
-        _partitionAssignment(_configuration.getInitialPartitionAssignment()),
         _coroQueueIdRangeForAny(std::move(coroQueueIdRangeForAny)),
         _numIoThreads(numIoThreads),
         _receiveCallbackThreadRange(0, numIoThreads-1),
         _ioTracker(std::make_shared<int>(0))
-    {}
+    {
+        _subscription._partitionAssignment = _configuration.getInitialPartitionAssignment();
+    }
     ConsumerTopicEntry(const ConsumerTopicEntry&) = delete;
     ConsumerTopicEntry(ConsumerTopicEntry&& other) noexcept :
         _connectorConfiguration(other._connectorConfiguration),
         _configuration(std::move(other._configuration)),
         _consumer(std::move(other._consumer)),
         _interrupt(other._interrupt),
-        _partitionAssignment(std::move(other._partitionAssignment)),
         _coroQueueIdRangeForAny(std::move(other._coroQueueIdRangeForAny)),
         _numIoThreads(other._numIoThreads),
         _receiveCallbackThreadRange(std::move(other._receiveCallbackThreadRange)),
         _ioTracker(std::move(other._ioTracker))
-    {}
+    {
+        _subscription._partitionAssignment = std::move(other._subscription._partitionAssignment);
+    }
     
     //Members
     const ConnectorConfiguration&   _connectorConfiguration;
@@ -82,16 +97,14 @@ struct ConsumerTopicEntry {
     ConsumerPtr                     _consumer;
     std::atomic_bool&               _interrupt;
     cppkafka::Queue                 _eventQueue; //queue event polling
-    cppkafka::TopicPartitionList    _partitionAssignment;
     CommitterPtr                    _committer;
     PollStrategyBasePtr             _roundRobinPoller;
     PollStrategy                    _pollStrategy{PollStrategy::Serial};
+    Subscription                    _subscription;
     OffsetMap                       _offsets;
     OffsetWatermarkList             _watermarks;
     bool                            _enableWatermarkCheck{false};
     std::atomic_bool                _isPaused{false};
-    bool                            _setOffsetsOnStart{true};
-    bool                            _isSubscribed{false};
     bool                            _skipUnknownHeaders{true};
     quantum::ThreadContextPtr<int>  _pollFuture{nullptr};
     ssize_t                         _readSize{100};
