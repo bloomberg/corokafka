@@ -989,21 +989,22 @@ ConsumerManagerImpl::deserializeMessage(ConsumerTopicEntry& entry,
     //Deserialize the headers if any
     HeaderPack headers(deserializer._headerEntries.size());
     using Header = cppkafka::Header<cppkafka::Buffer>;
-    const cppkafka::HeaderList<Header>& kafkaHeaders = kafkaMessage.get_header_list();
-    std::vector<const Header*> unknownHeaders;
+    using Headers = cppkafka::HeaderList<Header>;
+    const Headers& kafkaHeaders = kafkaMessage.get_header_list();
+    std::vector<Headers::Iterator> unknownHeaders;
     unknownHeaders.reserve(kafkaHeaders.size());
     int num = 0;
-    for (const auto& header : kafkaHeaders) {
+    for (auto headerIt = kafkaHeaders.begin(); headerIt != kafkaHeaders.end(); ++headerIt) {
         //Find appropriate deserializer
-        auto deserIter = deserializer._headerDeserializers.find(header.get_name());
+        auto deserIter = deserializer._headerDeserializers.find(headerIt->get_name());
         if (deserIter == deserializer._headerDeserializers.end()) {
             if (entry._skipUnknownHeaders) {
-                unknownHeaders.push_back(&header);
+                unknownHeaders.push_back(headerIt);
                 continue;
             }
             //Always log error
             std::ostringstream oss;
-            oss << "Unknown headers found in topic " << toppar.get_topic() << ": " << header.get_name();
+            oss << "Unknown headers found in topic " << toppar.get_topic() << ": " << headerIt->get_name();
             de._error = RD_KAFKA_RESP_ERR__NOT_IMPLEMENTED;
             de.setError(DeserializerError::Source::Header);
             de._headerNum = num;
@@ -1012,18 +1013,18 @@ ConsumerManagerImpl::deserializeMessage(ConsumerTopicEntry& entry,
         }
         //Decode header
         const TypeErasedDeserializer::HeaderEntry& headerEntry = deserIter->second;
-        headers[headerEntry._pos].first = header.get_name();
+        headers[headerEntry._pos].first = headerIt->get_name();
         headers[headerEntry._pos].second = cppkafka::CallbackInvoker<Deserializer>("header_deserializer",
                                                                                    *headerEntry._deserializer,
                                                                                    entry._consumer.get())
-                                                                     (toppar, header.get_value());
+                                                                     (toppar, headerIt->get_value());
         if (headers[headerEntry._pos].second.empty()) {
             // Decoding failed
             de._error = RD_KAFKA_RESP_ERR__VALUE_DESERIALIZATION;
             de.setError(DeserializerError::Source::Header);
             de._headerNum = num;
             std::ostringstream oss;
-            oss << "Failed to deserialize header: " << header.get_name();
+            oss << "Failed to deserialize header: " << headerIt->get_name();
             report(entry, cppkafka::LogLevel::LogErr, RD_KAFKA_RESP_ERR__VALUE_DESERIALIZATION, oss.str(), &kafkaMessage);
             break;
         }
