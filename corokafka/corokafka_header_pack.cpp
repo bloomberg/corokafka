@@ -152,5 +152,19 @@ bool HeaderPack::isValid(const std::string& name, size_t relativePosition) const
     return !it->second.empty();
 }
 
+void HeaderPack::validateHeaderAt(size_t index) const
+{
+    if (!isValidAt(index)) {
+        throw InvalidArgumentException(0, "Header is invalid (empty)");
+    }
+}
+
+void HeaderPack::validateHeader(const std::string& name, size_t relativePosition) const
+{
+    if (!isValid(name, relativePosition)) {
+        throw InvalidArgumentException(0, "Header is invalid (empty)");
+    }
+}
+
 }
 }

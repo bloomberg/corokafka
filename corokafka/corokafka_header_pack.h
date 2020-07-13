@@ -202,6 +202,8 @@ private:
     ListType::const_iterator getImpl(const std::string& name, size_t relativePosition) const;
     ListType::iterator getImpl(const std::string& name, size_t relativePosition);
     HeaderNode& operator[](size_t index);
+    void validateHeaderAt(size_t index) const;
+    void validateHeader(const std::string& name, size_t relativePosition) const;
     
     // Members
     ListType    _headers;

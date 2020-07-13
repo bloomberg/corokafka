@@ -16,6 +16,8 @@
 #ifndef BLOOMBERG_COROKAFKA_HEADER_PACK_IMPL_H
 #define BLOOMBERG_COROKAFKA_HEADER_PACK_IMPL_H
 
+#include <corokafka/corokafka_exception.h>
+
 namespace Bloomberg {
 namespace corokafka {
 
@@ -31,33 +33,39 @@ HeaderPack& HeaderPack::push_back(const std::string& name, H&& header) {
 
 template <typename H>
 const H& HeaderPack::get(const std::string& name, size_t relativePosition) const & {
+    validateHeader(name, relativePosition);
     return boost::any_cast<const H&>(getImpl(name, relativePosition)->second);
 }
 
 template <typename H>
 H& HeaderPack::get(const std::string& name, size_t relativePosition) & {
+    validateHeader(name, relativePosition);
     return boost::any_cast<H&>(getImpl(name, relativePosition)->second);
 }
 
 template <typename H>
 H&& HeaderPack::get(const std::string& name, size_t relativePosition) && {
+    validateHeader(name, relativePosition);
     return boost::any_cast<H&&>(std::move(getImpl(name, relativePosition)->second));
 }
 
 template <typename H>
 HeaderRef<const H&> HeaderPack::getAt(size_t index) const & {
+    validateHeaderAt(index);
     const auto& entry = _headers.at(index);
     return HeaderRef<const H&>(entry.first, boost::any_cast<const H&>(entry.second));
 }
 
 template <typename H>
 HeaderRef<H&> HeaderPack::getAt(size_t index) & {
+    validateHeaderAt(index);
     auto& entry = _headers.at(index);
     return HeaderRef<H&>(entry.first, boost::any_cast<H&>(entry.second));
 }
 
 template <typename H>
 HeaderRef<H&&> HeaderPack::getAt(size_t index) && {
+    validateHeaderAt(index);
     auto& entry = _headers.at(index);
     return HeaderRef<H&&>(entry.first, boost::any_cast<H&&>(std::move(entry.second)));
 }
