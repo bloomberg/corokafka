@@ -233,6 +233,9 @@ private:
                                       ExecMode execMode,
                                       const void* opaque);
     
+    static void raiseWatermark(ConsumerTopicEntry& entry,
+                               const cppkafka::TopicPartition& toppar);
+    
     // Members
     quantum::Dispatcher&            _dispatcher;
     const ConnectorConfiguration&   _connectorConfiguration;
