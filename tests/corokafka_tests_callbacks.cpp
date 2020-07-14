@@ -15,6 +15,7 @@ void Callbacks::handleKafkaError(const Metadata& metadata,
 {
     callbackCounters()._error++;
     callbackCounters()._opaque = opaque;
+    std::cout << "Error: " << error << " Reason: " << reason << std::endl;
 }
 
 void Callbacks::handleThrottling(const Metadata& metadata,
@@ -31,6 +32,7 @@ void Callbacks::kafkaLogger(const Metadata& metadata,
                             const std::string &message)
 {
     callbackCounters()._logger++;
+    std::cout << "Message from: " << facility << " Content: " << message << std::endl;
 }
 
 void Callbacks::connectorLogger(cppkafka::LogLevel level,
@@ -226,12 +228,15 @@ void Callbacks::handleRebalance(const ConsumerMetadata& metadata,
 {
     if (error.get_error() == RD_KAFKA_RESP_ERR__ASSIGN_PARTITIONS) {
         callbackCounters()._assign++;
+        std::cout << "ASSIGNED: " << topicPartitions << std::endl;
     }
     else if (error.get_error() == RD_KAFKA_RESP_ERR__REVOKE_PARTITIONS) {
         callbackCounters()._revoke++;
+        std::cout << "REVOKED: " << topicPartitions << std::endl;
     }
     else {
-        callbackCounters()._rebalance++;
+        callbackCounters()._rebalanceErrors++;
+        std::cout << "REBALANCE ERROR: " << error << std::endl;
     }
 }
 

@@ -59,8 +59,8 @@ public:
      * @param partitionList The optional partition list assignment.
      * @note This method will only work if the consumer was been previously 'unsubscribed'. All the original
      *       configuration settings will remain the same, including PartitionStrategy (Static or Dynamic).
-     *       If a partitionList is not provided, the values specified via ConsumerConfiguration::assignInitialPartitions()
-     *       shall be used with offsets set to RD_KAFKA_OFFSET_INVALID.
+     *       If a partitionList is empty, the values specified via ConsumerConfiguration::assignInitialPartitions()
+     *       shall be used.
      */
     void subscribe(const std::string& topic,
                    const cppkafka::TopicPartitionList& partitionList) final;

@@ -15,13 +15,15 @@ std::string getNewGroupName()
     return "group_" + std::to_string(i++);
 }
 
-//paused on start
+//paused on start with auto commit every 10ms
 Configuration::OptionList config1 = {
     {"enable.partition.eof", true},
     {"enable.auto.offset.store", false},
-    {"enable.auto.commit", true}, //automatically commit stored offset every 100ms
+    {"enable.auto.commit", true},
     {"auto.offset.reset","beginning"},
     {"auto.commit.interval.ms", 10},
+    //{"debug","all"},
+    {"topic.metadata.refresh.interval.ms", 5000},
     {ConsumerConfiguration::Options::timeoutMs, 100},
     {ConsumerConfiguration::Options::pauseOnStart, true},
     {ConsumerConfiguration::Options::readSize, 100},
@@ -36,12 +38,16 @@ Configuration::OptionList config1 = {
     {ConsumerConfiguration::Options::preserveMessageOrder, true},
 };
 
+//same as config1 but with auto-commit turned off, so the application can do it manually
+//not paused on start.
 Configuration::OptionList config2 = {
     {"enable.partition.eof", true},
     {"enable.auto.offset.store", false},
-    {"enable.auto.commit", false}, //do not auto-commit. The application will do it.
+    {"enable.auto.commit", false},
     {"auto.offset.reset","beginning"},
     {"auto.commit.interval.ms", 10},
+    //{"debug","all"},
+    {"topic.metadata.refresh.interval.ms", 5000},
     {ConsumerConfiguration::Options::pauseOnStart, false},
     {ConsumerConfiguration::Options::readSize, 100},
     {ConsumerConfiguration::Options::pollStrategy, "roundrobin"},
@@ -57,9 +63,11 @@ Configuration::OptionList config2 = {
 Configuration::OptionList config3 = {
     {"enable.partition.eof", true},
     {"enable.auto.offset.store", false},
-    {"enable.auto.commit", false}, //do not auto-commit. The application will do it.
+    {"enable.auto.commit", false},
     {"auto.offset.reset","beginning"},
     {"auto.commit.interval.ms", 10},
+    //{"debug","all"},
+    {"topic.metadata.refresh.interval.ms", 5000},
     {ConsumerConfiguration::Options::pauseOnStart, false},
     {ConsumerConfiguration::Options::readSize, 100},
     {ConsumerConfiguration::Options::pollStrategy, "roundrobin"},
@@ -75,9 +83,11 @@ Configuration::OptionList config3 = {
 Configuration::OptionList config4 = {
     {"enable.partition.eof", true},
     {"enable.auto.offset.store", false},
-    {"enable.auto.commit", false}, //do not auto-commit. The application will do it.
+    {"enable.auto.commit", false},
     {"auto.offset.reset","beginning"},
     {"auto.commit.interval.ms", 10},
+    //{"debug","all"},
+    {"topic.metadata.refresh.interval.ms", 5000},
     {ConsumerConfiguration::Options::pauseOnStart, true},
     {ConsumerConfiguration::Options::readSize, 100},
     {ConsumerConfiguration::Options::pollStrategy, "serial"},
@@ -346,7 +356,7 @@ TEST(Consumer, ValidatePauseOnStart)
     EXPECT_EQ(0, callbackCounters()._receiver);
     EXPECT_EQ(1, callbackCounters()._assign);
     EXPECT_EQ(0, callbackCounters()._revoke);
-    EXPECT_EQ(0, callbackCounters()._rebalance);
+    EXPECT_EQ(0, callbackCounters()._rebalanceErrors);
     EXPECT_EQ(0, callbackCounters()._preprocessor);
     
     //enable consuming
@@ -356,45 +366,13 @@ TEST(Consumer, ValidatePauseOnStart)
     while (callbackCounters()._eof < NumPartitions && loops--) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
+    EXPECT_EQ(NumPartitions, callbackCounters()._eof);
     EXPECT_EQ(0, callbackCounters()._messageErrors);
     EXPECT_EQ(NumPartitions, callbackCounters()._receiver);
     EXPECT_EQ(1, callbackCounters()._assign);
     EXPECT_EQ(0, callbackCounters()._revoke);
-    EXPECT_EQ(0, callbackCounters()._rebalance);
+    EXPECT_EQ(0, callbackCounters()._rebalanceErrors);
     EXPECT_EQ(0, callbackCounters()._preprocessor);
-    dispatcher().drain();
-}
-
-TEST(Consumer, ValidateDynamicAssignment)
-{
-    callbackCounters().reset();
-    Connector connector = makeConsumerConnector(
-        config2,
-        getNewGroupName(),
-        topicWithoutHeaders(),
-        Callbacks::messageReceiverWithoutHeaders,
-        PartitionStrategy::Dynamic);
-    int loops = MaxLoops;
-    while (callbackCounters()._assign == 0 && loops--) {
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-    }
-    loops = MaxLoops;
-    while (callbackCounters()._eof < NumPartitions && loops--) {
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-    }
-    EXPECT_EQ(0, callbackCounters()._messageErrors);
-    EXPECT_EQ(NumPartitions, callbackCounters()._receiver);
-    EXPECT_EQ(1, callbackCounters()._assign);
-    EXPECT_EQ(0, callbackCounters()._rebalance);
-    callbackCounters().reset();
-    
-    //stop the connector
-    connector.consumer().shutdown();
-    loops = MaxLoops;
-    while (callbackCounters()._revoke == 0 && loops--) {
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-    }
-    EXPECT_EQ(1, callbackCounters()._revoke);
     dispatcher().drain();
 }
 
@@ -417,12 +395,13 @@ TEST(Consumer, ReadTopicWithoutHeadersUsingConfig1)
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
     std::this_thread::sleep_for(std::chrono::seconds(1));
-
+    
+    EXPECT_EQ(NumPartitions, callbackCounters()._eof);
     EXPECT_LE(10, callbackCounters()._offsetCommit);
     EXPECT_FALSE(callbackCounters()._receiverIoThread);
     EXPECT_EQ(1, callbackCounters()._assign);
     EXPECT_EQ(0, callbackCounters()._revoke);
-    EXPECT_EQ(0, callbackCounters()._rebalance);
+    EXPECT_EQ(0, callbackCounters()._rebalanceErrors);
     
     //Check message validity
     EXPECT_EQ(messageWithoutHeadersTracker(), consumerMessageWithoutHeadersTracker());
@@ -459,12 +438,14 @@ TEST(Consumer, ReadTopicWithHeadersUsingConfig2)
     while (callbackCounters()._eof < NumPartitions && loops--) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
+    EXPECT_EQ(NumPartitions, callbackCounters()._eof);
     EXPECT_EQ(messageTracker().totalMessages(), callbackCounters()._preprocessor);
     EXPECT_EQ(messageTracker().totalMessages(), callbackCounters()._receiver-callbackCounters()._eof);
     EXPECT_FALSE(callbackCounters()._receiverIoThread);
     
     //Check message validity
     EXPECT_EQ(messageTracker(), consumerMessageTracker());
+    EXPECT_EQ(messageTracker().totalMessages(), consumerMessageTracker().totalMessages());
     
     //Check async commits
     loops = MaxLoops;
@@ -496,12 +477,14 @@ TEST(Consumer, ReadTopicWithHeadersUsingConfig3)
     while (callbackCounters()._eof < NumPartitions && loops--) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
+    EXPECT_EQ(NumPartitions, callbackCounters()._eof);
     EXPECT_EQ(messageTracker().totalMessages(), callbackCounters()._preprocessor);
     EXPECT_EQ(messageTracker().totalMessages(), callbackCounters()._receiver-callbackCounters()._eof);
     EXPECT_TRUE(callbackCounters()._receiverIoThread);
     
     //Check message validity
     EXPECT_EQ(messageTracker(), consumerMessageTracker());
+    EXPECT_EQ(messageTracker().totalMessages(), consumerMessageTracker().totalMessages());
     
     //Check async commits
     loops = MaxLoops;
@@ -537,12 +520,14 @@ TEST(Consumer, ReadTopicWithHeadersUsingConfig4)
     while (callbackCounters()._eof < NumPartitions && loops--) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
+    EXPECT_EQ(NumPartitions, callbackCounters()._eof);
     EXPECT_EQ(messageTracker().totalMessages(), callbackCounters()._preprocessor);
     EXPECT_EQ(messageTracker().totalMessages(), callbackCounters()._receiver-callbackCounters()._eof);
     EXPECT_FALSE(callbackCounters()._receiverIoThread);
     
     //Check message validity
     EXPECT_EQ(messageTracker(), consumerMessageTracker());
+    EXPECT_EQ(messageTracker().totalMessages(), consumerMessageTracker().totalMessages());
     
     //Check async commits
     loops = MaxLoops;
@@ -578,6 +563,7 @@ TEST(Consumer, SkipMessagesWithRelativeOffsetUsingConfig2)
     while (callbackCounters()._eof < NumPartitions && loops--) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
+    EXPECT_EQ(NumPartitions, callbackCounters()._eof);
     EXPECT_EQ(totalMessages, callbackCounters()._preprocessor);
     EXPECT_EQ(totalMessages + NumPartitions, callbackCounters()._receiver); //including EOFs
     EXPECT_EQ(totalMessages, callbackCounters()._skip);
@@ -612,6 +598,7 @@ TEST(Consumer, OffsetCommitManagerFromBeginning)
     while (callbackCounters()._eof < NumPartitions && loops--) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
+    
     //Check commits via offset manager
     loops = MaxLoops;
     while (static_cast<size_t>(callbackCounters()._offsetCommit) < consumerMessageTracker().totalMessages() && loops--) {
@@ -651,6 +638,7 @@ TEST(Consumer, OffsetCommitManagerRelative)
     while (callbackCounters()._eof < NumPartitions && loops--) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
+    
     //Check commits via offset manager
     loops = MaxLoops;
     while ((callbackCounters()._offsetCommit < (relativeOffset * NumPartitions)) &&
@@ -699,6 +687,7 @@ TEST(Consumer, OffsetCommitManagerFromStored)
         while (callbackCounters()._eof < NumPartitions && loops--) {
             std::this_thread::sleep_for(std::chrono::seconds(1));
         }
+    
         //Check commits via offset manager
         loops = MaxLoops;
         while ((callbackCounters()._offsetCommit < (callbackCounters()._maxProcessedOffsets * NumPartitions)) &&
@@ -740,6 +729,7 @@ TEST(Consumer, OffsetCommitManagerFromStored)
         while (callbackCounters()._eof < NumPartitions && loops--) {
             std::this_thread::sleep_for(std::chrono::seconds(1));
         }
+    
         //Check commits via offset manager
         loops = MaxLoops;
         while ((callbackCounters()._offsetCommit < (remaining * NumPartitions)) &&
@@ -755,6 +745,87 @@ TEST(Consumer, OffsetCommitManagerFromStored)
         dispatcher().drain();
         offsetManagerPtr.reset();
     }
+}
+
+TEST(Consumer, ValidateDynamicAssignment)
+{
+    std::string groupName = getNewGroupName();
+    callbackCounters().reset();
+    Connector connector = makeConsumerConnector(
+        config1,
+        groupName,
+        topicWithoutHeaders(),
+        Callbacks::messageReceiverWithoutHeaders,
+        PartitionStrategy::Dynamic);
+    int loops = MaxLoops;
+    while (callbackCounters()._assign == 0 && loops--) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+    EXPECT_EQ(0, callbackCounters()._messageErrors);
+    //EXPECT_EQ(NumPartitions, callbackCounters()._receiver);
+    EXPECT_EQ(1, callbackCounters()._assign);
+    EXPECT_EQ(0, callbackCounters()._rebalanceErrors);
+    callbackCounters().reset();
+    
+    //Create a 2nd connector for the same group
+    Connector connector2 = makeConsumerConnector(
+        config1,
+        groupName,
+        topicWithoutHeaders(),
+        Callbacks::messageReceiverWithoutHeaders,
+        PartitionStrategy::Dynamic);
+    loops = MaxLoops;
+    while (callbackCounters()._assign < 2 && loops--) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+    EXPECT_EQ(0, callbackCounters()._messageErrors);
+    //EXPECT_EQ(NumPartitions, callbackCounters()._receiver);
+    EXPECT_EQ(2, callbackCounters()._assign);
+    EXPECT_EQ(1, callbackCounters()._revoke);
+    EXPECT_EQ(0, callbackCounters()._rebalanceErrors);
+    
+    //resume consumption from both consumers
+    connector.consumer().resume(topicWithoutHeaders().topic());
+    connector2.consumer().resume(topicWithoutHeaders().topic());
+    
+    //Wait to consume all messages
+    loops = MaxLoops;
+    while (callbackCounters()._eof < NumPartitions && loops--) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+    EXPECT_EQ(NumPartitions, callbackCounters()._eof);
+    
+    callbackCounters().reset();
+    
+    //stop the first connector
+    connector.consumer().shutdown();
+    loops = MaxLoops;
+    //we expect 2 revocations and one new assignment
+    while (callbackCounters()._revoke < 1 &&
+           callbackCounters()._assign == 0 &&
+           loops--) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+    EXPECT_EQ(1, callbackCounters()._assign);
+    EXPECT_EQ(2, callbackCounters()._revoke);
+    EXPECT_EQ(0, callbackCounters()._rebalanceErrors);
+    
+     callbackCounters().reset();
+    
+    //stop the second consumer
+    //we expect one revocations
+    loops = MaxLoops;
+    connector2.consumer().shutdown();
+    while (callbackCounters()._revoke == 0 &&
+           loops--) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+    EXPECT_EQ(0, callbackCounters()._assign);
+    EXPECT_EQ(1, callbackCounters()._revoke);
+    EXPECT_EQ(0, callbackCounters()._rebalanceErrors);
+    
+    //stop the second connector
+    dispatcher().drain();
 }
 
 

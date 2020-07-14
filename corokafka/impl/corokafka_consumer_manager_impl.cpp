@@ -200,6 +200,19 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
     topicEntry._consumer = std::make_unique<cppkafka::Consumer>(kafkaConfig);
     topicEntry._committer = std::make_unique<cppkafka::BackoffCommitter>(*topicEntry._consumer);
     
+    // Set the consumer callbacks
+    auto assignmentFunc = std::bind(&ConsumerManagerImpl::assignmentCallback, std::ref(topicEntry), _1);
+    topicEntry._consumer->set_assignment_callback(std::move(assignmentFunc));
+
+    auto revocationFunc = std::bind(&ConsumerManagerImpl::revocationCallback, std::ref(topicEntry), _1);
+    topicEntry._consumer->set_revocation_callback(std::move(revocationFunc));
+    
+    auto rebalanceErrorFunc = std::bind(&ConsumerManagerImpl::rebalanceErrorCallback, std::ref(topicEntry), _1);
+    topicEntry._consumer->set_rebalance_error_callback(std::move(rebalanceErrorFunc));
+    
+    auto offsetCommitErrorFunc = std::bind(&offsetCommitErrorCallback, std::ref(topicEntry), _1);
+    topicEntry._committer->set_error_callback(offsetCommitErrorFunc);
+    
     //Set the startup timeout
     std::chrono::milliseconds defaultTimeout = topicEntry._consumer->get_timeout();
     std::chrono::milliseconds startupTimeout;
@@ -209,9 +222,6 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
     
     //Get events queue for polling
     topicEntry._eventQueue = topicEntry._consumer->get_main_queue();
-    
-    auto offsetCommitErrorFunc = std::bind(&offsetCommitErrorCallback, std::ref(topicEntry), _1);
-    topicEntry._committer->set_error_callback(offsetCommitErrorFunc);
     
     //Set internal config options
     extract(ConsumerConfiguration::Options::skipUnknownHeaders, topicEntry._skipUnknownHeaders);
@@ -284,21 +294,6 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
         throw InvalidOptionException(topic, ConsumerConfiguration::Options::processCoroThreadId, "Value is out of bounds");
     }
     
-    // Set the consumer callbacks
-    if (topicEntry._configuration.getRebalanceCallback() ||
-        ((topicEntry._configuration.getPartitionStrategy() == PartitionStrategy::Dynamic) &&
-         !topicEntry._configuration.getInitialPartitionAssignment().empty())) {
-        auto assignmentFunc = std::bind(&ConsumerManagerImpl::assignmentCallback, std::ref(topicEntry), _1);
-        topicEntry._consumer->set_assignment_callback(std::move(assignmentFunc));
-    }
-    if (topicEntry._configuration.getRebalanceCallback()) {
-        auto revocationFunc = std::bind(&ConsumerManagerImpl::revocationCallback, std::ref(topicEntry), _1);
-        topicEntry._consumer->set_revocation_callback(std::move(revocationFunc));
-        
-        auto rebalanceErrorFunc = std::bind(&ConsumerManagerImpl::rebalanceErrorCallback, std::ref(topicEntry), _1);
-        topicEntry._consumer->set_rebalance_error_callback(std::move(rebalanceErrorFunc));
-    }
-    
     if (extract(ConsumerConfiguration::Options::pauseOnStart, topicEntry._isPaused)) {
         if (topicEntry._isPaused) {
             topicEntry._consumer->pause(topic);
@@ -311,7 +306,7 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
     }
     
     //dynamically subscribe or statically assign partitions to this consumer
-    subscribe(topic, topicEntry._configuration.getInitialPartitionAssignment());
+    subscribe(topic, topicEntry._subscription._partitionAssignment);
     
     //Set the consumer timeouts
     std::chrono::milliseconds timeout;
@@ -435,7 +430,8 @@ void ConsumerManagerImpl::subscribeImpl(ConsumerTopicEntry& topicEntry,
     }
     //process partitions and make sure offsets are valid
     const std::string& topic = topicEntry._configuration.getTopic();
-    cppkafka::TopicPartitionList assignment = partitionList;
+    cppkafka::TopicPartitionList assignment = partitionList.empty() ?
+            topicEntry._configuration.getInitialPartitionAssignment() : partitionList;
     if ((assignment.size() == 1) &&
         (assignment.front().get_partition() == RD_KAFKA_PARTITION_UA)) {
         //Overwrite the initial assignment if the user provided no partitions
@@ -449,8 +445,11 @@ void ConsumerManagerImpl::subscribeImpl(ConsumerTopicEntry& topicEntry,
         }
     }
     if (assignment.empty()) {
-        //use updated current assignment
+        //use updated current assignment. Note that the current _partitionAssignment could be empty.
         assignment = topicEntry._subscription._partitionAssignment;
+    }
+    else {
+        topicEntry._subscription._partitionAssignment = assignment;
     }
     //assign or subscribe
     if (topicEntry._configuration.getPartitionStrategy() == PartitionStrategy::Static) {
@@ -466,11 +465,7 @@ void ConsumerManagerImpl::subscribeImpl(ConsumerTopicEntry& topicEntry,
         topicEntry._consumer->assign(assignment);
     }
     else { //Dynamic strategy
-        if (!assignment.empty()) {
-            topicEntry._subscription._setOffsetsOnStart = true;
-            //overwrite original if any so that offsets may be used when the assignment callback is invoked
-            topicEntry._subscription._partitionAssignment = assignment;
-        }
+        topicEntry._subscription._setOffsetsOnStart = true;
         topicEntry._consumer->subscribe({topic});
     }
 }
@@ -870,7 +865,7 @@ void ConsumerManagerImpl::assignmentCallbackImpl(
                                    [&partition](const auto& assigned)->bool{
                 return (partition.get_partition() == assigned.get_partition());
             });
-            if (it != topicEntry._configuration.getInitialPartitionAssignment().end()) {
+            if (it != topicEntry._subscription._partitionAssignment.end()) {
                 partition.set_offset(it->get_offset());
             }
         }
