@@ -27,7 +27,7 @@ struct CallbackCounters
         _maxProcessedOffsets = -1;
         _assign = 0;
         _revoke = 0;
-        _rebalance = 0;
+        _rebalanceErrors = 0;
         _offsetCommitPartitions.clear();
         _numOffsetCommitted.clear();
         _receiver = 0;
@@ -55,7 +55,7 @@ struct CallbackCounters
     int _maxProcessedOffsets{-1};
     int _assign{0};
     int _revoke{0};
-    int _rebalance{0};
+    int _rebalanceErrors{0};
     
     //receiver and preprocessor stats (multi-threaded since called from io or coroutine threads)
     std::atomic_int _receiver{0};

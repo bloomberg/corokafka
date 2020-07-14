@@ -332,6 +332,8 @@ Connector makeConsumerConnector(const Configuration::OptionList& ops,
     return {builder, dispatcher()};
 }
 
+//Global producer configurations
+static const int MaxMessages = 10;
 
 }}}
 

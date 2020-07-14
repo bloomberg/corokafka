@@ -7,9 +7,6 @@ namespace Bloomberg {
 namespace corokafka {
 namespace tests {
 
-//Global producer configurations
-const int MaxMessages = 10;
-
 //sync
 Configuration::OptionList syncConfig = {
     {"enable.idempotence", false},
