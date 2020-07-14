@@ -627,6 +627,20 @@ cppkafka::Error ConsumerManagerImpl::commitImpl(ConsumerTopicEntry& entry,
     return {};
 }
 
+void ConsumerManagerImpl::raiseWatermark(ConsumerTopicEntry& entry,
+                                         const cppkafka::TopicPartition& toppar)
+{
+    int partition = toppar.get_partition();
+    for (auto& w : entry._watermarks) {
+        if ((w._partition == partition) &&
+            (w._watermark._high < toppar.get_offset())) {
+            //Update the watermark level with the new one.
+            w._watermark._high = toppar.get_offset();
+            break;
+        }
+    }
+}
+
 const ConsumerConfiguration& ConsumerManagerImpl::getConfiguration(const std::string& topic) const
 {
     auto it = findConsumer(topic);
@@ -798,6 +812,7 @@ void ConsumerManagerImpl::offsetCommitCallback(
     }
     for (auto& partition : topicPartitions) {
         //remove the opaque values and pass them back to the application
+        raiseWatermark(topicEntry, partition);
         if (!topicEntry._offsets.empty()) {
             opaques.push_back(const_cast<void*>(topicEntry._offsets.remove(partition)));
         }
@@ -850,8 +865,8 @@ void ConsumerManagerImpl::assignmentCallbackImpl(
         topicEntry._subscription._setOffsetsOnStart = false;
         //perform first offset assignment based on user config
         for (auto&& partition : topicPartitions) {
-            auto it = std::find_if(topicEntry._configuration.getInitialPartitionAssignment().begin(),
-                                   topicEntry._configuration.getInitialPartitionAssignment().end(),
+            auto it = std::find_if(topicEntry._subscription._partitionAssignment.begin(),
+                                   topicEntry._subscription._partitionAssignment.end(),
                                    [&partition](const auto& assigned)->bool{
                 return (partition.get_partition() == assigned.get_partition());
             });
@@ -1084,7 +1099,6 @@ int ConsumerManagerImpl::invokeReceiver(ConsumerTopicEntry& entry,
         deserializedMessage = deserializeMessage(entry, kafkaMessage);
     }
     //call receiver callback
-    entry._enableWatermarkCheck = true;
     cppkafka::CallbackInvoker<Receiver>("receiver", entry._configuration.getTypeErasedReceiver(), entry._consumer.get())
           (*entry._committer,
            entry._offsets,
@@ -1348,23 +1362,31 @@ ConsumerManagerImpl::findConsumer(const std::string& topic) const
 
 bool ConsumerManagerImpl::hasNewMessages(ConsumerTopicEntry& entry) const
 {
-    if (!entry._enableWatermarkCheck) {
-        return true;
-    }
     OffsetWatermarkList watermarks = makeMetadata(entry).getOffsetWatermarks();
-    if (entry._watermarks.empty()) {
-        //update watermarks
-        entry._watermarks = watermarks;
+    if (watermarks.empty()) {
         return true;
     }
     bool hasNew = false;
-    for (size_t i = 0; i < watermarks.size(); ++i) {
-        if (watermarks[i]._watermark._high < 0) continue;
-        if (watermarks[i]._watermark._high > entry._watermarks[i]._watermark._high) {
-            hasNew = true;
-            //update watermarks
-            entry._watermarks = watermarks;
-            break;
+    if (entry._watermarks.empty()) {
+        //update watermarks
+        entry._watermarks = watermarks;
+        //Set high watermarks to invalid so that they can be set to the last committed value
+        //once we start processing messages.
+        for (auto& w : entry._watermarks) {
+            w._watermark._high = cppkafka::TopicPartition::OFFSET_INVALID;
+        }
+        hasNew = true;
+    }
+    else {
+        for (size_t i = 0; i < watermarks.size(); ++i) {
+            //Note that for dynamic consumers, before the subscription takes effect, the
+            //watermarks are always set to invalid. Therefore we must ensure that we poll
+            //for messages until we have a valid subscription.
+            if ((watermarks[i]._watermark._high > entry._watermarks[i]._watermark._high) ||
+                (watermarks[i]._watermark._high == cppkafka::TopicPartition::OFFSET_INVALID)) {
+                hasNew = true;
+                break;
+            }
         }
     }
     return hasNew;

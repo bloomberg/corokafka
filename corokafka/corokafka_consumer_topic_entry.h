@@ -103,7 +103,6 @@ struct ConsumerTopicEntry {
     Subscription                    _subscription;
     OffsetMap                       _offsets;
     OffsetWatermarkList             _watermarks;
-    bool                            _enableWatermarkCheck{false};
     std::atomic_bool                _isPaused{false};
     bool                            _skipUnknownHeaders{true};
     quantum::ThreadContextPtr<int>  _pollFuture{nullptr};
