@@ -115,6 +115,10 @@ void OffsetManager::setStartingOffset(int64_t offset,
                                       const OffsetWatermark& watermark,
                                       bool autoResetAtEnd)
 {
+    //Watermarks should always be valid. Otherwise it means we don't have a valid assignment.
+    if (watermark._partition == RD_KAFKA_PARTITION_UA) {
+        return;
+    }
     switch (offset) {
         case cppkafka::TopicPartition::Offset::OFFSET_STORED:
         case cppkafka::TopicPartition::Offset::OFFSET_INVALID:
@@ -232,19 +236,22 @@ Range<int64_t> OffsetManager::insertOffset(OffsetRanges& ranges,
     return range;
 }
 
-void OffsetManager::resetPartitionOffsets()
+void OffsetManager::resetPartitionOffsets(ResetAction action)
 {
     std::vector<std::string> topics = _consumerManager.getTopics();
     for (auto&& topic : topics) {
-        resetPartitionOffsets(topic);
+        resetPartitionOffsets(topic, action);
     }
 }
 
-void OffsetManager::resetPartitionOffsets(const std::string& topic)
+void OffsetManager::resetPartitionOffsets(const std::string& topic,
+                                          ResetAction action)
 {
     TopicSettings& topicSettings = _topicMap[topic];
     topicSettings._partitions.clear();
-    queryOffsetsFromBroker(topic, topicSettings);
+    if (action == ResetAction::FetchOffsets) {
+        queryOffsetsFromBroker(topic, topicSettings);
+    }
 }
 
 OffsetManager::TopicSettings&

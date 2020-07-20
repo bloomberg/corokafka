@@ -294,9 +294,10 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
         throw InvalidOptionException(topic, ConsumerConfiguration::Options::processCoroThreadId, "Value is out of bounds");
     }
     
-    if (extract(ConsumerConfiguration::Options::pauseOnStart, topicEntry._isPaused)) {
-        if (topicEntry._isPaused) {
-            topicEntry._consumer->pause(topic);
+    bool pauseOnStart = false;
+    if (extract(ConsumerConfiguration::Options::pauseOnStart, pauseOnStart)) {
+        if (pauseOnStart) {
+            pauseImpl(topicEntry);
         }
     }
     
@@ -371,39 +372,41 @@ void ConsumerManagerImpl::disablePreprocessing(const std::string& topic)
 
 void ConsumerManagerImpl::pause()
 {
-    pause(true, &ConsumerType::pause);
+    for (auto&& consumer : _consumers) {
+        pauseImpl(consumer.second);
+    }
 }
 
 void ConsumerManagerImpl::pause(const std::string& topic)
 {
-    pauseImpl(findConsumer(topic)->second, true, &ConsumerType::pause);
+    pauseImpl(findConsumer(topic)->second);
+}
+
+void ConsumerManagerImpl::pauseImpl(ConsumerTopicEntry& topicEntry)
+{
+    bool paused = false;
+    if (topicEntry._isPaused.compare_exchange_strong(paused, true)) {
+        topicEntry._consumer->pause(topicEntry._configuration.getTopic());
+    }
 }
 
 void ConsumerManagerImpl::resume()
 {
-    pause(false, &ConsumerType::resume);
+    for (auto&& consumer : _consumers) {
+        resumeImpl(consumer.second);
+    }
 }
 
 void ConsumerManagerImpl::resume(const std::string& topic)
 {
-    pauseImpl(findConsumer(topic)->second, false, &ConsumerType::resume);
+    resumeImpl(findConsumer(topic)->second);
 }
 
-void ConsumerManagerImpl::pause(bool pause,
-                                ConsumerFunc func)
+void ConsumerManagerImpl::resumeImpl(ConsumerTopicEntry& topicEntry)
 {
-    for (auto&& consumer : _consumers) {
-        pauseImpl(consumer.second, pause, func);
-    }
-}
-
-void ConsumerManagerImpl::pauseImpl(ConsumerTopicEntry& topicEntry,
-                                    bool pause,
-                                    ConsumerFunc func)
-{
-    bool paused = !pause;
-    if (topicEntry._isPaused.compare_exchange_strong(paused, pause)) {
-        ((*topicEntry._consumer).*func)();
+    bool paused = true;
+    if (topicEntry._isPaused.compare_exchange_strong(paused, false)) {
+        topicEntry._consumer->resume(topicEntry._configuration.getTopic());
     }
 }
 
@@ -756,15 +759,13 @@ void ConsumerManagerImpl::throttleCallback(
                         std::chrono::milliseconds throttleDuration)
 {
     if (!topicEntry._isPaused) {
-        //consumer is not explicitly paused by the application.
-        cppkafka::Consumer& consumer = static_cast<cppkafka::Consumer&>(handle);
         //calculate throttling status
         ThrottleControl::Status status = topicEntry._throttleControl.handleThrottleCallback(throttleDuration);
         if (status == ThrottleControl::Status::On) {
-            consumer.pause();
+            pauseImpl(topicEntry);
         }
         else if (status == ThrottleControl::Status::Off) {
-            consumer.resume();
+            resumeImpl(topicEntry);
         }
     }
     cppkafka::CallbackInvoker<Callbacks::ThrottleCallback>
