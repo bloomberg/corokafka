@@ -33,6 +33,10 @@ namespace corokafka {
 class OffsetManager
 {
 public:
+    enum class ResetAction : int {
+        FetchOffsets,       //Fetch new committed offsets and watermarks from broker
+        DoNotFetchOffsets   //Don't fetch any offsets
+    };
     OffsetManager() = delete;
     OffsetManager(const OffsetManager&) = delete;
     OffsetManager(OffsetManager&&) = default;
@@ -104,12 +108,14 @@ public:
     /// @brief Reset all partition offsets for the specified topic.
     /// @param topic The topic for which all partitions and offsets will be reset.
     ///              If topic is not present, then reset all topic partitions.
+    /// @param action Determines if new offsets should be fetched or not.
     /// @note Call this when a new partition assignment has been made for this topic.
     /// @note This call **MUST** be made with exclusive access (i.e. when no other threads access
     ///       the ConsumerManager).
     /// @note May throw.
-    void resetPartitionOffsets();
-    void resetPartitionOffsets(const std::string& topic);
+    void resetPartitionOffsets(ResetAction action = ResetAction::FetchOffsets);
+    void resetPartitionOffsets(const std::string& topic,
+                               ResetAction action = ResetAction::FetchOffsets);
     
 private:
     using OffsetMap = IntervalSet<int64_t>;

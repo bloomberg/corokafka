@@ -213,11 +213,9 @@ public:
     };
     
 private:
-    using ConsumerFunc = void(ConsumerType::*)();
+    static void pauseImpl(ConsumerTopicEntry& topicEntry);
     
-    void pause(bool pause, ConsumerFunc);
-    
-    static void pauseImpl(ConsumerTopicEntry& topicEntry, bool pause, ConsumerFunc);
+    static void resumeImpl(ConsumerTopicEntry& topicEntry);
     
     static void subscribeImpl(ConsumerTopicEntry& topicEntry,
                               const cppkafka::TopicPartitionList& partitionList);
