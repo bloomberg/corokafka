@@ -117,6 +117,16 @@ public:
     void resetPartitionOffsets(const std::string& topic,
                                ResetAction action = ResetAction::FetchOffsets);
     
+    /// @brief Output the offsets contained by this manager
+    /// @param topic Restrict output to a specific topic only
+    std::string toString() const;
+    std::string toString(const std::string& topic) const;
+    
+    /// @brief Enables or disables commit debug logging via the registered
+    ///        log callback in the ConsumerManager
+    /// @warning May be verbose
+    void enableCommitTracing(bool enable);
+    
 private:
     using OffsetMap = IntervalSet<int64_t>;
     using InsertReturnType = OffsetMap::InsertReturnType;
@@ -154,8 +164,11 @@ private:
     void queryOffsetsFromBroker(const std::string& topic,
                                 TopicSettings& settings);
     
+    const TopicSettings& getTopicSettings(const cppkafka::TopicPartition& partition) const;
     TopicSettings& getTopicSettings(const cppkafka::TopicPartition& partition);
     
+    const OffsetRanges& getOffsetRanges(const TopicSettings& settings,
+                                        const cppkafka::TopicPartition& partition) const;
     OffsetRanges& getOffsetRanges(TopicSettings& settings,
                                   const cppkafka::TopicPartition& partition);
     
@@ -172,11 +185,15 @@ private:
     
     template <typename...EXEC_MODE>
     cppkafka::Error forceCommitCurrentOffsetImpl(EXEC_MODE&&...execMode);
+    
+    void logOffsets(const std::string& facility, const cppkafka::TopicPartition& offset) const;
+    void logOffsets(const std::string& facility, const cppkafka::TopicPartitionList& offsets) const;
 
     // Members
     corokafka::ConsumerManager&     _consumerManager;
     std::chrono::milliseconds       _brokerTimeout;
     TopicMap                        _topicMap;
+    bool                            _traceCommits{false};
 };
 
 // Implementation
@@ -202,14 +219,16 @@ cppkafka::Error OffsetManager::saveOffsetImpl(const cppkafka::TopicPartition& of
         OffsetRanges& ranges = getOffsetRanges(getTopicSettings(offset), offset);
         Range<int64_t> range(-1,-1);
         {//locked scope
+            logOffsets("OffsetManager:Insert", offset);
             quantum::Mutex::Guard guard(quantum::local::context(), ranges._offsetsMutex);
             range = insertOffset(ranges, offset.get_offset());
         }
         //Commit range
         if (range.second != -1) {
             //This is a valid range
-            return _consumerManager.commit(cppkafka::TopicPartition{offset.get_topic(), offset.get_partition(), range.second},
-                                           std::forward<EXEC_MODE>(execMode)...);
+            cppkafka::TopicPartition partition{offset.get_topic(), offset.get_partition(), range.second};
+            logOffsets("OffsetManager:Commit", partition);
+            return _consumerManager.commit(partition, std::forward<EXEC_MODE>(execMode)...);
         }
         return {};
     }
@@ -226,8 +245,8 @@ cppkafka::Error OffsetManager::forceCommitImpl(EXEC_MODE&&...execMode) noexcept
 {
     try {
         bool isSyncCommit = false;
-        cppkafka::TopicPartitionList partitions;
         for (auto& topic : _topicMap) {
+            cppkafka::TopicPartitionList partitions;
             TopicSettings& settings = topic.second;
             for (auto& partition : settings._partitions) {
                 Range<int64_t> range(-1,-1);
@@ -246,11 +265,15 @@ cppkafka::Error OffsetManager::forceCommitImpl(EXEC_MODE&&...execMode) noexcept
                     partitions.emplace_back(topic.first, partition.first, range.second);
                 }
             } //partitions
+            //Commit all offsets for this topic
+            if (!partitions.empty()) {
+                logOffsets("OffsetManager:Commit", partitions);
+                cppkafka::Error error = _consumerManager.commit(partitions, std::forward<EXEC_MODE>(execMode)...);
+                if (error) {
+                    return error;
+                }
+            }
         } //topics
-        //Commit all offsets
-        if (!partitions.empty()) {
-            return _consumerManager.commit(partitions, std::forward<EXEC_MODE>(execMode)...);
-        }
         return {};
     }
     catch(...) {
@@ -278,6 +301,7 @@ cppkafka::Error OffsetManager::forceCommitPartitionImpl(const cppkafka::TopicPar
         }
         //Commit range
         if (range.second != -1) {
+            logOffsets("OffsetManager:Commit", partition);
             return _consumerManager.commit(partition, std::forward<EXEC_MODE>(execMode)...);
         }
         return {};
@@ -295,13 +319,16 @@ cppkafka::Error OffsetManager::forceCommitCurrentOffsetImpl(EXEC_MODE&&...execMo
 {
     try {
         bool isSyncCommit = false;
-        cppkafka::TopicPartitionList partitions;
         for (auto& topic : _topicMap) {
+            cppkafka::TopicPartitionList partitions;
             TopicSettings& settings = topic.second;
             for (auto& partition : settings._partitions) {
                 OffsetRanges& ranges = partition.second;
                 Range<int64_t> range(-1,-1);
                 {//locked scope
+                    if (_traceCommits) {
+                        logOffsets("OffsetManager:Insert", {topic.first, partition.first, ranges._currentOffset});
+                    }
                     quantum::Mutex::Guard guard(quantum::local::context(), ranges._offsetsMutex);
                     range = insertOffset(ranges, ranges._currentOffset);
                 }
@@ -310,17 +337,24 @@ cppkafka::Error OffsetManager::forceCommitCurrentOffsetImpl(EXEC_MODE&&...execMo
                     partitions.emplace_back(topic.first, partition.first, range.second);
                 }
             } //partitions
+            //Commit all offsets for this topic
+            if (!partitions.empty()) {
+                logOffsets("OffsetManager:Commit", partitions);
+                cppkafka::Error error = _consumerManager.commit(partitions, std::forward<EXEC_MODE>(execMode)...);
+                if (error) {
+                    return error;
+                }
+            }
         } //topics
-        //Commit all offsets
-        if (!partitions.empty()) {
-            return _consumerManager.commit(partitions, std::forward<EXEC_MODE>(execMode)...);
-        }
         return {};
     }
     catch(...) {
     }
     return RD_KAFKA_RESP_ERR_UNKNOWN;
 }
+
+/// @brief Stream operator for the OffsetManager class
+std::ostream& operator<<(std::ostream& output, const OffsetManager& rhs);
 
 /// @brief RAII-type class for committing an offset within a scope.
 class OffsetCommitGuard

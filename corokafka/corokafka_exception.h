@@ -20,10 +20,12 @@ struct Exception : public std::runtime_error
     {
         if (_what.empty()) {
             std::ostringstream oss;
-            JsonBuilder json(oss);
-            json.startMember(name()).
-                tag("reason", std::runtime_error::what()).
-                endMember().end();
+            {
+                JsonBuilder json(oss);
+                json.startMember(name()).
+                        tag("reason", std::runtime_error::what()).
+                        endMember();
+            }
             _what = oss.str();
         }
         return _what.c_str();
@@ -80,11 +82,13 @@ struct TopicException : public Exception
     {
         if (_what.empty()) {
             std::ostringstream oss;
-            JsonBuilder json(oss);
-            json.startMember(name()).
-                tag("topic", topic()).
-                    tag("reason", std::runtime_error::what()).
-                    endMember().end();
+            {
+                JsonBuilder json(oss);
+                json.startMember(name()).
+                        tag("topic", topic()).
+                        tag("reason", std::runtime_error::what()).
+                        endMember();
+            }
             _what = oss.str();
         }
         return _what.c_str();
@@ -134,11 +138,13 @@ struct InvalidArgumentException : public Exception
     {
         if (_what.empty()) {
             std::ostringstream oss;
-            JsonBuilder json(oss);
-            json.startMember(name()).
-                tag("argument", argument()).
-                    tag("reason", std::runtime_error::what()).
-                    endMember().end();
+            {
+                JsonBuilder json(oss);
+                json.startMember(name()).
+                        tag("argument", argument()).
+                        tag("reason", std::runtime_error::what()).
+                        endMember();
+            }
             _what = oss.str();
         }
         return _what.c_str();
@@ -183,12 +189,14 @@ struct InvalidOptionException : public ConfigurationException
     {
         if (_what.empty()) {
             std::ostringstream oss;
-            JsonBuilder json(oss);
-            json.startMember(name()).
-                tag("topic", topic()).
-                    tag("option", option()).
-                    tag("reason", std::runtime_error::what()).
-                    endMember().end();
+            {
+                JsonBuilder json(oss);
+                json.startMember(name()).
+                        tag("topic", topic()).
+                        tag("option", option()).
+                        tag("reason", std::runtime_error::what()).
+                        endMember();
+            }
             _what = oss.str();
         }
         return _what.c_str();

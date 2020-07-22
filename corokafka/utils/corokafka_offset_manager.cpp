@@ -17,7 +17,10 @@
 #include <corokafka/corokafka_utils.h>
 #include <corokafka/corokafka_metadata.h>
 #include <corokafka/corokafka_exception.h>
+#include <corokafka/utils/corokafka_json_builder.h>
+#include <cppkafka/detail/callback_invoker.h>
 #include <algorithm>
+#include <sstream>
 
 namespace Bloomberg {
 namespace corokafka {
@@ -82,6 +85,23 @@ void OffsetManager::queryOffsetsFromBroker(const std::string& topic,
                           findPartition(committedOffsets, toppar.get_partition()),
                           findWatermark(watermarks, toppar.get_partition()),
                           settings._autoResetAtEnd);
+    }
+    cppkafka::CallbackInvoker<Callbacks::LogCallback>
+                    logCallback("log", _consumerManager.getConfiguration(topic).getLogCallback(), nullptr);
+    if (logCallback) {
+        std::ostringstream oss;
+        {
+            JsonBuilder json(oss);
+            json.startMember("topicInfo").
+                tag("watermarks", watermarks).
+                tag("committed", committedOffsets).
+                tag("assignment", assignment).
+                endMember();
+        }
+        logCallback(_consumerManager.getMetadata(topic),
+                    cppkafka::LogLevel::LogDebug,
+                    "OffsetManager::QueryBroker",
+                    oss.str());
     }
 }
 
@@ -254,6 +274,12 @@ void OffsetManager::resetPartitionOffsets(const std::string& topic,
     }
 }
 
+const OffsetManager::TopicSettings&
+OffsetManager::getTopicSettings(const cppkafka::TopicPartition& partition) const
+{
+    return const_cast<OffsetManager*>(this)->getTopicSettings(partition);
+}
+
 OffsetManager::TopicSettings&
 OffsetManager::getTopicSettings(const cppkafka::TopicPartition& partition)
 {
@@ -264,6 +290,13 @@ OffsetManager::getTopicSettings(const cppkafka::TopicPartition& partition)
         throw std::out_of_range(oss.str());
     }
     return it->second;
+}
+
+const OffsetManager::OffsetRanges&
+OffsetManager::getOffsetRanges(const TopicSettings& settings,
+                               const cppkafka::TopicPartition& partition) const
+{
+    return const_cast<OffsetManager*>(this)->getOffsetRanges(const_cast<TopicSettings&>(settings), partition);
 }
 
 OffsetManager::OffsetRanges&
@@ -277,6 +310,86 @@ OffsetManager::getOffsetRanges(TopicSettings& settings,
         throw std::out_of_range(oss.str());
     }
     return it->second;
+}
+
+std::string OffsetManager::toString() const
+{
+    std::ostringstream oss;
+    {
+        JsonBuilder json(oss);
+        json.startMember("offsetManager", JsonBuilder::Array::True);
+        for (const auto &topic  : _topicMap) {
+            json.rawTag(toString(topic.first));
+        }
+        json.endMember();
+    }
+    return oss.str();
+}
+
+std::string OffsetManager::toString(const std::string& topic) const
+{
+    const TopicSettings& settings = getTopicSettings(cppkafka::TopicPartition{topic});
+    std::ostringstream oss;
+    {
+        JsonBuilder json(oss);
+        json.startMember("topic").
+            tag("name", topic).
+            startMember("partitions", JsonBuilder::Array::True);
+        for (const auto &partition : settings._partitions) {
+            json.startMember().
+                tag("partition", std::to_string(partition.first).c_str()).
+                tag("begin", partition.second._beginOffset).
+                tag("current", partition.second._currentOffset).
+                rawTag("offsets", partition.second._offsets).
+                endMember();
+        }
+        json.endMember(). //partitions
+            tag("resetAtEnd", settings._autoResetAtEnd).
+            endMember(); //topic
+    }
+    return oss.str();
+}
+
+void OffsetManager::enableCommitTracing(bool enable)
+{
+    _traceCommits = enable;
+}
+
+void OffsetManager::logOffsets(const std::string& facility,
+                               const cppkafka::TopicPartition& offset) const
+{
+    if (!_traceCommits) return;
+    const auto& topic = offset.get_topic();
+    cppkafka::CallbackInvoker<Callbacks::LogCallback>
+                    logCallback("log", _consumerManager.getConfiguration(topic).getLogCallback(), nullptr);
+    if (!logCallback) return;
+    std::ostringstream oss;
+    oss << offset;
+    logCallback(_consumerManager.getMetadata(topic),
+                cppkafka::LogLevel::LogDebug,
+                facility,
+                oss.str());
+}
+
+void OffsetManager::logOffsets(const std::string& facility,
+                               const cppkafka::TopicPartitionList& offsets) const
+{
+    if (!_traceCommits || offsets.empty()) return;
+    const auto& topic = offsets.front().get_topic();
+    cppkafka::CallbackInvoker<Callbacks::LogCallback>
+                    logCallback("log", _consumerManager.getConfiguration(topic).getLogCallback(), nullptr);
+    if (!logCallback) return;
+    std::ostringstream oss;
+    oss << offsets;
+    logCallback(_consumerManager.getMetadata(topic),
+                cppkafka::LogLevel::LogDebug,
+                facility,
+                oss.str());
+}
+
+std::ostream& operator<<(std::ostream& output, const OffsetManager& rhs)
+{
+    return output << rhs.toString();
 }
 
 }}

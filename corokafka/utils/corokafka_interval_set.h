@@ -277,11 +277,13 @@ template<class T>
 std::ostream &
 operator<<(std::ostream &out, const Range<T>& r)
 {
-    JsonBuilder json(out);
-    json.startMember("interval");
-    json.tag("begin", r.first).
-         tag("end", r.second);
-    json.endMember().end();
+    {
+        JsonBuilder json(out);
+        json.startMember("interval").
+            tag("begin", r.first).
+            tag("end", r.second).
+            endMember();
+    }
     return out;
 }
 
@@ -289,14 +291,17 @@ template<class T>
 std::ostream &
 operator<<(std::ostream &out, IntervalSet<T> const &is)
 {
-    JsonBuilder json(out);
-    bool isArray{true};
-    json.startMember("intervals", isArray);
-    for (typename IntervalSet<T>::ConstIterator it = is.begin(); it != is.end(); it++) {
-        json.tag("begin", it->first, JsonBuilder::Brace::Start).
-             tag("end", it->second, JsonBuilder::Brace::End);
+    {
+        JsonBuilder json(out);
+        json.startMember("intervals", JsonBuilder::Array::True);
+        for (typename IntervalSet<T>::ConstIterator it = is.begin(); it != is.end(); it++) {
+            json.startMember().
+                tag("begin", it->first).
+                tag("end", it->second).
+                endMember();
+        }
+        json.endMember();
     }
-    json.endMember().end();
     return out;
 }
 

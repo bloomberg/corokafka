@@ -58,18 +58,19 @@ void* DeliveryReport::getOpaque() const
 std::string DeliveryReport::toString() const
 {
     std::ostringstream oss;
-    JsonBuilder json(oss);
-    json.startMember("deliveryReport").tag("destination", _topicPartition);
-    if (_error) {
-        json.tag("error", _error);
+    {
+        JsonBuilder json(oss);
+        json.startMember("deliveryReport").tag("destination", _topicPartition);
+        if (_error) {
+            json.tag("error", _error);
+        } else {
+            json.tag("numBytes", _numBytes);
+        }
+        if (_opaque) {
+            json.tag("opaque", _opaque);
+        }
+        json.endMember();
     }
-    else {
-        json.tag("numBytes", _numBytes);
-    }
-    if (_opaque) {
-        json.tag("opaque", _opaque);
-    }
-    json.endMember().end();
     return oss.str();
 }
 

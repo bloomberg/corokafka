@@ -135,10 +135,12 @@ void ConnectorImpl::shutdown(std::chrono::milliseconds drainTimeout)
             _pollThread.join();
         }
         catch (const std::system_error& ex) {
-            if (_connectorConfiguration.getLogCallback()) {
+            cppkafka::CallbackInvoker<Callbacks::ConnectorLogCallback>
+                    logCallback("log", _connectorConfiguration.getLogCallback(), nullptr);
+            if (logCallback) {
                 std::ostringstream oss;
                 oss << "Joining on poll thread failed with error: " << ex.what();
-                _connectorConfiguration.getLogCallback()(cppkafka::LogLevel::LogErr, "corokafka", oss.str());
+                logCallback(cppkafka::LogLevel::LogErr, "corokafka", oss.str());
             }
         }
         
@@ -158,10 +160,12 @@ void ConnectorImpl::poll()
             _consumerPtr->poll(); //poll the consumers
         }
         catch (const std::exception& ex) {
-            if (_connectorConfiguration.getLogCallback()) {
+            cppkafka::CallbackInvoker<Callbacks::ConnectorLogCallback>
+                    logCallback("log", _connectorConfiguration.getLogCallback(), nullptr);
+            if (logCallback) {
                 std::ostringstream oss;
                 oss << "Caught exception while polling: " << ex.what();
-                _connectorConfiguration.getLogCallback()(cppkafka::LogLevel::LogErr, "corokafka", oss.str());
+                logCallback(cppkafka::LogLevel::LogErr, "corokafka", oss.str());
             }
         }
         auto end = std::chrono::high_resolution_clock::now();

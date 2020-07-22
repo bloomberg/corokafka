@@ -233,17 +233,19 @@ std::ostream &operator<<(std::ostream &stream, const cppkafka::BasicMessageBuild
     ssize_t max_len = maxMessageBuilderOutputLength();
     size_t payload_len = (max_len == -1) ? builder.payload().size() :
                          std::min(builder.payload().size(), static_cast<size_t>(max_len));
-    JsonBuilder json(stream);
-    json.startMember("messageBuilder").
-        tag("topic", builder.topic()).
-        tag("partition", builder.partition()).
-        tag("key", builder.key()).
-        tag("length", builder.payload().size()).
-        tag("payload", builder.payload().substr(0, payload_len));
-    if (builder.timestamp().count() > 0) {
-        json.tag("timestamp", builder.timestamp().count());
+    {
+        JsonBuilder json(stream);
+        json.startMember("messageBuilder").
+                tag("topic", builder.topic()).
+                tag("partition", builder.partition()).
+                tag("key", builder.key()).
+                tag("length", builder.payload().size()).
+                tag("payload", builder.payload().substr(0, payload_len));
+        if (builder.timestamp().count() > 0) {
+            json.tag("timestamp", builder.timestamp().count());
+        }
+        json.endMember();
     }
-    json.endMember().end();
     return stream;
 }
 
@@ -254,17 +256,19 @@ std::ostream &operator<<(std::ostream &stream,
     ssize_t max_len = maxMessageBuilderOutputLength();
     size_t payload_len = (max_len == -1) ? builder.payload().size() :
                          std::min(builder.payload().size(), static_cast<size_t>(max_len));
-    JsonBuilder json(stream);
-    json.startMember("messageBuilder").
-        tag("topic", builder.topic()).
-        tag("partition", builder.partition()).
-        tag("key", std::string(builder.key().data(), builder.key().size())).
-        tag("length", std::string(builder.payload().data(), payload_len)).
-        tag("payload", builder.payload().substr(0, payload_len));
-    if (builder.timestamp().count() > 0) {
-        json.tag("timestamp", builder.timestamp().count());
+    {
+        JsonBuilder json(stream);
+        json.startMember("messageBuilder").
+                tag("topic", builder.topic()).
+                tag("partition", builder.partition()).
+                tag("key", std::string(builder.key().data(), builder.key().size())).
+                tag("length", std::string(builder.payload().data(), payload_len)).
+                tag("payload", builder.payload().substr(0, payload_len));
+        if (builder.timestamp().count() > 0) {
+            json.tag("timestamp", builder.timestamp().count());
+        }
+        json.endMember();
     }
-    json.endMember().end();
     return stream;
 }
 
@@ -274,17 +278,19 @@ std::ostream& operator<<(std::ostream& stream,
     ssize_t max_len = maxMessageBuilderOutputLength();
     size_t payload_len = (max_len == -1) ? builder.payload().get_size() :
                          std::min(builder.payload().get_size(), static_cast<size_t>(max_len));
-    JsonBuilder json(stream);
-    json.startMember("messageBuilder").
-        tag("topic", builder.topic()).
-        tag("partition", builder.partition()).
-        tag("key", (std::string)builder.key()).
-        tag("length", builder.payload().get_size()).
-        tag("payload", std::string((const char*)builder.payload().get_data(), payload_len));
-    if (builder.timestamp().count() > 0) {
-        json.tag("timestamp", builder.timestamp().count());
+    {
+        JsonBuilder json(stream);
+        json.startMember("messageBuilder").
+                tag("topic", builder.topic()).
+                tag("partition", builder.partition()).
+                tag("key", (std::string) builder.key()).
+                tag("length", builder.payload().get_size()).
+                tag("payload", std::string((const char *) builder.payload().get_data(), payload_len));
+        if (builder.timestamp().count() > 0) {
+            json.tag("timestamp", builder.timestamp().count());
+        }
+        json.endMember();
     }
-    json.endMember().end();
     return stream;
 }
 
