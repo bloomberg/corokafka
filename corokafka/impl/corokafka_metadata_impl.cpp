@@ -49,7 +49,8 @@ uint64_t MetadataImpl::getHandle() const
 
 const std::string& MetadataImpl::getTopic() const
 {
-    return *_topic;
+    static std::string tmp{"unknown"};
+    return _topic ? *_topic : tmp;
 }
 
 const cppkafka::Topic& MetadataImpl::getTopicObject() const

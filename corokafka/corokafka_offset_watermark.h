@@ -20,6 +20,7 @@
 #include <cppkafka/topic_partition.h>
 #include <librdkafka/rdkafka.h>
 #include <vector>
+#include <ostream>
 
 namespace Bloomberg {
 namespace corokafka {
@@ -31,6 +32,8 @@ struct OffsetWatermark
                     cppkafka::KafkaHandleBase::OffsetTuple watermark) :
             _partition(partition),
             _watermark{std::get<0>(watermark), std::get<1>(watermark)} {}
+            
+    std::string toString() const;
     
     int _partition{RD_KAFKA_PARTITION_UA};
     struct {
@@ -40,6 +43,8 @@ struct OffsetWatermark
 };
 
 using OffsetWatermarkList = std::vector<OffsetWatermark>;
+std::ostream& operator<<(std::ostream& output, const OffsetWatermark& watermark);
+std::ostream& operator<<(std::ostream& output, const OffsetWatermarkList& watermarks);
 
 }}
 
