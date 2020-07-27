@@ -76,12 +76,7 @@ const std::string& Configuration::getJsonSchema()
                         "default": 0
                     },
                     "location": {
-                        "description": "Use in conjunction with the offset property to set a specific offset value or a RdKafka special number.
-'fixed' = specify exact offset,
-'relative' = N-th offset from the end of the partition (i.e. RD_KAFKA_OFFSET_TAIL(N)),
-'stored' = last known offset (i.e. RD_KAFKA_OFFSET_STORED),
-'start' to 'head' = synonyms for the smallest offset (i.e. RD_KAFKA_OFFSET_BEGINNING),
-'finish' to 'tail' = synonyms for largest offset (i.e. RD_KAFKA_OFFSET_END)",
+                        "description": "Use in conjunction with the offset property to set a specific offset value or a RdKafka special number. 'fixed' = specify exact offset, 'relative' = N-th offset from the end of the partition (i.e. RD_KAFKA_OFFSET_TAIL(N)), 'stored' = last known offset (i.e. RD_KAFKA_OFFSET_STORED), 'start' to 'head' = synonyms for the smallest offset (i.e. RD_KAFKA_OFFSET_BEGINNING), 'finish' to 'tail' = synonyms for largest offset (i.e. RD_KAFKA_OFFSET_END)",
                         "type": "string",
                         "enum": [ "fixed", "relative", "stored",
                                   "start", "first", "begin", "beginning", "earliest", "small", "smallest", "head",
