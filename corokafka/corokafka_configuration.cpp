@@ -72,14 +72,21 @@ const std::string& Configuration::getJsonSchema()
                         "uniqueItems": true
                     },
                     "offset": {
-                        "description": "A partition offset. Values are: -1000(stored),-1(end),-2(begin),>=0(exact or relative)",
-                        "type":"number",
-                        "default":-1000
+                        "description": "A positive partition offset. Valid when 'location' is set to 'fixed' or 'relative'",
+                        "default": 0
                     },
-                    "relative": {
-                        "description": "If true, the offset represents the Nth message before the stored offset (i.e. stored-N).",
-                        "type":"boolean",
-                        "default": false
+                    "location": {
+                        "description": "Use in conjunction with the offset property to set a specific offset value or a RdKafka special number.
+'fixed' = specify exact offset,
+'relative' = N-th offset from the end of the partition (i.e. RD_KAFKA_OFFSET_TAIL(N)),
+'stored' = last known offset (i.e. RD_KAFKA_OFFSET_STORED),
+'start' to 'head' = synonyms for the smallest offset (i.e. RD_KAFKA_OFFSET_BEGINNING),
+'finish' to 'tail' = synonyms for largest offset (i.e. RD_KAFKA_OFFSET_END)",
+                        "type": "string",
+                        "enum": [ "fixed", "relative", "stored",
+                                  "start", "first", "begin", "beginning", "earliest", "small", "smallest", "head",
+                                  "finish", "last", "end", "ending", "latest", "large", "largest", "tail" ],
+                        "default": "stored"
                     }
                 },
                 "additionalProperties": false,
