@@ -340,14 +340,18 @@ ProducerManagerImpl::postImpl(ExecMode mode,
         if (topicEntry._preserveMessageOrder) {
             if ((topicEntry._maxQueueLength > -1) &&
                 (topicEntry._producer->get_buffer_size() > static_cast<size_t>(topicEntry._maxQueueLength))) {
-                deliveryPromise.set(DeliveryReport{{}, 0, RD_KAFKA_RESP_ERR__QUEUE_FULL, opaque});
+                DeliveryReport dr;
+                dr.error(RD_KAFKA_RESP_ERR__QUEUE_FULL).opaque(opaque);
+                deliveryPromise.set(std::move(dr));
                 return deliveryFuture;
             }
         }
         else {
             if (topicEntry._payloadPolicy == cppkafka::Producer::PayloadPolicy::PASSTHROUGH_PAYLOAD) {
                 //Application needs to set PayloadPolicy::COPY_PAYLOAD
-                deliveryPromise.set(DeliveryReport{{}, 0, RD_KAFKA_RESP_ERR__INVALID_ARG, opaque});
+                DeliveryReport dr;
+                dr.error(RD_KAFKA_RESP_ERR__INVALID_ARG).opaque(opaque);
+                deliveryPromise.set(std::move(dr));
                 return deliveryFuture;
             }
         }
@@ -355,7 +359,9 @@ ProducerManagerImpl::postImpl(ExecMode mode,
     ProducerMessageBuilder<ByteArray> builder = serializeMessage(topic, topicEntry, opaque, key, payload, headers...);
     if (builder.topic().empty()) {
         //Serializing failed
-        deliveryPromise.set(DeliveryReport{{}, 0, RD_KAFKA_RESP_ERR__VALUE_SERIALIZATION, opaque});
+        DeliveryReport dr;
+        dr.error(RD_KAFKA_RESP_ERR__VALUE_SERIALIZATION).opaque(opaque);
+        deliveryPromise.set(std::move(dr));
         return deliveryFuture;
     }
     builder.user_data(new PackedOpaque{opaque, std::move(deliveryPromise)});
@@ -377,7 +383,9 @@ ProducerManagerImpl::postImpl(ExecMode mode,
         rc = produceMessage(mode, topicEntry, std::move(builder), IoTracker{});
     }
     if (rc != 0) {
-        deliveryPromise.set(DeliveryReport{{}, 0, RD_KAFKA_RESP_ERR__BAD_MSG, opaque});
+        DeliveryReport dr;
+        dr.error(RD_KAFKA_RESP_ERR__BAD_MSG).opaque(opaque);
+        deliveryPromise.set(std::move(dr));
     }
     return deliveryFuture;
 }

@@ -577,29 +577,35 @@ const void* ProducerManagerImpl::setPackedOpaqueFuture(const cppkafka::Message& 
 {
     std::unique_ptr<PackedOpaque> packedOpaque(static_cast<PackedOpaque*>(kafkaMessage.get_user_data()));
     try {
-        packedOpaque->_deliveryReportPromise.set(
-                DeliveryReport(cppkafka::TopicPartition(kafkaMessage.get_topic(),
-                                                        kafkaMessage.get_partition(),
-                                                        kafkaMessage.get_offset()),
-                                kafkaMessage.get_payload().get_size(),
-                                kafkaMessage.get_error(),
-                                packedOpaque->_opaque));
+        DeliveryReport dr;
+        dr.topicPartition({kafkaMessage.get_topic(), kafkaMessage.get_partition(), kafkaMessage.get_offset()}).
+            error(kafkaMessage.get_error()).
+            numBytesWritten(kafkaMessage.get_payload().get_size()).
+            opaque(packedOpaque->_opaque);
+#if (RD_KAFKA_VERSION >= RD_KAFKA_MESSAGE_STATUS_SUPPORT_VERSION)
+        dr.status(kafkaMessage.get_status());
+#endif
+#if RD_KAFKA_VERSION >= RD_KAFKA_MESSAGE_LATENCY_SUPPORT_VERSION
+        dr.latency(kafkaMessage.get_latency());
+#endif
+        packedOpaque->_deliveryReportPromise.set(std::move(dr));
     }
-    catch (...) {
-        return packedOpaque->_opaque;
-    }
+    catch (...) {}
     return packedOpaque->_opaque;
 }
 
-const void* ProducerManagerImpl::setPackedOpaqueFuture(const cppkafka::MessageBuilder& builder, cppkafka::Error error)
+const void* ProducerManagerImpl::setPackedOpaqueFuture(const cppkafka::MessageBuilder& builder,
+                                                       cppkafka::Error error)
 {
     std::unique_ptr<PackedOpaque> packedOpaque(static_cast<PackedOpaque*>(builder.user_data()));
-    packedOpaque->_deliveryReportPromise.set(
-            DeliveryReport(cppkafka::TopicPartition(builder.topic(),
-                                                    builder.partition()),
-                           0,
-                           error,
-                           packedOpaque->_opaque));
+    try {
+        DeliveryReport dr;
+        dr.topicPartition({builder.topic(), builder.partition()}).
+            error(error).
+            opaque(packedOpaque->_opaque);
+        packedOpaque->_deliveryReportPromise.set(std::move(dr));
+    }
+    catch (...) {}
     return packedOpaque->_opaque;
 }
 

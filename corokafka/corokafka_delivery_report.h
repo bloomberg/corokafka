@@ -45,27 +45,55 @@ public:
      * @brief Gets the opaque data associated with the message
      */
     void* getOpaque() const;
+    
+#if (RD_KAFKA_VERSION >= RD_KAFKA_MESSAGE_STATUS_SUPPORT_VERSION)
+    /**
+     * @brief Gets the message persistence status.
+     * @note Only available if SentMessage was build with a Message type.
+     */
+    rd_kafka_msg_status_t getStatus() const;
+#endif
+    
+#if RD_KAFKA_VERSION >= RD_KAFKA_MESSAGE_LATENCY_SUPPORT_VERSION
+    /**
+     * @brief Gets the message latency in microseconds as measured from the produce() call.
+     * @return The latency in microseconds
+     */
+    std::chrono::microseconds getLatency() const;
+#endif
+    
     /**
      * @brief Get a string representation of this object
      */
     std::string toString() const;
+
 private:
     friend class ProducerManagerImpl;
-    /**
-     * @brief Constructs an instance of a message delivery report
-     * @param topicPartition the partition the message was sent to
-     * @param numBytes number of bytes produced
-     * @param error the error associated with the message delivery, if any
-     * @param opaque a user-provided pointer to an opaque data associated with the message
-     */
-    DeliveryReport(cppkafka::TopicPartition topicPartition,
-                   size_t numBytes,
-                   cppkafka::Error error,
-                   const void* opaque);
     
+    //Setters
+    DeliveryReport& topicPartition(cppkafka::TopicPartition topicPartition);
+    DeliveryReport& numBytesWritten(size_t numBytes);
+    DeliveryReport& error(cppkafka::Error error);
+#if (RD_KAFKA_VERSION >= RD_KAFKA_MESSAGE_STATUS_SUPPORT_VERSION)
+    DeliveryReport& status(rd_kafka_msg_status_t status);
+#endif
+#if RD_KAFKA_VERSION >= RD_KAFKA_MESSAGE_LATENCY_SUPPORT_VERSION
+    DeliveryReport& latency(std::chrono::microseconds latency);
+#endif
+    DeliveryReport& opaque(const void* opaque);
+    
+    static const char* kafkaStatusToString(rd_kafka_msg_status_t status);
+    
+    //Members
     cppkafka::TopicPartition    _topicPartition;
     size_t                      _numBytes{0};
     cppkafka::Error             _error{RD_KAFKA_RESP_ERR__FAIL};
+#if (RD_KAFKA_VERSION >= RD_KAFKA_MESSAGE_STATUS_SUPPORT_VERSION)
+    rd_kafka_msg_status_t       _status{RD_KAFKA_MSG_STATUS_NOT_PERSISTED};
+#endif
+#if RD_KAFKA_VERSION >= RD_KAFKA_MESSAGE_LATENCY_SUPPORT_VERSION
+    std::chrono::microseconds   _latency;
+#endif
     const void*                 _opaque{nullptr};
 };
 
