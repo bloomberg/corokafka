@@ -28,6 +28,15 @@ class TopicConfiguration : public Configuration
 {
 public:
     /**
+     * @brief Internal CoroKafka-specific options for topics. They are used to control this
+     *        library's behavior for topics and are complementary to the RdKafka topic options.
+     *        For more details please read CONFIGURATION.md document.
+     */
+    struct Options {
+        static constexpr const char *brokerTimeoutMs = "internal.topic.broker.timeout.ms";
+    };
+    
+    /**
      * @brief Get the configuration type.
      * @return The type.
      */
@@ -131,6 +140,10 @@ protected:
                        const std::string& topic,
                        std::initializer_list<cppkafka::ConfigurationOption> options,
                        std::initializer_list<cppkafka::ConfigurationOption> topicOptions);
+    
+    static const OptionMap              s_internalTopicOptions;
+    static const std::string            s_internalTopicOptionsPrefix;
+    
 private:
     void filterOptions();
     

@@ -25,8 +25,9 @@ namespace corokafka {
 
 ConsumerMetadataImpl::ConsumerMetadataImpl(const std::string& topic,
                                            cppkafka::Consumer* handle,
-                                           PartitionStrategy strategy) :
-    MetadataImpl(topic, cppkafka::Topic(), handle),
+                                           PartitionStrategy strategy,
+                                           std::chrono::milliseconds brokerTimeout) :
+    MetadataImpl(topic, cppkafka::Topic(), handle, brokerTimeout),
     _strategy(strategy)
 {
 }
@@ -34,8 +35,9 @@ ConsumerMetadataImpl::ConsumerMetadataImpl(const std::string& topic,
 ConsumerMetadataImpl::ConsumerMetadataImpl(const std::string& topic,
                                            const cppkafka::Topic& kafkaTopic,
                                            cppkafka::Consumer* handle,
-                                           PartitionStrategy strategy) :
-    MetadataImpl(topic, kafkaTopic, handle),
+                                           PartitionStrategy strategy,
+                                           std::chrono::milliseconds brokerTimeout) :
+    MetadataImpl(topic, kafkaTopic, handle, brokerTimeout),
     _strategy(strategy)
 {
 }
@@ -90,7 +92,7 @@ cppkafka::TopicPartitionList ConsumerMetadataImpl::queryCommittedOffsets() const
     if (!_handle) {
         throw HandleException("Null consumer");
     }
-    return static_cast<const cppkafka::Consumer*>(_handle)->get_offsets_committed(getPartitionAssignment());
+    return static_cast<const cppkafka::Consumer*>(_handle)->get_offsets_committed(getPartitionAssignment(), brokerTimeout());
 }
 
 cppkafka::TopicPartitionList ConsumerMetadataImpl::queryCommittedOffsets(std::chrono::milliseconds timeout) const
@@ -125,7 +127,7 @@ cppkafka::GroupInformation ConsumerMetadataImpl::getGroupInformation() const
     if (!_handle) {
         throw HandleException("Null consumer");
     }
-    return _handle->get_consumer_group(static_cast<const cppkafka::Consumer*>(_handle)->get_member_id());
+    return _handle->get_consumer_group(static_cast<const cppkafka::Consumer*>(_handle)->get_member_id(), brokerTimeout());
 }
 
 cppkafka::GroupInformation ConsumerMetadataImpl::getGroupInformation(std::chrono::milliseconds timeout) const
@@ -141,7 +143,7 @@ cppkafka::GroupInformationList ConsumerMetadataImpl::getAllGroupsInformation() c
     if (!_handle) {
         throw HandleException("Null consumer");
     }
-    return _handle->get_consumer_groups();
+    return _handle->get_consumer_groups(brokerTimeout());
 }
 
 cppkafka::GroupInformationList ConsumerMetadataImpl::getAllGroupsInformation(std::chrono::milliseconds timeout) const

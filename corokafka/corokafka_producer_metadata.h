@@ -62,14 +62,16 @@ private:
     using ImplType = Impl<IProducerMetadata>;
     
     ProducerMetadata(const std::string& topic,
-                     cppkafka::BufferedProducer<ByteArray>* producer);
+                     cppkafka::BufferedProducer<ByteArray>* producer,
+                     std::chrono::milliseconds brokerTimeout = std::chrono::milliseconds{EnumValue(TimerValues::Disabled)});
     
     ProducerMetadata(const std::string& topic,
                      const cppkafka::Topic& kafkaTopic,
-                     cppkafka::BufferedProducer<ByteArray>* producer);
+                     cppkafka::BufferedProducer<ByteArray>* producer,
+                     std::chrono::milliseconds brokerTimeout = std::chrono::milliseconds{EnumValue(TimerValues::Disabled)});
     
     //For mocking only
-    ProducerMetadata(std::shared_ptr<IProducerMetadata> impl);
+    explicit ProducerMetadata(std::shared_ptr<IProducerMetadata> impl);
 };
 
 }}

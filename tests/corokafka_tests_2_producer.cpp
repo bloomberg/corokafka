@@ -7,6 +7,11 @@ namespace Bloomberg {
 namespace corokafka {
 namespace tests {
 
+//topic config
+Configuration::OptionList producerTopicConfig = {
+    {TopicConfiguration::Options::brokerTimeoutMs, 5000}
+};
+
 //sync
 Configuration::OptionList syncConfig = {
     {"enable.idempotence", false},
@@ -147,7 +152,7 @@ TEST(ProducerConfiguration, InternalProducerPollIoThreadId)
 
 TEST(Producer, SendSyncWithoutHeaders)
 {
-    Connector connector = makeProducerConnector(syncConfig, topicWithoutHeaders());
+    Connector connector = makeProducerConnector(syncConfig, producerTopicConfig, topicWithoutHeaders());
     
     //Send messages
     SenderId id = SenderId::SyncWithoutHeaders;
@@ -163,7 +168,7 @@ TEST(Producer, SendSyncWithoutHeaders)
 
 TEST(Producer, SendSyncWithHeaders)
 {
-    Connector connector = makeProducerConnector(syncConfig, topicWithHeaders());
+    Connector connector = makeProducerConnector(syncConfig, producerTopicConfig, topicWithHeaders());
     
     //Send messages
     SenderId id = SenderId::Sync;
@@ -181,7 +186,7 @@ TEST(Producer, SendSyncWithHeaders)
 
 TEST(Producer, SendSyncSkippingOneHeader)
 {
-    Connector connector = makeProducerConnector(syncConfig, topicWithHeaders());
+    Connector connector = makeProducerConnector(syncConfig, producerTopicConfig, topicWithHeaders());
     
     //Send messages
     SenderId id = SenderId::SyncSecondHeaderMissing;
@@ -198,7 +203,7 @@ TEST(Producer, SendSyncSkippingOneHeader)
 
 TEST(Producer, SendSyncSkippingBothHeaders)
 {
-    Connector connector = makeProducerConnector(syncConfig, topicWithHeaders());
+    Connector connector = makeProducerConnector(syncConfig, producerTopicConfig, topicWithHeaders());
     
     //Send messages
     SenderId id = SenderId::SyncBothHeadersMissing;
@@ -214,7 +219,7 @@ TEST(Producer, SendSyncSkippingBothHeaders)
 
 TEST(Producer, SendSyncUnorderedWithHeaders)
 {
-    Connector connector = makeProducerConnector(syncUnorderedConfig, topicWithHeaders());
+    Connector connector = makeProducerConnector(syncUnorderedConfig, producerTopicConfig, topicWithHeaders());
     
     //Send messages
     SenderId id = SenderId::SyncUnordered;
@@ -232,7 +237,7 @@ TEST(Producer, SendSyncUnorderedWithHeaders)
 
 TEST(Producer, SendSyncIdempotent)
 {
-    Connector connector = makeProducerConnector(syncIdempotentConfig, topicWithHeaders());
+    Connector connector = makeProducerConnector(syncIdempotentConfig, producerTopicConfig, topicWithHeaders());
     
     //Send messages
     SenderId id = SenderId::SyncIdempotent;
@@ -250,7 +255,7 @@ TEST(Producer, SendSyncIdempotent)
 
 TEST(Producer, SendAsync)
 {
-    Connector connector = makeProducerConnector(asyncConfig, topicWithHeaders());
+    Connector connector = makeProducerConnector(asyncConfig, producerTopicConfig, topicWithHeaders());
     
     std::vector<quantum::GenericFuture<DeliveryReport>> futures;
     //Send messages
@@ -277,7 +282,7 @@ TEST(Producer, SendAsync)
 
 TEST(Producer, SendAsyncUnordered)
 {
-    Connector connector = makeProducerConnector(asyncUnorderedConfig, topicWithHeaders());
+    Connector connector = makeProducerConnector(asyncUnorderedConfig, producerTopicConfig, topicWithHeaders());
     
     std::vector<quantum::GenericFuture<DeliveryReport>> futures;
     //Send messages

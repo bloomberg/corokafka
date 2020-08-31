@@ -15,6 +15,11 @@ std::string getNewGroupName()
     return "group_" + std::to_string(i++);
 }
 
+//topic config
+Configuration::OptionList consumerTopicConfig = {
+    {TopicConfiguration::Options::brokerTimeoutMs, 5000}
+};
+
 //paused on start with auto commit every 10ms
 Configuration::OptionList config1 = {
     {"enable.partition.eof", true},
@@ -341,6 +346,7 @@ TEST(Consumer, ValidatePauseOnStart)
     callbackCounters().reset();
     Connector connector = makeConsumerConnector(
         config1,
+        consumerTopicConfig,
         getNewGroupName(),
         topicWithoutHeaders(),
         Callbacks::messageReceiverWithoutHeaders,
@@ -381,6 +387,7 @@ TEST(Consumer, ReadTopicWithoutHeadersUsingConfig1)
     callbackCounters().reset();
     Connector connector = makeConsumerConnector(
         config1,
+        consumerTopicConfig,
         getNewGroupName(),
         topicWithoutHeaders(),
         Callbacks::messageReceiverWithoutHeaders,
@@ -426,6 +433,7 @@ TEST(Consumer, ReadTopicWithHeadersUsingConfig2)
     callbackCounters().reset();
     Connector connector = makeConsumerConnector(
         config2,
+        consumerTopicConfig,
         getNewGroupName(),
         topicWithHeaders(),
         Callbacks::messageReceiverWithHeadersManualCommit,
@@ -465,6 +473,7 @@ TEST(Consumer, ReadTopicWithHeadersUsingConfig3)
     callbackCounters().reset();
     Connector connector = makeConsumerConnector(
         config3,
+        consumerTopicConfig,
         getNewGroupName(),
         topicWithHeaders(),
         Callbacks::messageReceiverWithHeadersManualCommit,
@@ -504,6 +513,7 @@ TEST(Consumer, ReadTopicWithHeadersUsingConfig4)
     callbackCounters().reset();
     Connector connector = makeConsumerConnector(
         config4,
+        consumerTopicConfig,
         getNewGroupName(),
         topicWithHeaders(),
         Callbacks::messageReceiverWithHeadersManualCommit,
@@ -551,6 +561,7 @@ TEST(Consumer, SkipMessagesWithRelativeOffsetUsingConfig2)
     
     Connector connector = makeConsumerConnector(
         config2,
+        consumerTopicConfig,
         getNewGroupName(),
         topicWithHeaders(),
         Callbacks::messageReceiverWithHeadersManualCommit,
@@ -579,6 +590,7 @@ TEST(Consumer, OffsetCommitManagerFromBeginning)
     callbackCounters().reset();
     Connector connector = makeConsumerConnector(
             config4,
+            consumerTopicConfig,
             getNewGroupName(),
             topicWithHeaders(),
             Callbacks::messageReceiverWithHeadersUsingCommitGuard,
@@ -619,6 +631,7 @@ TEST(Consumer, OffsetCommitManagerRelative)
     callbackCounters().reset();
     Connector connector = makeConsumerConnector(
             config4,
+            consumerTopicConfig,
             getNewGroupName(),
             topicWithHeaders(),
             Callbacks::messageReceiverWithHeadersUsingCommitGuard,
@@ -668,6 +681,7 @@ TEST(Consumer, OffsetCommitManagerFromStored)
         
         Connector connector = makeConsumerConnector(
                 config4,
+                consumerTopicConfig,
                 consumerGroup,
                 topicWithHeaders(),
                 Callbacks::messageReceiverWithHeadersUsingCommitGuard,
@@ -710,6 +724,7 @@ TEST(Consumer, OffsetCommitManagerFromStored)
         
         Connector connector = makeConsumerConnector(
                 config4,
+                consumerTopicConfig,
                 consumerGroup,
                 topicWithHeaders(),
                 Callbacks::messageReceiverWithHeadersUsingCommitGuard,
@@ -753,6 +768,7 @@ TEST(Consumer, ValidateDynamicAssignment)
     callbackCounters().reset();
     Connector connector = makeConsumerConnector(
         config1,
+        consumerTopicConfig,
         groupName,
         topicWithoutHeaders(),
         Callbacks::messageReceiverWithoutHeaders,
@@ -770,6 +786,7 @@ TEST(Consumer, ValidateDynamicAssignment)
     //Create a 2nd connector for the same group
     Connector connector2 = makeConsumerConnector(
         config1,
+        consumerTopicConfig,
         groupName,
         topicWithoutHeaders(),
         Callbacks::messageReceiverWithoutHeaders,

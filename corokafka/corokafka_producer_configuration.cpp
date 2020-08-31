@@ -139,8 +139,6 @@ const Configuration::OptionMap ProducerConfiguration::s_internalOptions = {
      }},
 };
 
-const Configuration::OptionMap ProducerConfiguration::s_internalTopicOptions;
-
 void ProducerConfiguration::setDeliveryReportCallback(Callbacks::DeliveryReportCallback callback)
 {
     _deliveryReportCallback = std::move(callback);
@@ -174,7 +172,7 @@ const Callbacks::QueueFullCallback& ProducerConfiguration::getQueueFullCallback(
 const Configuration::OptionExtractorFunc&
 ProducerConfiguration::extract(const std::string& option)
 {
-    return Configuration::extractOption(s_internalOptions, option);
+    return Configuration::extractOption(s_internalOptions, s_internalTopicOptions, option);
 }
 
 }

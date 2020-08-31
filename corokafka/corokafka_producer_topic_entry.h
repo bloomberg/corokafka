@@ -74,6 +74,7 @@ struct ProducerTopicEntry {
     quantum::ThreadFuturePtr<int>       _pollFuture{nullptr};
     std::chrono::milliseconds           _waitForAcksTimeout{EnumValue(TimerValues::Disabled)};
     std::chrono::milliseconds           _flushWaitForAcksTimeout{rd_kafka_version() >= RD_KAFKA_ZERO_TIMEOUT_FLUSH_FIX ? EnumValue(TimerValues::Disabled) : 100};
+    std::chrono::milliseconds           _brokerTimeout{EnumValue(TimerValues::Disabled)};
     bool                                _forceSyncFlush{false};
     bool                                _preserveMessageOrder{false};
     cppkafka::Producer::PayloadPolicy   _payloadPolicy{cppkafka::Producer::PayloadPolicy::COPY_PAYLOAD};

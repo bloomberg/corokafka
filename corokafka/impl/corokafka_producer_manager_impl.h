@@ -385,7 +385,8 @@ ProducerManagerImpl::postImpl(ExecMode mode,
     if (rc != 0) {
         DeliveryReport dr;
         dr.error(RD_KAFKA_RESP_ERR__BAD_MSG).opaque(opaque);
-        deliveryPromise.set(std::move(dr));
+        std::unique_ptr<PackedOpaque> packedOpaque(static_cast<PackedOpaque*>(builder.user_data()));
+        packedOpaque->_deliveryReportPromise.set(std::move(dr));
     }
     return deliveryFuture;
 }

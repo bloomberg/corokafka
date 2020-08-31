@@ -98,7 +98,8 @@ protected:
     // Constructor
     Metadata(const std::string& topic,
              const cppkafka::Topic& kafkaTopic,
-             cppkafka::KafkaHandleBase* handle);
+             cppkafka::KafkaHandleBase* handle,
+             std::chrono::milliseconds brokerTimeout = std::chrono::milliseconds{EnumValue(TimerValues::Disabled)});
     
     using VirtualImpl<IMetadata>::VirtualImpl;
     

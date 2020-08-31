@@ -18,7 +18,7 @@ The following configuration options are complementary to the RdKafka [options](h
 | :------- | :---: | :-----: | :---------- |
 | internal.consumer.pause.on.start | true, false | false | Start the consumer in paused state. User needs to call `resume()` to consume. |
 | internal.consumer.timeout.ms | \>= -1 | 1000 | Sets the timeout on any operations requiring a timeout such as poll, query offsets, etc. Set to **-1** for infinite timeout. |
-| internal.consumer.startup.timeout.ms | \>= -1 | 1000 | Sets the timeout on startup operations such as partition assignment and subscriptions in cases when brokers may take longer to come up. |
+| internal.consumer.startup.timeout.ms | \>= -1 | 1000 | Alias for 'internal.topic.broker.timeout.ms' (deprecated) |
 | internal.consumer.poll.timeout.ms | \>= -1 | N/A | If set, overrides the 'internal.consumer.timeout.ms' default setting for polling only. Set to **-1** for infinite timeout. |
 | internal.consumer.min.poll.interval.ms | -2, \> 0 | 10 | Recurring time interval for which to block and wait for messages. This allows for faster shutdown detection. The cumulative time for all intervals shall not exceed **internal.consumer.poll.timeout.ms**. To disable, set to **-2**. If **internal.consumer.poll.timeout.ms** is infinite, this interval cannot be disabled. |
 | internal.consumer.auto.offset.persist | true, false | true | Enables auto-commit/auto-store inside the `ReceivedMessage` destructor. |
@@ -67,6 +67,13 @@ The following configuration options are complementary to the RdKafka [options](h
 | internal.producer.sync.producer.thread.range.low | [0, \<quantum_io_threads\>) | 0 | When producing synchronously from a coroutine, use this to specify on which IO thread to produce. |
 | internal.producer.sync.producer.thread.range.high | [0, \<quantum_io_threads\>) | \<quantum_IO_threads\> - 1 | When producing synchronously from a coroutine, use this to specify on which IO thread to produce. |
 ---
+
+## Topic configuration
+
+| Property | Range | Default | Description |
+| :------- | :---: | :-----: | :---------- |
+| internal.topic.broker.timeout.ms | \>= -1 | 1000 | If set, overrides the 'internal.consumer.timeout.ms' and 'internal.producer.timeout.ms' for various operations such as metadata and watermark queries, partition assignments/subscriptions when brokers may take longer to respond. Particularly useful on startup when such queries are performed. Set to **-1** for infinite timeout. |
+
 
 ##### Notes
 

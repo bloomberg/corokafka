@@ -124,7 +124,6 @@ private:
     Callbacks::PartitionerCallback              _partitionerCallback;
     Callbacks::QueueFullCallback                _queueFullCallback;
     static const OptionMap                      s_internalOptions;
-    static const OptionMap                      s_internalTopicOptions;
     static const std::string                    s_internalOptionsPrefix;
 };
 

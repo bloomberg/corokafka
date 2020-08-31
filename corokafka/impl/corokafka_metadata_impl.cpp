@@ -25,10 +25,12 @@ namespace corokafka {
 // Constructor
 MetadataImpl::MetadataImpl(const std::string& topic,
                            const cppkafka::Topic& kafkaTopic,
-                           cppkafka::KafkaHandleBase* handle) :
+                           cppkafka::KafkaHandleBase* handle,
+                           std::chrono::milliseconds brokerTimeout) :
     _topic(&topic),
     _handle(handle),
-    _kafkaTopic(cppkafka::Topic::make_non_owning(kafkaTopic.get_handle()))
+    _kafkaTopic(cppkafka::Topic::make_non_owning(kafkaTopic.get_handle())),
+    _brokerTimeout(brokerTimeout)
 {
 }
 
@@ -69,14 +71,11 @@ OffsetWatermarkList MetadataImpl::queryOffsetWatermarks() const
     if (!_handle) {
         throw HandleException("Null");
     }
-    return queryOffsetWatermarks(_handle->get_timeout());
+    return queryOffsetWatermarks(brokerTimeout()); //call derived implementation
 }
 
-OffsetWatermarkList MetadataImpl::queryOffsetWatermarks(std::chrono::milliseconds) const
+OffsetWatermarkList MetadataImpl::queryOffsetWatermarks(std::chrono::milliseconds timeout) const
 {
-    if (!_handle) {
-        throw HandleException("Null");
-    }
     throw Exception("Not implemented");
 }
 
@@ -85,15 +84,12 @@ cppkafka::TopicPartitionList MetadataImpl::queryOffsetsAtTime(Timestamp timestam
     if (!_handle) {
         throw HandleException("Null");
     }
-    return queryOffsetsAtTime(timestamp, _handle->get_timeout());
+    return queryOffsetsAtTime(timestamp, brokerTimeout()); //call derived implementation
 }
 
 cppkafka::TopicPartitionList MetadataImpl::queryOffsetsAtTime(Timestamp timestamp,
-                                                          std::chrono::milliseconds timeout) const
+                                                              std::chrono::milliseconds timeout) const
 {
-    if (!_handle) {
-        throw HandleException("Null");
-    }
     throw Exception("Not implemented");
 }
 
@@ -102,7 +98,7 @@ cppkafka::TopicMetadata MetadataImpl::getTopicMetadata() const
     if (!_handle) {
         throw HandleException("Null");
     }
-    return _handle->get_metadata(getTopicObject());
+    return _handle->get_metadata(getTopicObject(), brokerTimeout());
 }
 
 cppkafka::TopicMetadata MetadataImpl::getTopicMetadata(std::chrono::milliseconds timeout) const
@@ -124,6 +120,12 @@ std::string MetadataImpl::getInternalName() const
 bool MetadataImpl::isPartitionAvailable(int partition) const
 {
     return getTopicObject().is_partition_available(partition);
+}
+
+std::chrono::milliseconds MetadataImpl::brokerTimeout() const
+{
+    return (_brokerTimeout.count() == EnumValue(TimerValues::Disabled)) ?
+           _handle->get_timeout() : _brokerTimeout;
 }
 
 }

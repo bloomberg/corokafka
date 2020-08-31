@@ -29,7 +29,8 @@ public:
      */
     MetadataImpl(const std::string& topic,
                  const cppkafka::Topic& kafkaTopic,
-                 cppkafka::KafkaHandleBase* handle);
+                 cppkafka::KafkaHandleBase* handle,
+                 std::chrono::milliseconds brokerTimeout);
     MetadataImpl(const MetadataImpl&) = delete;
     MetadataImpl(MetadataImpl&&) = default;
     MetadataImpl& operator=(const MetadataImpl&) = delete;
@@ -39,12 +40,12 @@ public:
     
     OffsetWatermarkList queryOffsetWatermarks() const final;
     
-    OffsetWatermarkList queryOffsetWatermarks(std::chrono::milliseconds) const override;
+    OffsetWatermarkList queryOffsetWatermarks(std::chrono::milliseconds timeout) const override;
     
     cppkafka::TopicPartitionList queryOffsetsAtTime(Timestamp timestamp) const final;
     
     cppkafka::TopicPartitionList queryOffsetsAtTime(Timestamp timestamp,
-                                                    std::chrono::milliseconds) const override;
+                                                    std::chrono::milliseconds timeout) const override;
     explicit operator bool() const final;
     
     uint64_t getHandle() const final;
@@ -62,10 +63,13 @@ public:
     const cppkafka::Topic& getTopicObject() const final;
     
 protected:
+    std::chrono::milliseconds brokerTimeout() const;
+    
     const std::string*                      _topic;
     cppkafka::KafkaHandleBase*              _handle;
     mutable cppkafka::Topic                 _kafkaTopic;
     mutable cppkafka::TopicPartitionList    _partitions;
+    std::chrono::milliseconds               _brokerTimeout;
 };
 
 }}

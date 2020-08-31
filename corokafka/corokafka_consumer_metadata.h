@@ -88,15 +88,17 @@ private:
     
     ConsumerMetadata(const std::string& topic,
                      cppkafka::Consumer* handle,
-                     PartitionStrategy strategy);
+                     PartitionStrategy strategy,
+                     std::chrono::milliseconds brokerTimeout = std::chrono::milliseconds{EnumValue(TimerValues::Disabled)});
     
     ConsumerMetadata(const std::string& topic,
                      const cppkafka::Topic& kafkaTopic,
                      cppkafka::Consumer* handle,
-                     PartitionStrategy strategy);
+                     PartitionStrategy strategy,
+                     std::chrono::milliseconds brokerTimeout = std::chrono::milliseconds{EnumValue(TimerValues::Disabled)});
     
     //For mocking only
-    ConsumerMetadata(std::shared_ptr<IConsumerMetadata> impl);
+    explicit ConsumerMetadata(std::shared_ptr<IConsumerMetadata> impl);
 };
 
 }

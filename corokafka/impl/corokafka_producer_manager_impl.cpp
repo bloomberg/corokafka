@@ -115,12 +115,14 @@ void ProducerManagerImpl::flush(const ProducerTopicEntry& entry)
 
 void ProducerManagerImpl::setup(const std::string& topic, ProducerTopicEntry& topicEntry)
 {
-    const Configuration::OptionList& rdKafkaOptions = topicEntry._configuration.getOptions(Configuration::OptionType::RdKafka);
-    const Configuration::OptionList& rdKafkaTopicOptions = topicEntry._configuration.getTopicOptions(Configuration::OptionType::RdKafka);
-    const Configuration::OptionList& internalOptions = topicEntry._configuration.getOptions(Configuration::OptionType::Internal);
+    const Configuration::OptionList& rdKafkaOptions = topicEntry._configuration.
+            getOptions(Configuration::OptionType::RdKafka);
+    const Configuration::OptionList& rdKafkaTopicOptions = topicEntry._configuration.
+            getTopicOptions(Configuration::OptionType::RdKafka);
     
-    auto extract = [&topic, &internalOptions](const std::string& name, auto& value)->bool {
-        return ProducerConfiguration::extract(name)(topic, Configuration::findOption(name, internalOptions), &value);
+    auto extract = [&](const std::string &name, auto &value) -> bool
+    {
+        return ProducerConfiguration::extract(name)(topic, topicEntry._configuration.getOption(name), &value);
     };
     
     //Validate config
@@ -223,6 +225,10 @@ void ProducerManagerImpl::setup(const std::string& topic, ProducerTopicEntry& to
     if (extract(ProducerConfiguration::Options::timeoutMs, timeoutMs)) {
         topicEntry._producer->get_producer().set_timeout(timeoutMs);
     }
+    
+    //Set the broker timeout
+    topicEntry._brokerTimeout = timeoutMs;
+    extract(TopicConfiguration::Options::brokerTimeoutMs, topicEntry._brokerTimeout);
     
     extract(ProducerConfiguration::Options::waitForAcksTimeoutMs, topicEntry._waitForAcksTimeout);
     if (topicEntry._waitForAcksTimeout.count() == EnumValue(TimerValues::Disabled)) {
@@ -570,7 +576,9 @@ void ProducerManagerImpl::exceptionHandler(const std::exception& ex,
 
 ProducerMetadata ProducerManagerImpl::makeMetadata(const ProducerTopicEntry& topicEntry)
 {
-    return ProducerMetadata(topicEntry._configuration.getTopic(), topicEntry._producer.get());
+    return ProducerMetadata(topicEntry._configuration.getTopic(),
+                            topicEntry._producer.get(),
+                            topicEntry._brokerTimeout);
 }
 
 const void* ProducerManagerImpl::setPackedOpaqueFuture(const cppkafka::Message& kafkaMessage)

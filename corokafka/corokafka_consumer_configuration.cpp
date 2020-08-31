@@ -292,8 +292,6 @@ const Configuration::OptionMap ConsumerConfiguration::s_internalOptions = {
      }}
 };
 
-const Configuration::OptionMap ConsumerConfiguration::s_internalTopicOptions;
-
 PartitionStrategy ConsumerConfiguration::getPartitionStrategy() const
 {
     return _strategy;
@@ -360,7 +358,7 @@ const Receiver& ConsumerConfiguration::getTypeErasedReceiver() const
 const Configuration::OptionExtractorFunc&
 ConsumerConfiguration::extract(const std::string& option)
 {
-    return Configuration::extractOption(s_internalOptions, option);
+    return Configuration::extractOption(s_internalOptions, s_internalTopicOptions, option);
 }
 
 }
