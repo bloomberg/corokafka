@@ -26,8 +26,9 @@ namespace corokafka {
 
 ConsumerMetadata::ConsumerMetadata(const std::string& topic,
                                    cppkafka::Consumer* handle,
-                                   PartitionStrategy strategy) :
-    ImplType(std::make_shared<ConsumerMetadataImpl>(topic, handle, strategy)),
+                                   PartitionStrategy strategy,
+                                   std::chrono::milliseconds brokerTimeout) :
+    ImplType(std::make_shared<ConsumerMetadataImpl>(topic, handle, strategy, brokerTimeout)),
     Metadata(std::static_pointer_cast<ConsumerMetadataImpl>(ImplType::impl()))
 {
 }
@@ -35,8 +36,9 @@ ConsumerMetadata::ConsumerMetadata(const std::string& topic,
 ConsumerMetadata::ConsumerMetadata(const std::string& topic,
                                    const cppkafka::Topic& kafkaTopic,
                                    cppkafka::Consumer* handle,
-                                   PartitionStrategy strategy) :
-    ImplType(std::make_shared<ConsumerMetadataImpl>(topic, kafkaTopic, handle, strategy)),
+                                   PartitionStrategy strategy,
+                                   std::chrono::milliseconds brokerTimeout) :
+    ImplType(std::make_shared<ConsumerMetadataImpl>(topic, kafkaTopic, handle, strategy, brokerTimeout)),
     Metadata(std::static_pointer_cast<ConsumerMetadataImpl>(ImplType::impl()))
 {
 }

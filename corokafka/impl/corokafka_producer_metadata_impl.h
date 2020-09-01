@@ -29,11 +29,13 @@ class ProducerMetadataImpl : public IProducerMetadata,
 {
 public:
     ProducerMetadataImpl(const std::string& topic,
-                         cppkafka::BufferedProducer<ByteArray>* producer);
+                         cppkafka::BufferedProducer<ByteArray>* producer,
+                         std::chrono::milliseconds brokerTimeout);
         
     ProducerMetadataImpl(const std::string& topic,
                          const cppkafka::Topic& kafkaTopic,
-                         cppkafka::BufferedProducer<ByteArray>* producer);
+                         cppkafka::BufferedProducer<ByteArray>* producer,
+                         std::chrono::milliseconds brokerTimeout);
 
     KafkaType getType() const final;
 

@@ -20,6 +20,21 @@
 namespace Bloomberg {
 namespace corokafka {
 
+//========================================================================
+//                       TOPIC CONFIGURATION
+//========================================================================
+const std::string TopicConfiguration::s_internalTopicOptionsPrefix = "internal.topic.";
+
+const Configuration::OptionMap TopicConfiguration::s_internalTopicOptions = {
+     {Options::brokerTimeoutMs,
+     [](const std::string& topic, const cppkafka::ConfigurationOption* option, void* value)->bool{
+        if (!option) return false;
+        std::chrono::milliseconds temp{Configuration::extractCounterValue(topic, Options::brokerTimeoutMs, *option, (int)TimerValues::Unlimited)};
+        if (value) *reinterpret_cast<std::chrono::milliseconds*>(value) = temp;
+        return true;
+     }}
+};
+
 TopicConfiguration::TopicConfiguration(KafkaType type,
                                        const std::string& topic,
                                        OptionList options,
@@ -127,9 +142,7 @@ void TopicConfiguration::filterOptions()
     parseOptions(_topic, internalOptionsPrefix, internalOptions, _options, OptionsPermission::RdKafkaAllow);
     
     // Topic options parsing
-    const OptionMap& internalTopicOptions = (_type == KafkaType::Producer) ?
-        ProducerConfiguration::s_internalTopicOptions : ConsumerConfiguration::s_internalTopicOptions;
-    parseOptions(_topic, internalOptionsPrefix, internalTopicOptions, _topicOptions, OptionsPermission::RdKafkaAllow);
+    parseOptions(_topic, s_internalTopicOptionsPrefix, s_internalTopicOptions, _topicOptions, OptionsPermission::RdKafkaAllow);
 }
 
 }}

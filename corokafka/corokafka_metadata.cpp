@@ -26,8 +26,9 @@ namespace corokafka {
 // Constructor
 Metadata::Metadata(const std::string& topic,
                    const cppkafka::Topic& kafkaTopic,
-                   cppkafka::KafkaHandleBase* handle) :
-    VirtualImpl(std::make_shared<MetadataImpl>(topic, kafkaTopic, handle))
+                   cppkafka::KafkaHandleBase* handle,
+                   std::chrono::milliseconds brokerTimeout) :
+    VirtualImpl(std::make_shared<MetadataImpl>(topic, kafkaTopic, handle, brokerTimeout))
 {
 }
 

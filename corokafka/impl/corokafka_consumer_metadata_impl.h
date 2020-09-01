@@ -28,12 +28,14 @@ class ConsumerMetadataImpl : public IConsumerMetadata,
 public:
     ConsumerMetadataImpl(const std::string& topic,
                          cppkafka::Consumer* handle,
-                         PartitionStrategy strategy);
+                         PartitionStrategy strategy,
+                         std::chrono::milliseconds brokerTimeout);
     
     ConsumerMetadataImpl(const std::string& topic,
                          const cppkafka::Topic& kafkaTopic,
                          cppkafka::Consumer* handle,
-                         PartitionStrategy strategy);
+                         PartitionStrategy strategy,
+                         std::chrono::milliseconds brokerTimeout);
     
     KafkaType getType() const final;
 

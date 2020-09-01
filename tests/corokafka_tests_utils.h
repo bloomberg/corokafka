@@ -294,11 +294,13 @@ void testConsumerOption(const char* exName, const char* opName, const ValueTestL
 }
 
 template <typename TOPIC>
-Connector makeProducerConnector(const Configuration::OptionList& ops, const TOPIC& topic)
+Connector makeProducerConnector(const Configuration::OptionList& ops,
+                                const Configuration::OptionList& topicOps,
+                                const TOPIC& topic)
 {
     Configuration::OptionList options = ops;
     options.push_back({"metadata.broker.list", programOptions()._broker});
-    ProducerConfiguration config(topic, options, {});
+    ProducerConfiguration config(topic, options, topicOps);
     config.setPartitionerCallback(Callbacks::partitioner);
     ConfigurationBuilder builder;
     ConnectorConfiguration connConfig({
@@ -310,6 +312,7 @@ Connector makeProducerConnector(const Configuration::OptionList& ops, const TOPI
 
 template <typename TOPIC, typename RECV>
 Connector makeConsumerConnector(const Configuration::OptionList& ops,
+                                const Configuration::OptionList& topicOps,
                                 const std::string& groupId,
                                 TOPIC&& topic,
                                 RECV&& receiver,
@@ -319,7 +322,7 @@ Connector makeConsumerConnector(const Configuration::OptionList& ops,
     Configuration::OptionList options = ops;
     options.push_back({"metadata.broker.list", programOptions()._broker});
     options.push_back({"group.id", groupId});
-    ConsumerConfiguration config(std::forward<TOPIC>(topic), options, {}, std::forward<RECV>(receiver));
+    ConsumerConfiguration config(std::forward<TOPIC>(topic), options, topicOps, std::forward<RECV>(receiver));
     config.setPreprocessorCallback(Callbacks::messagePreprocessor);
     config.setOffsetCommitCallback(Callbacks::handleOffsetCommit);
     config.setRebalanceCallback(Callbacks::handleRebalance);

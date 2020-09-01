@@ -72,7 +72,7 @@ public:
         static constexpr const char* minRoundRobinPollTimeoutMs =       "internal.consumer.min.roundrobin.poll.timeout.ms"; //deprecated
         static constexpr const char* skipUnknownHeaders =               "internal.consumer.skip.unknown.headers";
         static constexpr const char* timeoutMs =                        "internal.consumer.timeout.ms";
-        static constexpr const char* startupTimeoutMs =                 "internal.consumer.startup.timeout.ms";
+        static constexpr const char* startupTimeoutMs =                 "internal.consumer.startup.timeout.ms"; //deprecated
     };
     
     /**
@@ -184,7 +184,6 @@ private:
     cppkafka::TopicPartitionList            _initialPartitionList;
     PartitionStrategy                       _strategy{PartitionStrategy::Dynamic};
     static const OptionMap                  s_internalOptions;
-    static const OptionMap                  s_internalTopicOptions;
     static const std::string                s_internalOptionsPrefix;
 };
 

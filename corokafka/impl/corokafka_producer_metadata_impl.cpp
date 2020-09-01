@@ -24,16 +24,18 @@ namespace corokafka {
 //=============================================================================
 
 ProducerMetadataImpl::ProducerMetadataImpl(const std::string& topic,
-                                           cppkafka::BufferedProducer<ByteArray>* producer) :
-    MetadataImpl(topic, cppkafka::Topic(), producer ? &producer->get_producer() : nullptr),
+                                           cppkafka::BufferedProducer<ByteArray>* producer,
+                                           std::chrono::milliseconds brokerTimeout) :
+    MetadataImpl(topic, cppkafka::Topic(), producer ? &producer->get_producer() : nullptr, brokerTimeout),
     _bufferedProducer(producer)
 {
 }
 
 ProducerMetadataImpl::ProducerMetadataImpl(const std::string& topic,
                                            const cppkafka::Topic& kafkaTopic,
-                                           cppkafka::BufferedProducer<ByteArray>* producer) :
-    MetadataImpl(topic, kafkaTopic, producer ? &producer->get_producer() : nullptr),
+                                           cppkafka::BufferedProducer<ByteArray>* producer,
+                                           std::chrono::milliseconds brokerTimeout) :
+    MetadataImpl(topic, kafkaTopic, producer ? &producer->get_producer() : nullptr, brokerTimeout),
     _bufferedProducer(producer)
 {
 }

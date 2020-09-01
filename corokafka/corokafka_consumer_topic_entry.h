@@ -111,6 +111,7 @@ struct ConsumerTopicEntry {
     quantum::IQueue::QueueId        _pollIoThreadId{quantum::IQueue::QueueId::Any};
     std::chrono::milliseconds       _pollTimeout{EnumValue(TimerValues::Disabled)};
     std::chrono::milliseconds       _minPollInterval{EnumValue(TimerValues::Disabled)};
+    std::chrono::milliseconds       _brokerTimeout{EnumValue(TimerValues::Disabled)};
     std::pair<int,int>              _coroQueueIdRangeForAny;
     int                             _numIoThreads;
     std::pair<int,int>              _receiveCallbackThreadRange;

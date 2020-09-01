@@ -93,16 +93,14 @@ ConsumerManagerImpl::~ConsumerManagerImpl()
 
 void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& topicEntry)
 {
-    const Configuration::OptionList &rdKafkaOptions = topicEntry._configuration
-                                                                .getOptions(Configuration::OptionType::RdKafka);
-    const Configuration::OptionList &rdKafkaTopicOptions = topicEntry._configuration
-                                                                     .getTopicOptions(Configuration::OptionType::RdKafka);
-    const Configuration::OptionList &internalOptions = topicEntry._configuration
-                                                                 .getOptions(Configuration::OptionType::Internal);
+    const Configuration::OptionList &rdKafkaOptions = topicEntry._configuration.
+            getOptions(Configuration::OptionType::RdKafka);
+    const Configuration::OptionList &rdKafkaTopicOptions = topicEntry._configuration.
+            getTopicOptions(Configuration::OptionType::RdKafka);
     
-    auto extract = [&topic, &internalOptions](const std::string &name, auto &value) -> bool
+    auto extract = [&](const std::string &name, auto &value) -> bool
     {
-        return ConsumerConfiguration::extract(name)(topic, Configuration::findOption(name, internalOptions), &value);
+        return ConsumerConfiguration::extract(name)(topic, topicEntry._configuration.getOption(name), &value);
     };
     
     //Validate config
@@ -154,27 +152,7 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
     
     extract(ConsumerConfiguration::Options::autoOffsetPersist, topicEntry._autoOffsetPersist);
     
-    const cppkafka::ConfigurationOption* persistStrategy =
-        Configuration::findOption(ConsumerConfiguration::Options::offsetPersistStrategy, internalOptions);
-    if (persistStrategy) {
-        if (StringEqualCompare()(persistStrategy->get_value(), "commit")) {
-            topicEntry._autoOffsetPersistStrategy = OffsetPersistStrategy::Commit;
-        }
-        else if (StringEqualCompare()(persistStrategy->get_value(), "store")) {
-#if (RD_KAFKA_VERSION < RD_KAFKA_STORE_OFFSETS_SUPPORT_VERSION)
-            std::ostringstream oss;
-            oss << std::hex << "Current RdKafka version " << RD_KAFKA_VERSION
-                << " does not support this functionality. Must be greater than "
-                << RD_KAFKA_STORE_OFFSETS_SUPPORT_VERSION;
-            throw FeatureNotSupportedException(topic, ConsumerConfiguration::Options::offsetPersistStrategy, oss.str());
-#else
-            topicEntry._autoOffsetPersistStrategy = OffsetPersistStrategy::Store;
-#endif
-        }
-        else {
-            throw InvalidOptionException(topic, ConsumerConfiguration::Options::offsetPersistStrategy, persistStrategy->get_value());
-        }
-    }
+    extract(ConsumerConfiguration::Options::offsetPersistStrategy, topicEntry._autoOffsetPersistStrategy);
     
     extract(ConsumerConfiguration::Options::autoOffsetPersistOnException, topicEntry._autoOffsetPersistOnException);
     
@@ -215,9 +193,13 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
     
     //Set the startup timeout
     std::chrono::milliseconds defaultTimeout = topicEntry._consumer->get_timeout();
-    std::chrono::milliseconds startupTimeout;
-    if (extract(ConsumerConfiguration::Options::startupTimeoutMs, startupTimeout)) {
-        topicEntry._consumer->set_timeout(startupTimeout);
+    topicEntry._brokerTimeout = defaultTimeout;
+    if (extract(TopicConfiguration::Options::brokerTimeoutMs, topicEntry._brokerTimeout)) {
+        topicEntry._consumer->set_timeout(topicEntry._brokerTimeout);
+    }
+    else if (extract(ConsumerConfiguration::Options::startupTimeoutMs, topicEntry._brokerTimeout)) {
+        //Deprecated option
+        topicEntry._consumer->set_timeout(topicEntry._brokerTimeout);
     }
     
     //Get events queue for polling
@@ -379,14 +361,26 @@ void ConsumerManagerImpl::pause()
 
 void ConsumerManagerImpl::pause(const std::string& topic)
 {
-    pauseImpl(findConsumer(topic)->second);
+    auto& topicEntry = findConsumer(topic)->second;
+    pauseImpl(topicEntry);
 }
 
 void ConsumerManagerImpl::pauseImpl(ConsumerTopicEntry& topicEntry)
 {
     bool paused = false;
     if (topicEntry._isPaused.compare_exchange_strong(paused, true)) {
-        topicEntry._consumer->pause(topicEntry._configuration.getTopic());
+        if (topicEntry._subscription._isSubscribed) {
+            //Pause assigned partitions only
+            topicEntry._consumer->pause_partitions(topicEntry._subscription._partitionAssignment);
+        }
+        else {
+            //Pause all partitions
+            topicEntry._consumer->pause_partitions(
+                  cppkafka::convert(topicEntry._configuration.getTopic(),
+                                    makeMetadata(topicEntry).
+                                    getTopicMetadata(topicEntry._brokerTimeout).
+                                    get_partitions()));
+        }
     }
 }
 
@@ -399,14 +393,26 @@ void ConsumerManagerImpl::resume()
 
 void ConsumerManagerImpl::resume(const std::string& topic)
 {
-    resumeImpl(findConsumer(topic)->second);
+    auto& topicEntry = findConsumer(topic)->second;
+    resumeImpl(topicEntry);
 }
 
 void ConsumerManagerImpl::resumeImpl(ConsumerTopicEntry& topicEntry)
 {
     bool paused = true;
     if (topicEntry._isPaused.compare_exchange_strong(paused, false)) {
-        topicEntry._consumer->resume(topicEntry._configuration.getTopic());
+        if (topicEntry._subscription._isSubscribed) {
+            //Resume assigned partitions only
+            topicEntry._consumer->resume_partitions(topicEntry._subscription._partitionAssignment);
+        }
+        else {
+            //Resume all partitions
+            topicEntry._consumer->resume_partitions(
+                   cppkafka::convert(topicEntry._configuration.getTopic(),
+                                     makeMetadata(topicEntry).
+                                     getTopicMetadata(topicEntry._brokerTimeout).
+                                     get_partitions()));
+        }
     }
 }
 
@@ -439,7 +445,8 @@ void ConsumerManagerImpl::subscribeImpl(ConsumerTopicEntry& topicEntry,
         (assignment.front().get_partition() == RD_KAFKA_PARTITION_UA)) {
         //Overwrite the initial assignment if the user provided no partitions
         cppkafka::TopicMetadata metadata =
-                topicEntry._consumer->get_metadata(topicEntry._consumer->get_topic(topic));
+                topicEntry._consumer->get_metadata(topicEntry._consumer->get_topic(topic),
+                                                   topicEntry._brokerTimeout);
         int offset = assignment.front().get_offset();
         assignment = cppkafka::convert(topic, metadata.get_partitions());
         //set the specified offset on all existing partitions
@@ -1314,7 +1321,8 @@ ConsumerMetadata ConsumerManagerImpl::makeMetadata(const ConsumerTopicEntry& top
 {
     return ConsumerMetadata(topicEntry._configuration.getTopic(),
                             topicEntry._consumer.get(),
-                            topicEntry._configuration.getPartitionStrategy());
+                            topicEntry._configuration.getPartitionStrategy(),
+                            topicEntry._brokerTimeout);
 }
 
 int ConsumerManagerImpl::mapPartitionToQueue(int partition,

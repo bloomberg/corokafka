@@ -115,6 +115,7 @@ protected:
                                               const char* optionName,
                                               const std::string &level);
     static const OptionExtractorFunc& extractOption(const OptionMap& options,
+                                                    const OptionMap& topicOptions,
                                                     const std::string& option);
     
     // Members

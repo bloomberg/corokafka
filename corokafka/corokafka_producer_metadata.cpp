@@ -25,16 +25,18 @@ namespace corokafka {
 //=============================================================================
 
 ProducerMetadata::ProducerMetadata(const std::string& topic,
-                                   cppkafka::BufferedProducer<ByteArray>* producer) :
-    ImplType(std::make_shared<ProducerMetadataImpl>(topic, producer)),
+                                   cppkafka::BufferedProducer<ByteArray>* producer,
+                                   std::chrono::milliseconds brokerTimeout) :
+    ImplType(std::make_shared<ProducerMetadataImpl>(topic, producer, brokerTimeout)),
     Metadata(std::static_pointer_cast<ProducerMetadataImpl>(ImplType::impl()))
 {
 }
 
 ProducerMetadata::ProducerMetadata(const std::string& topic,
                                    const cppkafka::Topic& kafkaTopic,
-                                   cppkafka::BufferedProducer<ByteArray>* producer) :
-    ImplType(std::make_shared<ProducerMetadataImpl>(topic, kafkaTopic, producer)),
+                                   cppkafka::BufferedProducer<ByteArray>* producer,
+                                   std::chrono::milliseconds brokerTimeout) :
+    ImplType(std::make_shared<ProducerMetadataImpl>(topic, kafkaTopic, producer, brokerTimeout)),
     Metadata(std::static_pointer_cast<ProducerMetadataImpl>(ImplType::impl()))
 {
 }
