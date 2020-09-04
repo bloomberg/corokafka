@@ -24,7 +24,7 @@ Configuration::OptionList consumerTopicConfig = {
 Configuration::OptionList config1 = {
     {"enable.partition.eof", true},
     {"enable.auto.offset.store", false},
-    {"enable.auto.commit", true},
+    {"enable.auto.commit", false},
     {"auto.offset.reset","beginning"},
     {"auto.commit.interval.ms", 10},
     //{"debug","all"},

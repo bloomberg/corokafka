@@ -24,7 +24,7 @@ The following configuration options are complementary to the RdKafka [options](h
 | internal.consumer.auto.offset.persist | true, false | true | Enables auto-commit/auto-store inside the `ReceivedMessage` destructor. |
 | internal.consumer.auto.offset.persist.on.exception | true, false | false | Dictates if the offset persist should be aborted as a result of an exception. This could allow the application to reprocess a message following an exception. This is only valid if **internal.consumer.auto.offset.persist=true**. |
 | internal.consumer.offset.persist.strategy | commit, store | store | Determines if offsets are committed or stored locally. Some RdKafka settings will be changed according to **note 2** below. If **store** is chosen, **auto.commit.interval.ms > 0** must be set. Note that the **store** option is only valid for RdKafka versions >= **0.9.5.1** |
-| internal.consumer.commit.exec | sync, async | async | Dictates if offset commits should be synchronous or asynchronous. |
+| internal.consumer.commit.exec | sync, async | async | Dictates if offset commits should be synchronous or asynchronous. This setting only applies if **internal.consumer.offset.persist.strategy=commit**. |
 | internal.consumer.commit.num.retries | \>= 0 | MAX_UINT | Sets the number of times to retry committing an offset before giving up. |
 | internal.consumer.commit.backoff.strategy | linear, exponential | linear | Back-off strategy when initial commit fails. |
 | internal.consumer.commit.backoff.interval.ms | \> 0 | 100 | Time in ms between retries. |

@@ -100,7 +100,11 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
     
     auto extract = [&](const std::string &name, auto &value) -> bool
     {
-        return ConsumerConfiguration::extract(name)(topic, topicEntry._configuration.getOption(name), &value);
+        const cppkafka::ConfigurationOption* op = topicEntry._configuration.getOption(name);
+        if (!op) {
+            op = topicEntry._configuration.getTopicOption(name);
+        }
+        return ConsumerConfiguration::extract(name)(topic, op, &value);
     };
     
     //Validate config
@@ -578,8 +582,7 @@ cppkafka::Error ConsumerManagerImpl::commitImpl(ConsumerTopicEntry& entry,
         if (entry._committer->get_consumer().get_configuration().get_offset_commit_callback() && (opaque != nullptr)) {
             entry._offsets.insert(headPartition, opaque);
         }
-        if ((entry._autoOffsetPersistStrategy == OffsetPersistStrategy::Commit) ||
-            (execMode == ExecMode::Sync)) {
+        if (entry._autoOffsetPersistStrategy == OffsetPersistStrategy::Commit) {
             if (execMode == ExecMode::Sync) {
                 auto ctx = quantum::local::context();
                 if (headPartition.get_partition() == RD_KAFKA_PARTITION_UA) {
