@@ -122,7 +122,11 @@ void ProducerManagerImpl::setup(const std::string& topic, ProducerTopicEntry& to
     
     auto extract = [&](const std::string &name, auto &value) -> bool
     {
-        return ProducerConfiguration::extract(name)(topic, topicEntry._configuration.getOption(name), &value);
+        const cppkafka::ConfigurationOption* op = topicEntry._configuration.getOption(name);
+        if (!op) {
+            op = topicEntry._configuration.getTopicOption(name);
+        }
+        return ProducerConfiguration::extract(name)(topic, op, &value);
     };
     
     //Validate config
