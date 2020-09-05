@@ -130,9 +130,7 @@ void ProducerManagerImpl::setup(const std::string& topic, ProducerTopicEntry& to
     };
     
     //Validate config
-    const cppkafka::ConfigurationOption* brokerList =
-        Configuration::findOption(Configuration::RdKafkaOptions::metadataBrokerList, rdKafkaOptions);
-    if (!brokerList) {
+    if (!topicEntry._configuration.getOption(Configuration::RdKafkaOptions::metadataBrokerList)) {
         throw InvalidOptionException(topic, Configuration::RdKafkaOptions::metadataBrokerList, "Missing");
     }
     
@@ -184,7 +182,7 @@ void ProducerManagerImpl::setup(const std::string& topic, ProducerTopicEntry& to
     extract(ProducerConfiguration::Options::maxQueueLength, topicEntry._maxQueueLength);
     extract(ProducerConfiguration::Options::preserveMessageOrder, topicEntry._preserveMessageOrder);
     bool isIdempotent = false;
-    auto option = topicEntry._configuration.getOption(Configuration::RdKafkaOptions::enableIdempotence);
+    const auto* option = topicEntry._configuration.getOption(Configuration::RdKafkaOptions::enableIdempotence);
     if (option) {
         isIdempotent = Configuration::extractBooleanValue(topic,
                                                           Configuration::RdKafkaOptions::enableIdempotence,

@@ -108,7 +108,6 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
     };
     
     //Validate config
-    std::string brokerList;
     if (!topicEntry._configuration.getOption(Configuration::RdKafkaOptions::metadataBrokerList)) {
         throw InvalidOptionException(topic, Configuration::RdKafkaOptions::metadataBrokerList, "Missing");
     }
@@ -163,14 +162,16 @@ void ConsumerManagerImpl::setup(const std::string& topic, ConsumerTopicEntry& to
     extract(ConsumerConfiguration::Options::commitExec, topicEntry._autoCommitExec);
     
     // Set underlying rdkafka options
-    if (topicEntry._autoOffsetPersist) {
-        kafkaConfig.set(Configuration::RdKafkaOptions::enableAutoOffsetStore, false);
-        if (topicEntry._autoOffsetPersistStrategy == OffsetPersistStrategy::Commit) {
-            kafkaConfig.set(Configuration::RdKafkaOptions::enableAutoCommit, false);
-            kafkaConfig.set(Configuration::RdKafkaOptions::autoCommitIntervalMs, 0);
-        }
-        else {
-            kafkaConfig.set(Configuration::RdKafkaOptions::enableAutoCommit, true);
+    kafkaConfig.set(Configuration::RdKafkaOptions::enableAutoOffsetStore, false);
+    kafkaConfig.set(Configuration::RdKafkaOptions::enableAutoCommit,
+                    topicEntry._autoOffsetPersistStrategy == OffsetPersistStrategy::Store);
+    if (topicEntry._autoOffsetPersistStrategy == OffsetPersistStrategy::Store) {
+        //Make sure the application has properly set the commit interval. If the option is not set explicitly,
+        // it will assume the default RdKafka value.
+        const auto *option = topicEntry._configuration.getOption(Configuration::RdKafkaOptions::autoCommitIntervalMs);
+        if (option) {
+            //make sure it's a positive value (min 1ms, max 1min)
+            Configuration::extractCounterValue(topic, Configuration::RdKafkaOptions::autoCommitIntervalMs, *option, 1, 60000);
         }
     }
     

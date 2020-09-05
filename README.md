@@ -314,8 +314,8 @@ std::initializer_list<cppkafka::ConfigurationOption > consumerOptions = {
     { "group.id", "my-group" },
     { "api.version.request", true },
     { "enable.partition.eof", true },
-    { "enable.auto.offset.store", true },
-    { "enable.auto.commit", false },
+    { "enable.auto.commit", true },
+    { "auto.commit.interval.ms", 1000 },
     { "auto.offset.reset", "earliest" },
     { "partition.assignment.strategy", "roundrobin" },
     { "internal.consumer.pause.on.start", false }
