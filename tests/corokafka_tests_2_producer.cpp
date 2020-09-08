@@ -29,9 +29,11 @@ Configuration::OptionList syncUnorderedConfig = {
 
 Configuration::OptionList syncIdempotentConfig = {
     {"enable.idempotence", true},
+    {"message.send.max.retries", 2}, //use RdKafka retry mechanism
     {ProducerConfiguration::Options::payloadPolicy, "passthrough"},
-    {ProducerConfiguration::Options::preserveMessageOrder, "true"},
-    {ProducerConfiguration::Options::waitForAcksTimeoutMs, -1}
+    {ProducerConfiguration::Options::preserveMessageOrder, "false"},
+    {ProducerConfiguration::Options::waitForAcksTimeoutMs, -1},
+    {ProducerConfiguration::Options::retries, 0} //must be 0
 };
 
 //async

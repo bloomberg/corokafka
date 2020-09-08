@@ -188,16 +188,15 @@ void ProducerManagerImpl::setup(const std::string& topic, ProducerTopicEntry& to
                                                           Configuration::RdKafkaOptions::enableIdempotence,
                                                           *option);
     }
-    if (topicEntry._preserveMessageOrder && !isIdempotent) {
+    if (topicEntry._preserveMessageOrder && isIdempotent) {
+        throw InvalidOptionException(topic,
+                                     ProducerConfiguration::Options::preserveMessageOrder,
+                                     "Cannot enable 'internal.producer.preserve.message.order' and 'enable.idempotence' at the same time");
+    }
+    if (topicEntry._preserveMessageOrder) {
         // change rdkafka settings (if not specified by application)
-        int maxInFlight;
-        if (!topicEntry._configuration.getOption(Configuration::RdKafkaOptions::maxInFlight)) {
-            kafkaConfig.set(Configuration::RdKafkaOptions::maxInFlight, 1);  //limit one request at a time
-        }
-        int messageRetries;
-        if (!topicEntry._configuration.getOption(Configuration::RdKafkaOptions::messageSendMaxRetries)) {
-            kafkaConfig.set(Configuration::RdKafkaOptions::messageSendMaxRetries, 0);  //don't retry since corokafka will
-        }
+        kafkaConfig.set(Configuration::RdKafkaOptions::maxInFlight, 1);  //limit one request at a time
+        kafkaConfig.set(Configuration::RdKafkaOptions::enableIdempotence, false); //overwrite RdKafka default value
     }
     
     kafkaConfig.set_default_topic_configuration(topicConfig);
@@ -210,9 +209,20 @@ void ProducerManagerImpl::setup(const std::string& topic, ProducerTopicEntry& to
     topicEntry._producer = std::make_unique<cppkafka::BufferedProducer<ByteArray>>(kafkaConfig);
     
     //Set internal config options
-    size_t internalProducerRetries = 0;
-    if (extract(ProducerConfiguration::Options::retries, internalProducerRetries)) {
-        topicEntry._producer->set_max_number_retries(internalProducerRetries);
+    size_t internalProducerRetries = 5;
+    extract(ProducerConfiguration::Options::retries, internalProducerRetries);
+    topicEntry._producer->set_max_number_retries(internalProducerRetries);
+    if (internalProducerRetries > 0) {
+        const auto* option = topicEntry._configuration.getOption(Configuration::RdKafkaOptions::messageSendMaxRetries);
+        if (option) {
+            ssize_t retries = Configuration::extractCounterValue(topic, Configuration::RdKafkaOptions::messageSendMaxRetries, *option, 0);
+            if (retries > 0) {
+                throw InvalidOptionException(topic,
+                                             ProducerConfiguration::Options::retries,
+                                             "Both 'internal.producer.retries' and 'message.send.max.retries' settings cannot be >0 at the same time");
+            }
+        }
+        kafkaConfig.set(Configuration::RdKafkaOptions::messageSendMaxRetries, 0);  //overwrite RdKafka default value
     }
     
     if (extract(ProducerConfiguration::Options::payloadPolicy, topicEntry._payloadPolicy)) {
