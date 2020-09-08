@@ -21,9 +21,9 @@ The following configuration options are complementary to the RdKafka [options](h
 | internal.consumer.startup.timeout.ms | \>= -1 | 1000 | Alias for 'internal.topic.broker.timeout.ms' (deprecated) |
 | internal.consumer.poll.timeout.ms | \>= -1 | N/A | If set, overrides the 'internal.consumer.timeout.ms' default setting for polling only. Set to **-1** for infinite timeout. |
 | internal.consumer.min.poll.interval.ms | -2, \> 0 | 10 | Recurring time interval for which to block and wait for messages. This allows for faster shutdown detection. The cumulative time for all intervals shall not exceed **internal.consumer.poll.timeout.ms**. To disable, set to **-2**. If **internal.consumer.poll.timeout.ms** is infinite, this interval cannot be disabled. |
-| internal.consumer.auto.offset.persist | true, false | true | Enables auto-commit/auto-store inside the `ReceivedMessage` destructor. |
+| internal.consumer.auto.offset.persist | true, false | true | Enables auto-commit/auto-store inside the `ReceivedMessage` destructor. Some RdKafka settings will be changed according to **note 2** below for more details. |
 | internal.consumer.auto.offset.persist.on.exception | true, false | false | Dictates if the offset persist should be aborted as a result of an exception. This could allow the application to reprocess a message following an exception. This is only valid if **internal.consumer.auto.offset.persist=true**. |
-| internal.consumer.offset.persist.strategy | commit, store | store | Determines if offsets are committed or stored locally. Some RdKafka settings will be changed according to **note 2** below. If **store** is chosen, **auto.commit.interval.ms > 0** must be set. Note that the **store** option is only valid for RdKafka versions >= **0.9.5.1** |
+| internal.consumer.offset.persist.strategy | commit, store | store | Determines if offsets are committed or stored locally. If **store** is chosen, **auto.commit.interval.ms > 0** must be set by the application (default is 5s). The **store** option is only valid for RdKafka versions >= **0.9.5.1**. See **note 2** below for more details. |
 | internal.consumer.commit.exec | sync, async | async | Dictates if offset commits should be synchronous or asynchronous. This setting only applies if **internal.consumer.offset.persist.strategy=commit**. |
 | internal.consumer.commit.num.retries | \>= 0 | MAX_UINT | Sets the number of times to retry committing an offset before giving up. |
 | internal.consumer.commit.backoff.strategy | linear, exponential | linear | Back-off strategy when initial commit fails. |
@@ -84,17 +84,18 @@ Mapping partitions unto IO threads for the receive callback ensures a maximum am
 Ex: _There are 8 IO threads and 20 partitions assigned to this consumer. We set `[low,high]` range to `[4,7]` which means that the 20 partitions will be mapped unto 4 thread ids `{4,5,6,7}`. When message from partition 10 arrives, the thread id on which the receive callback will be invoked can be calculated as follows: 10 % (7-4+1) + 4 = 6_.
   
 [2]
-  
-**internal.consumer.offset.persist.strategy=commit**:
 
-`enable.auto.commit=false`
+Because of possible [message loss](https://github.com/edenhill/librdkafka/blob/master/INTRODUCTION.md#at-least-once-processing), the CoroKafka library will force the following:
 
-`enable.auto.offset.store=false`
+* If `internal.consumer.offset.persist.strategy=commit` then:
 
-`auto.commit.interval.ms=0`
+    `enable.auto.offset.store=false`
+
+    `enable.auto.commit=false`
       
-**internal.consumer.offset.persist.strategy=store**:
+* If `internal.consumer.offset.persist.strategy=store` then:
 
-`enable.auto.commit=true`
+    `enable.auto.offset.store=false`
 
-`enable.auto.offset.store=false`
+    `enable.auto.commit=true`
+
