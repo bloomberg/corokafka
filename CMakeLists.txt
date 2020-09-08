@@ -36,16 +36,18 @@ endif()
 option(COROKAFKA_VERBOSE_MAKEFILE "Enable verbose cmake output." ON)
 option(COROKAFKA_BUILD_SHARED "Build corokafka as a shared library." OFF)
 option(COROKAFKA_ENABLE_PIC "Enable position independent code for shared library builds." OFF)
-option(COROKAFKA_CPPKAFKA_STATIC_LIB "Link with cppkafka static library." ON)
-option(COROKAFKA_RDKAFKA_STATIC_LIB "Link with rdkafka static library." ON)
+# Not used. Instead build CppKafka library with CPPKAFKA_BUILD_SHARED=OFF which will export the proper
+# CppKafkaTargets.cmake file and set CppKafka::cppkafka to reference libcppkafka.a
+option(COROKAFKA_CPPKAFKA_STATIC_LIB "Link with CppKafka static library." ON)
+option(COROKAFKA_RDKAFKA_STATIC_LIB "Link with RdKafka static library." ON)
 option(COROKAFKA_BUILD_DOC "Build documentation." OFF)
 option(COROKAFKA_ENABLE_DOT "Enable generation of DOT files." OFF)
 option(COROKAFKA_ENABLE_TESTS "Generate tests target." OFF)
 option(COROKAFKA_BUILD_TESTS_FROM_INSTALL_TREE "Build tests from install tree." OFF)
 option(COROKAFKA_BOOST_STATIC_LIBS "Link with Boost static libraries." ON)
-option(COROKAFKA_BOOST_USE_MULTITHREADED "Use Boost multithreaded libraries." ON)
+option(COROKAFKA_BOOST_USE_MULTITHREADED "Use Boost multi-threaded libraries." ON)
 option(COROKAFKA_BOOST_USE_VALGRIND "Use valgrind headers for Boost." OFF)
-option(COROKAFKA_EXPORT_PKGCONFIG "Generate 'quantum.pc' file" ON)
+option(COROKAFKA_EXPORT_PKGCONFIG "Generate 'corokafka.pc' file" ON)
 option(COROKAFKA_EXPORT_CMAKE_CONFIG "Generate CMake config, target and version files." ON)
 
 if (COROKAFKA_INSTALL_ROOT)
@@ -83,16 +85,6 @@ if (COROKAFKA_VERBOSE_MAKEFILE)
     message(STATUS "CMAKE_CXX_FLAGS = ${CMAKE_CXX_FLAGS}")
 endif()
 
-# Set RPATH preferences
-if (COROKAFKA_BUILD_SHARED)
-    if (NOT DEFINED CMAKE_SKIP_BUILD_RPATH)
-        SET(CMAKE_SKIP_BUILD_RPATH FALSE)
-    endif()
-    if (NOT DEFINED CMAKE_BUILD_WITH_INSTALL_RPATH)
-        SET(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
-    endif()
-endif()
-
 if (NOT COROKAFKA_PKGCONFIG_DIR)
     set(COROKAFKA_PKGCONFIG_DIR share/pkgconfig)
 endif()
@@ -108,13 +100,28 @@ add_definitions(
     -D__FUNCTION__=__FILE__
 )
 
-if(COROKAFKA_BUILD_SHARED)
+# Enable static linking with RdKafka.
+if (COROKAFKA_RDKAFKA_STATIC_LIB)
+    # CPPKAFKA_RDKAFKA_STATIC_LIB is used by FindRdKafka.cmake to import the right target.
+    set(CPPKAFKA_RDKAFKA_STATIC_LIB ON)
+endif()
+
+if (COROKAFKA_BUILD_SHARED)
     message(STATUS "Build will generate a shared library. "
             "Use COROKAFKA_BUILD_SHARED=OFF to perform a static build")
     set(COROKAFKA_LIBRARY_TYPE SHARED)
+    set(BUILD_SHARED_LIBS ON)
+    # Set RPATH preferences
+    if (NOT DEFINED CMAKE_SKIP_BUILD_RPATH)
+        SET(CMAKE_SKIP_BUILD_RPATH FALSE)
+    endif()
+    if (NOT DEFINED CMAKE_BUILD_WITH_INSTALL_RPATH)
+        SET(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
+    endif()
 else()
     message(STATUS "Build will generate a static library.")
     set(COROKAFKA_LIBRARY_TYPE STATIC)
+    set(BUILD_SHARED_LIBS OFF)
 endif()
 
 if (COROKAFKA_BUILD_DOC)
