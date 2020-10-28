@@ -48,6 +48,9 @@ OffsetManager::OffsetManager(corokafka::ConsumerManager& consumerManager,
         const ConsumerConfiguration& config = _consumerManager.getConfiguration(topic);
         //Check the offset reset if specified
         const cppkafka::ConfigurationOption* offsetReset = config.getOption("auto.offset.reset");
+        if (!offsetReset) {
+            offsetReset = config.getTopicOption("auto.offset.reset");
+        }
         if (offsetReset && StringEqualCompare()(offsetReset->get_value(), "smallest")) {
             topicSettings._autoResetAtEnd = false;
         }
