@@ -147,7 +147,14 @@ void OffsetManager::setStartingOffset(int64_t offset,
         case cppkafka::TopicPartition::Offset::OFFSET_INVALID:
             //populate from committed offsets if any, otherwise from watermark
             if (committedOffset.get_offset() >= 0) {
-                ranges._beginOffset = ranges._currentOffset = committedOffset.get_offset();
+                //committed offset is not a Kafka magic number
+                if (committedOffset.get_offset() < watermark._watermark._low) {
+                    //the topic was purged and the first message offset is now above the last commit
+                    ranges._beginOffset = ranges._currentOffset = watermark._watermark._low;
+                }
+                else {
+                    ranges._beginOffset = ranges._currentOffset = committedOffset.get_offset();
+                }
             }
             else {
                 ranges._beginOffset = ranges._currentOffset =
