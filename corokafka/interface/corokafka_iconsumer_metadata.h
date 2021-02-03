@@ -3,6 +3,7 @@
 
 #include <corokafka/corokafka_utils.h>
 #include <corokafka/interface/corokafka_imetadata.h>
+#include <corokafka/corokafka_offset_watermark.h>
 #include <cppkafka/topic_partition.h>
 #include <cppkafka/topic_partition_list.h>
 #include <cppkafka/group_information.h>

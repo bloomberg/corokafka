@@ -13,8 +13,8 @@
 ** See the License for the specific language governing permissions and
 ** limitations under the License.
 */
-#ifndef COROKAFKA_COROKAFKA_IMETADATA_H
-#define COROKAFKA_COROKAFKA_IMETADATA_H
+#ifndef BLOOMBERG_COROKAFKA_IMETADATA_H
+#define BLOOMBERG_COROKAFKA_IMETADATA_H
 
 #include <corokafka/corokafka_utils.h>
 #include <corokafka/corokafka_offset_watermark.h>
@@ -49,4 +49,4 @@ struct IMetadata
 
 }}
 
-#endif //COROKAFKA_COROKAFKA_IMETADATA_H
+#endif //BLOOMBERG_COROKAFKA_IMETADATA_H

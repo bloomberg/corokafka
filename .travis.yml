@@ -42,9 +42,10 @@ before_script:
   - sudo sysctl -w kernel.core_pattern=$TRAVIS_BUILD_DIR/cores/core.%e.%p
   - cat /proc/sys/kernel/core_pattern
   - service --status-all || true
-  - KAFKA_VERSION=2.12-2.4.0
-  - RD_KAFKA_VERSION=v1.3.0
-  - wget http://apache.cs.utah.edu/kafka/2.4.0/kafka_$KAFKA_VERSION.tgz && tar -xvzf kafka_$KAFKA_VERSION.tgz
+  - KAFKA_REL=2.6.1  
+  - KAFKA_VERSION=2.12-$KAFKA_REL
+  - RD_KAFKA_VERSION=v1.6.0
+  - wget http://apache.cs.utah.edu/kafka/$KAFKA_REL/kafka_$KAFKA_VERSION.tgz && tar -xvzf kafka_$KAFKA_VERSION.tgz
   - ./kafka_$KAFKA_VERSION/bin/kafka-server-start.sh ./kafka_$KAFKA_VERSION/config/server.properties > /dev/null 2> /dev/null &
   - while ! echo "asd" | nc localhost 9092; do sleep 1; done
   - ./kafka_$KAFKA_VERSION/bin/kafka-topics.sh --create --zookeeper localhost:2181 --topic topic_no_headers --partitions 4 --replication-factor 1

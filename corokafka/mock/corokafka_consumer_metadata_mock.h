@@ -12,7 +12,8 @@ namespace mocks {
 struct ConsumerMetadataMock : public IConsumerMetadata,
                               public MetadataMock //mock of IMetadata
 {
-    ConsumerMetadataMock()
+    ConsumerMetadataMock(cppkafka::TopicPartitionList list = cppkafka::TopicPartitionList{}) :
+        _partitionList(std::move(list))
     {
         using namespace testing;
         ON_CALL(*this, getPartitionAssignment())

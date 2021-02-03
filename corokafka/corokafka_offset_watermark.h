@@ -13,8 +13,8 @@
 ** See the License for the specific language governing permissions and
 ** limitations under the License.
 */
-#ifndef COROKAFKA_COROKAFKA_OFFSET_WATERMARK_H
-#define COROKAFKA_COROKAFKA_OFFSET_WATERMARK_H
+#ifndef BLOOMBERG_COROKAFKA_OFFSET_WATERMARK_H
+#define BLOOMBERG_COROKAFKA_OFFSET_WATERMARK_H
 
 #include <cppkafka/kafka_handle_base.h>
 #include <cppkafka/topic_partition.h>
@@ -48,4 +48,4 @@ std::ostream& operator<<(std::ostream& output, const OffsetWatermarkList& waterm
 
 }}
 
-#endif //COROKAFKA_COROKAFKA_OFFSET_WATERMARK_H
+#endif //BLOOMBERG_COROKAFKA_OFFSET_WATERMARK_H

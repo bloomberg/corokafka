@@ -68,7 +68,7 @@ struct ConsumerManagerMock : public IConsumerManager
     MOCK_METHOD0(enablePreprocessing, void());
     MOCK_METHOD1(enablePreprocessing, void(const std::string&));
     MOCK_METHOD0(disablePreprocessing, void());
-    MOCK_METHOD1(disablePreprocessing, void(const std::string &topic));
+    MOCK_METHOD1(disablePreprocessing, void(const std::string&));
     MOCK_CONST_METHOD1(getConfiguration, const ConsumerConfiguration&(const std::string&));
     MOCK_CONST_METHOD0(getTopics, std::vector<std::string>());
     MOCK_METHOD0(poll, void());

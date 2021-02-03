@@ -13,11 +13,11 @@ struct ImplBase
     ImplBase() = default;
     
     template <typename ...ARGS>
-    ImplBase(std::piecewise_construct_t, ARGS&&...args) :
+    explicit ImplBase(std::piecewise_construct_t, ARGS&&...args) :
         _impl(std::make_shared<T>(std::forward<ARGS>(args)...))
     {}
     template <typename U, typename ...ARGS>
-    ImplBase(U*, ARGS&&...args) :
+    explicit ImplBase(U*, ARGS&&...args) :
         _impl(std::make_shared<U>(std::forward<ARGS>(args)...))
     {}
     template <typename U>
