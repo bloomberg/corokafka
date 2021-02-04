@@ -29,8 +29,8 @@ namespace mocks {
 
 struct ProducerManagerMock : public IProducerManager
 {
-    ProducerManagerMock() :
-        _config(MockTopic{"MockTopic"}, {}, {}),
+    explicit ProducerManagerMock(ProducerConfiguration config = ProducerConfiguration(MockTopic{"MockTopic"}, {}, {})) :
+        _config(std::move(config)),
         _producerMetadataMockPtr(std::make_shared<ProducerMetadataMock>())
     {
         //Set default actions

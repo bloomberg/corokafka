@@ -2,6 +2,7 @@
 #define BLOOMBERG_COROKAFKA_IRECEIVED_MESSAGE_H
 
 #include <corokafka/interface/corokafka_imessage.h>
+#include <corokafka/corokafka_header_pack.h>
 
 namespace Bloomberg {
 namespace corokafka {

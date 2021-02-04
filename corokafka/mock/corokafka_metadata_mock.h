@@ -25,13 +25,18 @@ namespace mocks {
 
 struct MetadataMock : public virtual IMetadata
 {
-    MetadataMock()
+    explicit MetadataMock(std::string topic = "MockTopic",
+                          cppkafka::Topic topicObject = cppkafka::Topic{}) :
+        _topic(std::move(topic)),
+        _topicObject(std::move(topicObject))
     {
         using namespace testing;
         ON_CALL(*this, getType())
             .WillByDefault(Return(KafkaType::Consumer));
         ON_CALL(*this, getTopic())
             .WillByDefault(ReturnRef(_topic));
+        ON_CALL(*this, getTopicObject())
+            .WillByDefault(ReturnRef(_topicObject));
     }
     MOCK_CONST_METHOD0(getType, KafkaType());
     MOCK_CONST_METHOD0(queryOffsetWatermarks, OffsetWatermarkList());
@@ -41,14 +46,15 @@ struct MetadataMock : public virtual IMetadata
     MOCK_CONST_METHOD0(operatorBool, bool());
     explicit operator bool() const final { return operatorBool(); }
     MOCK_CONST_METHOD0(getHandle, uint64_t());
-    MOCK_CONST_METHOD0(getTopic, std::string&());
+    MOCK_CONST_METHOD0(getTopic, const std::string&());
     MOCK_CONST_METHOD0(getTopicObject, const cppkafka::Topic&());
     MOCK_CONST_METHOD0(getTopicMetadata, cppkafka::TopicMetadata());
     MOCK_CONST_METHOD1(getTopicMetadata, cppkafka::TopicMetadata(std::chrono::milliseconds));
     MOCK_CONST_METHOD0(getInternalName, std::string());
     MOCK_CONST_METHOD1(isPartitionAvailable, bool(int));
 private:
-    std::string _topic{"MockTopic"};
+    std::string     _topic;
+    cppkafka::Topic _topicObject;
 };
 
 }}}

@@ -12,9 +12,20 @@ namespace mocks {
 struct ProducerMetadataMock : public IProducerMetadata,
                               public MetadataMock //mock of IMetadata
 {
+    explicit ProducerMetadataMock(cppkafka::TopicPartitionList topics = cppkafka::TopicPartitionList{}) :
+        _topics(std::move(topics))
+    {
+        //Set default actions
+        using namespace testing;
+        ON_CALL(*this, getTopicPartitions())
+                .WillByDefault(ReturnRef(_topics));
+    }
     MOCK_CONST_METHOD0(getTopicPartitions, const cppkafka::TopicPartitionList&());
     MOCK_CONST_METHOD0(getOutboundQueueLength, size_t());
     MOCK_CONST_METHOD0(getInternalQueueLength, size_t());
+    
+private:
+    cppkafka::TopicPartitionList _topics;
 };
 
 }}}

@@ -10,7 +10,10 @@ namespace mocks {
 
 struct MessageMock : public virtual IMessage
 {
-    MessageMock()
+    MessageMock(cppkafka::Buffer buffer = cppkafka::Buffer{},
+                cppkafka::Message::HeaderListType list = cppkafka::Message::HeaderListType{}) :
+        _buffer(std::move(buffer)),
+        _headerList(std::move(list))
     {
         using namespace testing;
         ON_CALL(*this, getKeyBuffer())
@@ -21,9 +24,9 @@ struct MessageMock : public virtual IMessage
             .WillByDefault(ReturnRef(_buffer));
     }
     MOCK_CONST_METHOD0(getHandle, uint64_t());
-    MOCK_CONST_METHOD0(getKeyBuffer, cppkafka::Buffer&());
+    MOCK_CONST_METHOD0(getKeyBuffer, const cppkafka::Buffer&());
     MOCK_CONST_METHOD0(getHeaderList, const cppkafka::Message::HeaderListType&());
-    MOCK_CONST_METHOD0(getPayloadBuffer, cppkafka::Buffer&());
+    MOCK_CONST_METHOD0(getPayloadBuffer, const cppkafka::Buffer&());
     MOCK_CONST_METHOD0(getError, cppkafka::Error());
     MOCK_CONST_METHOD0(getTopic, std::string());
     MOCK_CONST_METHOD0(getPartition, int());
