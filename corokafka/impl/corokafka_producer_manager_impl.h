@@ -327,15 +327,9 @@ ProducerManagerImpl::postImpl(ExecMode mode,
                               H&&...headers)
 {
     quantum::Promise<DeliveryReport> deliveryPromise;
-    quantum::GenericFuture<DeliveryReport> deliveryFuture;
-    auto ctx = quantum::local::context();
-    if (ctx) {
-        deliveryFuture = {deliveryPromise.getICoroFuture(), ctx};
-    }
-    else {
-        deliveryFuture = deliveryPromise.getIThreadFuture();
-    }
+    quantum::GenericFuture<DeliveryReport> deliveryFuture(deliveryPromise);
     ProducerTopicEntry& topicEntry = findProducer(topic.topic())->second;
+    //Validate queue length and payload policy
     if (mode == ExecMode::Async) {
         if (topicEntry._preserveMessageOrder) {
             if ((topicEntry._maxQueueLength > -1) &&
@@ -348,7 +342,7 @@ ProducerManagerImpl::postImpl(ExecMode mode,
         }
         else {
             if (topicEntry._payloadPolicy == cppkafka::Producer::PayloadPolicy::PASSTHROUGH_PAYLOAD) {
-                //Application needs to set PayloadPolicy::COPY_PAYLOAD
+                //Application needs to set PayloadPolicy::COPY_PAYLOAD to extend payload lifetime
                 DeliveryReport dr;
                 dr.error(RD_KAFKA_RESP_ERR__INVALID_ARG).opaque(opaque);
                 deliveryPromise.set(std::move(dr));
@@ -365,7 +359,9 @@ ProducerManagerImpl::postImpl(ExecMode mode,
         return deliveryFuture;
     }
     builder.user_data(new PackedOpaque{opaque, std::move(deliveryPromise)});
+    //Produce the message
     int rc = 0;
+    auto ctx = quantum::local::context();
     if (ctx && (mode == ExecMode::Sync)) {
         //Find thread id
         int numThreads = topicEntry._syncProducerThreadRange.second-topicEntry._syncProducerThreadRange.first+1;
