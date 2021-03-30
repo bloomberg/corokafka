@@ -63,6 +63,7 @@ public:
                                ResetAction action) override;
     std::string toString() const override;
     std::string toString(const std::string& topic) const override;
+    void enableCommitTracing(bool enable) override;
     void enableCommitTracing(bool enable,
                              cppkafka::LogLevel level) override;
     

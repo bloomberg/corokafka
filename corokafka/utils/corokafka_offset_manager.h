@@ -114,10 +114,13 @@ public:
     std::string toString(const std::string& topic) const override;
     
     /// @brief Enables or disables commit logging via the registered
-    ///        log callback in the ConsumerManager at the specified severity level.
+    ///        log callback in the ConsumerManager
+    /// @param enable True to enable logging and False to disable.
+    /// @param level The logging severity level. If not specified, the level defaults to Debug.
     /// @warning May be verbose
+    void enableCommitTracing(bool enable) override;
     void enableCommitTracing(bool enable,
-                             cppkafka::LogLevel level = cppkafka::LogLevel::LogDebug) override;
+                             cppkafka::LogLevel level) override;
     
     /**
      * @brief For mocking only via dependency injection.
