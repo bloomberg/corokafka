@@ -28,7 +28,7 @@ struct OffsetManagerMock : public IOffsetManager
     MOCK_METHOD2(resetPartitionOffsets, void(const std::string&, ResetAction));
     MOCK_CONST_METHOD0(toString, std::string());
     MOCK_CONST_METHOD1(toString, std::string(const std::string&));
-    MOCK_METHOD1(enableCommitTracing, void(bool));
+    MOCK_METHOD2(enableCommitTracing, void(bool, cppkafka::LogLevel));
 };
 
 }}}

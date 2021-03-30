@@ -43,7 +43,8 @@ struct IOffsetManager
                                        ResetAction action) = 0;
     virtual std::string toString() const = 0;
     virtual std::string toString(const std::string& topic) const = 0;
-    virtual void enableCommitTracing(bool enable) = 0;
+    virtual void enableCommitTracing(bool enable,
+                                     cppkafka::LogLevel) = 0;
 };
 
 }}

@@ -132,9 +132,10 @@ std::string OffsetManager::toString(const std::string& topic) const
     return impl()->toString(topic);
 }
 
-void OffsetManager::enableCommitTracing(bool enable)
+void OffsetManager::enableCommitTracing(bool enable,
+                                        cppkafka::LogLevel level)
 {
-    impl()->enableCommitTracing(enable);
+    impl()->enableCommitTracing(enable, level);
 }
 
 std::ostream& operator<<(std::ostream& output, const OffsetManager& rhs)

@@ -151,7 +151,6 @@ const std::string& Configuration::getJsonSchema()
                 "required": ["name","config"]
             }
         },
-
         "title": "Kafka connector settings",
         "type": "object",
         "properties": {
