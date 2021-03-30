@@ -376,6 +376,11 @@ std::string OffsetManagerImpl::toString(const std::string& topic) const
     return oss.str();
 }
 
+void OffsetManagerImpl::enableCommitTracing(bool enable)
+{
+    _traceCommits = enable;
+}
+
 void OffsetManagerImpl::enableCommitTracing(bool enable,
                                             cppkafka::LogLevel level)
 {
