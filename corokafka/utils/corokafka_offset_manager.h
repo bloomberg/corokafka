@@ -108,18 +108,19 @@ public:
     void resetPartitionOffsets(const std::string& topic,
                                ResetAction action = ResetAction::FetchOffsets) override;
     
-    /// @brief Output the offsets contained by this manager
-    /// @param topic Restrict output to a specific topic only
+    /// @brief Output the offsets contained by this manager.
+    /// @param topic Restrict output to a specific topic only.
     std::string toString() const override;
     std::string toString(const std::string& topic) const override;
     
-    /// @brief Enables or disables commit debug logging via the registered
-    ///        log callback in the ConsumerManager
+    /// @brief Enables or disables commit logging via the registered
+    ///        log callback in the ConsumerManager at the specified severity level.
     /// @warning May be verbose
-    void enableCommitTracing(bool enable) override;
+    void enableCommitTracing(bool enable,
+                             cppkafka::LogLevel level = cppkafka::LogLevel::LogDebug) override;
     
     /**
-     * @brief For mocking only via dependency injection
+     * @brief For mocking only via dependency injection.
      */
     using ImplType = Impl<IOffsetManager>;
     using ImplType::ImplType;

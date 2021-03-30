@@ -63,7 +63,8 @@ public:
                                ResetAction action) override;
     std::string toString() const override;
     std::string toString(const std::string& topic) const override;
-    void enableCommitTracing(bool enable) override;
+    void enableCommitTracing(bool enable,
+                             cppkafka::LogLevel level) override;
     
 private:
     using OffsetMap = IntervalSet<int64_t>;
@@ -132,6 +133,7 @@ private:
     std::chrono::milliseconds       _brokerTimeout;
     TopicMap                        _topicMap;
     bool                            _traceCommits{false};
+    cppkafka::LogLevel              _commitLogLevel{cppkafka::LogLevel::LogDebug};
 };
 
 // Implementation

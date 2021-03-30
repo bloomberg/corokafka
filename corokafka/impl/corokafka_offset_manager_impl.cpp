@@ -376,9 +376,13 @@ std::string OffsetManagerImpl::toString(const std::string& topic) const
     return oss.str();
 }
 
-void OffsetManagerImpl::enableCommitTracing(bool enable)
+void OffsetManagerImpl::enableCommitTracing(bool enable,
+                                            cppkafka::LogLevel level)
 {
     _traceCommits = enable;
+    if (enable) {
+        _commitLogLevel = level;
+    }
 }
 
 void OffsetManagerImpl::logOffsets(const std::string& facility,
@@ -392,7 +396,7 @@ void OffsetManagerImpl::logOffsets(const std::string& facility,
     std::ostringstream oss;
     oss << offset;
     logCallback(_consumerManager.getMetadata(topic),
-                cppkafka::LogLevel::LogDebug,
+                _commitLogLevel,
                 facility,
                 oss.str());
 }
@@ -408,7 +412,7 @@ void OffsetManagerImpl::logOffsets(const std::string& facility,
     std::ostringstream oss;
     oss << offsets;
     logCallback(_consumerManager.getMetadata(topic),
-                cppkafka::LogLevel::LogDebug,
+                _commitLogLevel,
                 facility,
                 oss.str());
 }
