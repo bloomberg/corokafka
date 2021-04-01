@@ -2,6 +2,7 @@
 #define BLOOMBERG_COROKAFKA_RECEIVED_MESSAGE_MOCK_H
 
 #include <corokafka/interface/corokafka_ireceived_message.h>
+#include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
 namespace Bloomberg {

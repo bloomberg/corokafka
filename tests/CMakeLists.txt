@@ -20,9 +20,11 @@ find_package(Boost 1.61 REQUIRED COMPONENTS program_options)
 if (TARGET GTest::GTest)
     # Target defined by MODULE mode
     set(GTEST_TARGET GTest)
+    set(GMOCK_TARGET gmock)
 else()
     # Target defined by CONFIG mode
     set(GTEST_TARGET gtest)
+    set(GMOCK_TARGET gmock)
 endif()
 
 if (COROKAFKA_BUILD_TESTS_FROM_INSTALL_TREE)
@@ -31,7 +33,8 @@ if (COROKAFKA_BUILD_TESTS_FROM_INSTALL_TREE)
     target_link_libraries(${TEST_TARGET}
         CoroKafka::corokafka
         Boost::program_options
-        GTest::${GTEST_TARGET})
+        GTest::${GTEST_TARGET}
+        GTest::${GMOCK_TARGET})
 else()
     add_dependencies(${TEST_TARGET} ${PROJECT_TARGET_NAME})
     target_include_directories(${TEST_TARGET} BEFORE PRIVATE
@@ -52,6 +55,7 @@ else()
         Boost::context
         Boost::program_options
         GTest::${GTEST_TARGET}
+        GTest::${GMOCK_TARGET}
         pthread
         rt
         ssl

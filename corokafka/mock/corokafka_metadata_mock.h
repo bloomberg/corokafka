@@ -17,6 +17,7 @@
 #define BLOOMBERG_COROKAFKA_METADATA_MOCK_H
 
 #include <corokafka/interface/corokafka_imetadata.h>
+#include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
 namespace Bloomberg {

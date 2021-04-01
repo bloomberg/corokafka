@@ -20,6 +20,7 @@
 #include <corokafka/mock/corokafka_topic_mock.h>
 #include <corokafka/mock/corokafka_producer_metadata_mock.h>
 #include <corokafka/corokafka_producer_metadata.h>
+#include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include <memory>
 

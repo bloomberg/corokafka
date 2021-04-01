@@ -21,6 +21,7 @@
 #include <corokafka/mock/corokafka_topic_mock.h>
 #include <corokafka/mock/corokafka_consumer_metadata_mock.h>
 #include <corokafka/corokafka_consumer_metadata.h>
+#include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include <memory>
 
@@ -30,8 +31,14 @@ namespace mocks {
 
 struct ConsumerManagerMock : public IConsumerManager
 {
-    ConsumerManagerMock() :
-        _config(MockTopic{"MockTopic"}, {}, {}, ConsumerManagerMock::receiver),
+    template <typename TOPIC>
+    ConsumerManagerMock(const TOPIC& topic,
+                        Configuration::OptionList options,
+                        Configuration::OptionList topicOptions) :
+        _config(topic,
+                std::move(options),
+                std::move(topicOptions),
+                ConsumerManagerMock::receiver),
         _consumerMetadataMockPtr(std::make_shared<ConsumerMetadataMock>())
     {
         //Set default actions
@@ -45,6 +52,10 @@ struct ConsumerManagerMock : public IConsumerManager
                 .WillByDefault(Return(std::vector<std::string>{MockTopic{"MockTopic"}.topic()}));
     }
     
+    ConsumerManagerMock() : ConsumerManagerMock(MockTopic{"MockTopic"},{},{})
+    {
+    }
+    
     MOCK_METHOD0(pause, void());
     MOCK_METHOD1(pause, void(const std::string&));
     MOCK_METHOD0(resume, void());
@@ -53,16 +64,16 @@ struct ConsumerManagerMock : public IConsumerManager
     MOCK_METHOD2(subscribe, void(const std::string&, const cppkafka::TopicPartitionList&));
     MOCK_METHOD0(unsubscribe, void());
     MOCK_METHOD1(unsubscribe, void(const std::string&));
-    MOCK_METHOD2(commitPartition, cppkafka::Error(const cppkafka::TopicPartition&,
-                                                  const void*));
-    MOCK_METHOD3(commitPartition, cppkafka::Error(const cppkafka::TopicPartition&,
-                                                  ExecMode,
-                                                  const void*));
-    MOCK_METHOD2(commitPartitionList, cppkafka::Error(const cppkafka::TopicPartitionList&,
-                                                      const void*));
-    MOCK_METHOD3(commitPartitionList, cppkafka::Error(const cppkafka::TopicPartitionList&,
-                                                      ExecMode,
-                                                      const void*));
+    MOCK_METHOD2(commit, cppkafka::Error(const cppkafka::TopicPartition&,
+                                         const void*));
+    MOCK_METHOD3(commit, cppkafka::Error(const cppkafka::TopicPartition&,
+                                         ExecMode,
+                                         const void*));
+    MOCK_METHOD2(commit, cppkafka::Error(const cppkafka::TopicPartitionList&,
+                                         const void*));
+    MOCK_METHOD3(commit, cppkafka::Error(const cppkafka::TopicPartitionList&,
+                                         ExecMode,
+                                         const void*));
     MOCK_METHOD0(shutdown, void());
     MOCK_METHOD1(getMetadata, ConsumerMetadata(const std::string&));
     MOCK_METHOD0(enablePreprocessing, void());
@@ -73,28 +84,6 @@ struct ConsumerManagerMock : public IConsumerManager
     MOCK_CONST_METHOD0(getTopics, std::vector<std::string>());
     MOCK_METHOD0(poll, void());
     MOCK_METHOD0(pollEnd, void());
-    
-    cppkafka::Error commit(const cppkafka::TopicPartition &topicPartition,
-                           const void *opaque = nullptr) {
-        return commitPartition(topicPartition, opaque);
-    }
-    
-    cppkafka::Error commit(const cppkafka::TopicPartition &topicPartition,
-                           ExecMode execMode,
-                           const void *opaque = nullptr) {
-        return commitPartition(topicPartition, execMode, opaque);
-    }
-    
-    cppkafka::Error commit(const cppkafka::TopicPartitionList &topicPartitions,
-                           ExecMode execMode,
-                           const void *opaque = nullptr) {
-        return commitPartitionList(topicPartitions, execMode, opaque);
-    }
-    
-    cppkafka::Error commit(const cppkafka::TopicPartitionList &topicPartitions,
-                           const void *opaque = nullptr) {
-        return commitPartitionList(topicPartitions, opaque);
-    }
     
     static void receiver(MockTopic::ReceivedMessageType) {}
     
