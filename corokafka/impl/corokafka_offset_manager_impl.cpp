@@ -30,12 +30,13 @@
 namespace Bloomberg {
 namespace corokafka {
 
-OffsetManagerImpl::OffsetManagerImpl(corokafka::ConsumerManager& consumerManager) :
-    OffsetManagerImpl(consumerManager, std::chrono::milliseconds((int)TimerValues::Disabled))
+OffsetManagerImpl::OffsetManagerImpl(IConsumerManager& consumerManager) :
+    OffsetManagerImpl(consumerManager,
+                      std::chrono::milliseconds((int)TimerValues::Disabled))
 {
 }
 
-OffsetManagerImpl::OffsetManagerImpl(corokafka::ConsumerManager& consumerManager,
+OffsetManagerImpl::OffsetManagerImpl(IConsumerManager& consumerManager,
                                      std::chrono::milliseconds brokerTimeout) :
     _consumerManager(consumerManager),
     _brokerTimeout(brokerTimeout)
@@ -162,8 +163,9 @@ void OffsetManagerImpl::setStartingOffset(int64_t offset,
                 }
             }
             else {
+                //Kafka magic number, therefore we default based on 'auto.offset.reset' option
                 ranges._beginOffset = ranges._currentOffset =
-                        autoResetAtEnd ? watermark._watermark._high : watermark._watermark._low;
+                        (autoResetAtEnd ? watermark._watermark._high : watermark._watermark._low);
             }
             break;
         case cppkafka::TopicPartition::Offset::OFFSET_BEGINNING:
@@ -184,13 +186,13 @@ void OffsetManagerImpl::setStartingOffset(int64_t offset,
 
 cppkafka::Error OffsetManagerImpl::saveOffset(const cppkafka::TopicPartition& offset)
 {
-    return saveOffsetImpl(offset);
+    return saveOffsetImpl(offset, nullptr);
 }
 
 cppkafka::Error OffsetManagerImpl::saveOffset(const cppkafka::TopicPartition& offset,
-                                          ExecMode execMode)
+                                              ExecMode execMode)
 {
-    return saveOffsetImpl(offset, execMode);
+    return saveOffsetImpl(offset, execMode, nullptr);
 }
 
 cppkafka::Error OffsetManagerImpl::saveOffset(const IMessage& message)
@@ -201,7 +203,7 @@ cppkafka::Error OffsetManagerImpl::saveOffset(const IMessage& message)
 cppkafka::Error OffsetManagerImpl::saveOffset(const IMessage& message,
                                               ExecMode execMode)
 {
-    return saveOffset({message.getTopic(), message.getPartition(), message.getOffset()+1}, execMode);
+    return saveOffset({message.getTopic(), message.getPartition(), message.getOffset() + 1}, execMode);
 }
 
 cppkafka::TopicPartition OffsetManagerImpl::getCurrentOffset(const cppkafka::TopicPartition& partition)
@@ -222,64 +224,90 @@ cppkafka::TopicPartition OffsetManagerImpl::getBeginOffset(const cppkafka::Topic
                                     ranges._beginOffset);
 }
 
+std::pair<cppkafka::TopicPartition, cppkafka::TopicPartition>
+OffsetManagerImpl::getUncommittedOffsetMargins(const cppkafka::TopicPartition& partition)
+{
+    const OffsetRanges& ranges = getOffsetRanges(getTopicSettings(partition), partition);
+    quantum::Mutex::Guard guard(quantum::local::context(), ranges._offsetsMutex);
+    if (ranges._offsets.empty()) {
+        //return current offset
+        cppkafka::TopicPartition offsetToCommit{partition.get_topic(), partition.get_partition(), ranges._currentOffset + 1};
+        return {offsetToCommit, offsetToCommit};
+    }
+    //get first and end iterators
+    cppkafka::TopicPartition lowOffsetToCommit{partition.get_topic(), partition.get_partition(), ranges._offsets.cbegin()->first};
+    cppkafka::TopicPartition highOffsetToCommit{partition.get_topic(), partition.get_partition(), ranges._offsets.crbegin()->second};
+    return {lowOffsetToCommit, highOffsetToCommit};
+}
+
 cppkafka::Error OffsetManagerImpl::forceCommit()
 {
-    return forceCommitImpl();
+    return forceCommitImpl(nullptr);
 }
 
 cppkafka::Error OffsetManagerImpl::forceCommit(ExecMode execMode)
 {
-    return forceCommitImpl(execMode);
+    return forceCommitImpl(execMode, nullptr);
 }
 
 cppkafka::Error OffsetManagerImpl::forceCommit(const cppkafka::TopicPartition& partition)
 {
-    return forceCommitPartitionImpl(partition);
+    return forceCommitPartitionImpl(partition, nullptr);
 }
 
 cppkafka::Error OffsetManagerImpl::forceCommit(const cppkafka::TopicPartition& partition,
                                                ExecMode execMode)
 {
-    return forceCommitPartitionImpl(partition, execMode);
+    return forceCommitPartitionImpl(partition, execMode, nullptr);
 }
 
 cppkafka::Error OffsetManagerImpl::forceCommitCurrentOffset()
 {
-    return forceCommitCurrentOffsetImpl();
+    return forceCommitCurrentOffsetImpl(nullptr);
 }
 
 cppkafka::Error OffsetManagerImpl::forceCommitCurrentOffset(ExecMode execMode)
 {
-    return forceCommitCurrentOffsetImpl(execMode);
+    return forceCommitCurrentOffsetImpl(execMode, nullptr);
 }
 
 cppkafka::Error OffsetManagerImpl::forceCommitCurrentOffset(const cppkafka::TopicPartition& partition)
 {
-    return saveOffset(getCurrentOffset(partition));
+    //Save the next greater offset
+    return saveOffset(getCurrentOffset(partition) + 1);
 }
 
 cppkafka::Error OffsetManagerImpl::forceCommitCurrentOffset(const cppkafka::TopicPartition& partition,
                                                             ExecMode execMode)
 {
-    return saveOffset(getCurrentOffset(partition), execMode);
+    //Save the next greater offset
+    return saveOffset(getCurrentOffset(partition) + 1, execMode);
 }
 
 Range<int64_t> OffsetManagerImpl::insertOffset(OffsetRanges& ranges,
                                                int64_t offset)
 {
-    Range<int64_t> range(-1,-1);
-    auto it = ranges._offsets.insert(Point<int64_t>{offset});
-    if (it.second) {
-        //a range was modified
-        if (it.first->first == (ranges._currentOffset + 1)) {
-            //we can commit this range
-            range = {it.first->first, it.first->second};
-            ranges._currentOffset = it.first->second;
-            //delete range from map
-            ranges._offsets.erase(it.first->first);
+    if (offset < ranges._beginOffset) {
+        throw std::invalid_argument("Offset cannot be smaller than the beginning offset: " +
+                                    std::to_string(ranges._beginOffset));
+    }
+    if (offset > ranges._currentOffset) {
+        //Offset is valid
+        auto it = ranges._offsets.insert(Point<int64_t>{offset});
+        if (it.second) {
+            //a range was modified
+            Range<int64_t> range = *it.first;
+            if (range.first == (ranges._currentOffset + 1)) {
+                //we can commit this range
+                ranges._currentOffset = range.second;
+                //delete range from map
+                ranges._offsets.erase(range.first);
+                return range;
+            }
         }
     }
-    return range;
+    //No ranges were modified
+    return {-1, -1};
 }
 
 void OffsetManagerImpl::resetPartitionOffsets(ResetAction action)
@@ -291,7 +319,7 @@ void OffsetManagerImpl::resetPartitionOffsets(ResetAction action)
 }
 
 void OffsetManagerImpl::resetPartitionOffsets(const std::string& topic,
-                                          ResetAction action)
+                                              ResetAction action)
 {
     TopicSettings& topicSettings = _topicMap[topic];
     topicSettings._partitions.clear();

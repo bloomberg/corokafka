@@ -3,6 +3,7 @@
 
 #include <corokafka/interface/corokafka_isent_message.h>
 #include <corokafka/mock/corokafka_message_mock.h>
+#include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
 namespace Bloomberg {

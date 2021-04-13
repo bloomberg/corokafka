@@ -28,6 +28,8 @@ struct IOffsetManager
                                        ExecMode execMode) = 0;
     virtual cppkafka::TopicPartition getCurrentOffset(const cppkafka::TopicPartition& partition) = 0;
     virtual cppkafka::TopicPartition getBeginOffset(const cppkafka::TopicPartition& partition) = 0;
+    virtual std::pair<cppkafka::TopicPartition, cppkafka::TopicPartition>
+    getUncommittedOffsetMargins(const cppkafka::TopicPartition& partition) = 0;
     virtual cppkafka::Error forceCommit() = 0;
     virtual cppkafka::Error forceCommit(ExecMode execMode) = 0;
     virtual cppkafka::Error forceCommit(const cppkafka::TopicPartition& partition) = 0;

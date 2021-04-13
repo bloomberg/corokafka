@@ -22,6 +22,16 @@
 namespace Bloomberg {
 namespace corokafka {
 
+/*
+ * Kafka offset watermarks description:
+ * 'low' points to the first message in the partition.
+ * 'high' points to the first position beyond the last message.
+ *
+ * +-------------------------+- - - +
+ * | low |    |    |    |    | high |
+ * +-------------------------+- - - +
+ */
+
 class OffsetManagerImpl : public IOffsetManager
 {
 public:
@@ -33,8 +43,8 @@ public:
     OffsetManagerImpl(OffsetManagerImpl&&) = default;
     OffsetManagerImpl& operator=(const OffsetManagerImpl&) = delete;
     OffsetManagerImpl& operator=(OffsetManagerImpl&&) = delete;
-    explicit OffsetManagerImpl(corokafka::ConsumerManager& consumerManager);
-    OffsetManagerImpl(corokafka::ConsumerManager& consumerManager,
+    explicit OffsetManagerImpl(IConsumerManager& consumerManager);
+    OffsetManagerImpl(IConsumerManager& consumerManager,
                       std::chrono::milliseconds brokerTimeout);
     
     //-------------------------------------------------------------------------------
@@ -48,6 +58,8 @@ public:
                                ExecMode execMode) override;
     cppkafka::TopicPartition getCurrentOffset(const cppkafka::TopicPartition& partition) override;
     cppkafka::TopicPartition getBeginOffset(const cppkafka::TopicPartition& partition) override;
+    std::pair<cppkafka::TopicPartition, cppkafka::TopicPartition>
+    getUncommittedOffsetMargins(const cppkafka::TopicPartition& partition) override;
     cppkafka::Error forceCommit() override;
     cppkafka::Error forceCommit(ExecMode execMode) override;
     cppkafka::Error forceCommit(const cppkafka::TopicPartition& partition) override;
@@ -67,7 +79,7 @@ public:
     void enableCommitTracing(bool enable,
                              cppkafka::LogLevel level) override;
     
-private:
+    //Typedefs
     using OffsetMap = IntervalSet<int64_t>;
     using InsertReturnType = OffsetMap::InsertReturnType;
     using Iterator = OffsetMap::Iterator;
@@ -83,6 +95,8 @@ private:
         PartitionMap    _partitions;
     };
     using TopicMap = std::unordered_map<std::string, TopicSettings>;
+    
+protected:
     static Range<int64_t>
     insertOffset(OffsetRanges& ranges,
                  int64_t offset);
@@ -130,7 +144,7 @@ private:
     void logOffsets(const std::string& facility, const cppkafka::TopicPartitionList& offsets) const;
 
     // Members
-    corokafka::ConsumerManager&     _consumerManager;
+    IConsumerManager&               _consumerManager;
     std::chrono::milliseconds       _brokerTimeout;
     TopicMap                        _topicMap;
     bool                            _traceCommits{false};
@@ -156,9 +170,9 @@ cppkafka::Error OffsetManagerImpl::saveOffsetImpl(const cppkafka::TopicPartition
         //Commit range
         if (range.second != -1) {
             //This is a valid range
-            cppkafka::TopicPartition partition{offset.get_topic(), offset.get_partition(), range.second};
-            logOffsets("OffsetManager:Commit", partition);
-            return _consumerManager.commit(partition, std::forward<EXEC_MODE>(execMode)...);
+            cppkafka::TopicPartition offsetToCommit{offset.get_topic(), offset.get_partition(), range.second};
+            logOffsets("OffsetManager:Commit", offsetToCommit);
+            return _consumerManager.commit(offsetToCommit, std::forward<EXEC_MODE>(execMode)...);
         }
         return {};
     }
@@ -184,9 +198,9 @@ cppkafka::Error OffsetManagerImpl::forceCommitImpl(EXEC_MODE&&...execMode)
                 quantum::Mutex::Guard guard(quantum::local::context(), ranges._offsetsMutex);
                 Iterator it = ranges._offsets.begin();
                 if (it != ranges._offsets.end()) {
-                    range = {it->first, it->second};
+                    range = *it;
                     //bump current offset
-                    ranges._currentOffset = it->second+1;
+                    ranges._currentOffset = range.second;
                     //delete range from map
                     ranges._offsets.erase(it);
                 }
@@ -222,17 +236,18 @@ cppkafka::Error OffsetManagerImpl::forceCommitPartitionImpl(const cppkafka::Topi
             quantum::Mutex::Guard guard(quantum::local::context(), ranges._offsetsMutex);
             Iterator it = ranges._offsets.begin();
             if (it != ranges._offsets.end()) {
-                range = {it->first, it->second};
+                range = *it;
                 //bump current offset
-                ranges._currentOffset = range.second + 1;
+                ranges._currentOffset = range.second;
                 //delete range from map
                 ranges._offsets.erase(it);
             }
         }
         //Commit range
         if (range.second != -1) {
-            logOffsets("OffsetManager:Commit", partition);
-            return _consumerManager.commit(partition, std::forward<EXEC_MODE>(execMode)...);
+            cppkafka::TopicPartition offsetToCommit{partition.get_topic(), partition.get_partition(), range.second};
+            logOffsets("OffsetManager:Commit", offsetToCommit);
+            return _consumerManager.commit(offsetToCommit, std::forward<EXEC_MODE>(execMode)...);
         }
         return {};
     }
@@ -257,10 +272,10 @@ cppkafka::Error OffsetManagerImpl::forceCommitCurrentOffsetImpl(EXEC_MODE&&...ex
                 Range<int64_t> range(-1,-1);
                 {//locked scope
                     if (_traceCommits) {
-                        logOffsets("OffsetManager:Insert", {topic.first, partition.first, ranges._currentOffset});
+                        logOffsets("OffsetManager:Insert", {topic.first, partition.first, ranges._currentOffset + 1});
                     }
                     quantum::Mutex::Guard guard(quantum::local::context(), ranges._offsetsMutex);
-                    range = insertOffset(ranges, ranges._currentOffset);
+                    range = insertOffset(ranges, ranges._currentOffset + 1);
                 }
                 //Commit range
                 if (range.second != -1) {

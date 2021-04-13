@@ -415,6 +415,11 @@ void setThreadName(std::thread::native_handle_type threadHandle,
 }
 #endif
 
+//Returns an offset which corresponds to a new position equivalent to 'offset +/- value'
+//The supplied offset as well as the resulting offset must be valid (i.e. >=0)
+cppkafka::TopicPartition operator+(const cppkafka::TopicPartition& offset, int value);
+cppkafka::TopicPartition operator-(const cppkafka::TopicPartition& offset, int value);
+
 } //namespace corokafka
 } //namespace Bloomberg
 

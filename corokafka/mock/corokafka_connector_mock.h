@@ -19,6 +19,7 @@
 #include <corokafka/interface/corokafka_iconnector.h>
 #include <corokafka/mock/corokafka_producer_manager_mock.h>
 #include <corokafka/mock/corokafka_consumer_manager_mock.h>
+#include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include <memory>
 

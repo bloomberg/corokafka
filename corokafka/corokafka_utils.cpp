@@ -63,6 +63,22 @@ void handleException(const std::exception& ex,
     }
 }
 
+cppkafka::TopicPartition operator+(const cppkafka::TopicPartition& offset, int value)
+{
+    if (offset.get_offset() < 0) {
+        throw std::invalid_argument("Offset must be >= 0");
+    }
+    if ((offset.get_offset() + value) < 0) {
+        throw std::invalid_argument("Resulting offset must be >= 0");
+    }
+    return {offset.get_topic(), offset.get_partition(), offset.get_offset() + value};
+}
+
+cppkafka::TopicPartition operator-(const cppkafka::TopicPartition& offset, int value)
+{
+    return offset + (-value);
+}
+
 }
 }
 

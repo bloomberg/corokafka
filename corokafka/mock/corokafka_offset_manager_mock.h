@@ -2,6 +2,7 @@
 #define BLOOMBERG_COROKAFKA_OFFSET_MANAGER_MOCK_H
 
 #include <corokafka/interface/corokafka_ioffset_manager.h>
+#include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
 namespace Bloomberg {

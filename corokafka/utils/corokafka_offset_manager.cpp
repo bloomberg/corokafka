@@ -26,12 +26,12 @@
 namespace Bloomberg {
 namespace corokafka {
 
-OffsetManager::OffsetManager(corokafka::ConsumerManager& consumerManager) :
+OffsetManager::OffsetManager(IConsumerManager& consumerManager) :
     ImplType(std::make_shared<OffsetManagerImpl>(consumerManager))
 {
 }
 
-OffsetManager::OffsetManager(corokafka::ConsumerManager& consumerManager,
+OffsetManager::OffsetManager(IConsumerManager& consumerManager,
                              std::chrono::milliseconds brokerTimeout) :
     ImplType(std::make_shared<OffsetManagerImpl>(consumerManager, brokerTimeout))
 {
@@ -67,6 +67,12 @@ cppkafka::TopicPartition OffsetManager::getCurrentOffset(const cppkafka::TopicPa
 cppkafka::TopicPartition OffsetManager::getBeginOffset(const cppkafka::TopicPartition& partition)
 {
     return impl()->getBeginOffset(partition);
+}
+
+std::pair<cppkafka::TopicPartition, cppkafka::TopicPartition>
+OffsetManager::getUncommittedOffsetMargins(const cppkafka::TopicPartition& partition)
+{
+    return impl()->getUncommittedOffsetMargins(partition);
 }
 
 cppkafka::Error OffsetManager::forceCommit()

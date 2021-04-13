@@ -22,10 +22,19 @@
 namespace Bloomberg {
 namespace corokafka {
 
-/// @brief The OffsetManager class helps commit offsets in a concurrent environment
-///        by guaranteeing gapless ordering. When offsets are consumed on multiple
+/// Note about committing offsets:
+/// Kafka considers a committed offset as the 'next position to be read from'. As such it indicates a future position
+/// rather than the last position that was consumed. When committing a message offset, it is mandatory to
+/// increment the offset by 1 before calling commit. This is done automatically when invoking saveOffset(msg) but *not*
+/// when invoking saveOffset(partition). The latter expects the increment to be done previously by the caller.
+
+/// @brief The OffsetManager helps commit 'forward' offsets in a concurrent environment
+///        by guaranteeing gap-less ordering. When offsets are consumed on multiple
 ///        threads, some messages may be processed out-of-order and committing them
 ///        before others may result in message loss should a crash occur.
+///        The OffsetManager stores committed offsets in disjointed ranges which it manages on a per-partition basis.
+///        Ranges will be automatically merged together when contiguous, and the highest offset in the lowest range
+///        will be committed provided there are no gaps with the 'current offset' (see getCurrentOffset()).
 class OffsetManager : public Impl<IOffsetManager>
 {
 public:
@@ -43,14 +52,17 @@ public:
     ///                If timeout is not specified, the default consumer timeout will be used.
     ///                Set timeout to -1 to block infinitely.
     /// @note May throw if the broker queries time out.
-    explicit OffsetManager(corokafka::ConsumerManager& consumerManager);
-    OffsetManager(corokafka::ConsumerManager& consumerManager,
+    explicit OffsetManager(IConsumerManager& consumerManager);
+    OffsetManager(IConsumerManager& consumerManager,
                   std::chrono::milliseconds brokerTimeout);
     
     /// @brief Saves an offset to be committed later and potentially commits a range of offsets if it became available.
     /// @param offset The partition containing the offset to be saved.
     /// @param execMode If specified, overrides 'internal.consumer.commit.exec' consumer setting.
     /// @returns Error.
+    /// @remark The offset specified indicates the 'next position to be read from'. It should typically be the last
+    ///         message offset incremented by 1. This function will *not* perform any increments.
+    /// @remark Offset must be > getCurrentOffset(). Committing a smaller offset has no effect.
     cppkafka::Error saveOffset(const cppkafka::TopicPartition& offset) override;
     cppkafka::Error saveOffset(const cppkafka::TopicPartition& offset,
                                ExecMode execMode) override;
@@ -59,15 +71,25 @@ public:
     /// @param message The message whose offset we want to commit.
     /// @param execMode If specified, overrides 'internal.consumer.commit.exec' consumer setting.
     /// @returns Error.
-    /// @remark Note that this will actually commit IMessage::getOffset()+1
+    /// @remark This function *will* perform the offset increment automatically and will commit IMessage::getOffset()+1.
+    /// @remark Message offset must be >= getCurrentOffset(). Committing a smaller offset has no effect.
     cppkafka::Error saveOffset(const IMessage& message) override;
     cppkafka::Error saveOffset(const IMessage& message,
                                ExecMode execMode) override;
     
-    /// @brief Returns the smallest offset which is yet to be committed.
+    /// @brief Returns the last committed offset. This is the current reading position in the partition
+    ///        i.e. the next message to be received will be from this offset.
     /// @param partition The partition where this offset is.
     /// @return The offset.
     cppkafka::TopicPartition getCurrentOffset(const cppkafka::TopicPartition& partition) override;
+    
+    /// @brief Returns the smallest (lower margin) and largest (upper margin)
+    //         offset yet to be committed for this partition.
+    /// @param partition The partition to query.
+    /// @return A pair of offsets corresponding to the *lowest* offset in the first range and the *highest* offset
+    ///         in the last range which have not yet been committed.
+    std::pair<cppkafka::TopicPartition, cppkafka::TopicPartition>
+    getUncommittedOffsetMargins(const cppkafka::TopicPartition& partition) override;
     
     /// @brief Returns the beginning offset.
     /// @param partition The partition where this offset is.
@@ -85,7 +107,7 @@ public:
     cppkafka::Error forceCommit(const cppkafka::TopicPartition& partition,
                                 ExecMode execMode) override;
     
-    /// @brief Commit the lowest offset range as if by calling `saveOffset(getCurrentOffset(partition))`. This will
+    /// @brief Commit the current position as if by calling `saveOffset(getCurrentOffset(partition)+1)`. This will
     ///        either commit the current offset or any range resulting by merging with the current offset.
     /// @param partition The partition where this offset is, or all partitions if not specified.
     /// @param execMode If specified, overrides 'internal.consumer.commit.exec' consumer setting.
