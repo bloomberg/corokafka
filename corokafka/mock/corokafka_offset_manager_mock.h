@@ -17,6 +17,8 @@ struct OffsetManagerMock : public IOffsetManager
     MOCK_METHOD2(saveOffset, cppkafka::Error(const IMessage&, ExecMode));
     MOCK_METHOD1(getCurrentOffset, cppkafka::TopicPartition(const cppkafka::TopicPartition&));
     MOCK_METHOD1(getBeginOffset, cppkafka::TopicPartition(const cppkafka::TopicPartition&));
+    MOCK_METHOD1(getUncommittedOffsetMargins,
+        std::pair<cppkafka::TopicPartition, cppkafka::TopicPartition>(const cppkafka::TopicPartition&));
     MOCK_METHOD0(forceCommit, cppkafka::Error());
     MOCK_METHOD1(forceCommit, cppkafka::Error(ExecMode));
     MOCK_METHOD1(forceCommit, cppkafka::Error(const cppkafka::TopicPartition&));

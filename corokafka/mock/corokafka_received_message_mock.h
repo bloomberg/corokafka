@@ -2,6 +2,7 @@
 #define BLOOMBERG_COROKAFKA_RECEIVED_MESSAGE_MOCK_H
 
 #include <corokafka/interface/corokafka_ireceived_message.h>
+#include <corokafka/mock/corokafka_message_mock.h>
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
@@ -61,8 +62,8 @@ struct ReceivedMessageMock : public IReceivedMessage<KEY, PAYLOAD, HEADERS>,
     }
     MOCK_CONST_METHOD0_T(skip, bool());
     MOCK_METHOD1_T(setOpaque, void(const void*));
-    MOCK_METHOD1_T(commit, cppkafka::Error(void*));
-    MOCK_METHOD2_T(commit, cppkafka::Error(ExecMode, void*));
+    MOCK_METHOD1_T(commit, cppkafka::Error(const void*));
+    MOCK_METHOD2_T(commit, cppkafka::Error(ExecMode, const void*));
     MOCK_CONST_METHOD0_T(isEof, bool());
     MOCK_CONST_METHOD0_T(getKey, const KEY&());
     MOCK_METHOD0_T(getKey, KEY&());

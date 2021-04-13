@@ -16,7 +16,7 @@
 #ifndef BLOOMBERG_COROKAFKA_PRODUCER_MANAGER_MOCK_H
 #define BLOOMBERG_COROKAFKA_PRODUCER_MANAGER_MOCK_H
 
-#include <corokafka/interface/corokafka_iproducer_manager.h>
+#include <corokafka/corokafka_producer_manager.h>
 #include <corokafka/mock/corokafka_topic_mock.h>
 #include <corokafka/mock/corokafka_producer_metadata_mock.h>
 #include <corokafka/corokafka_producer_metadata.h>
@@ -25,7 +25,7 @@
 #include <memory>
 
 namespace Bloomberg {
-namespace corokafka{
+namespace corokafka {
 namespace mocks {
 
 struct ProducerManagerMock : public IProducerManager
