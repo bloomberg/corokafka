@@ -1,6 +1,7 @@
 #ifndef BLOOMBERG_COROKAFKA_HEADERS_H
 #define BLOOMBERG_COROKAFKA_HEADERS_H
 
+#include <corokafka/corokafka_utils.h>
 #include <string>
 #include <tuple>
 #include <type_traits>

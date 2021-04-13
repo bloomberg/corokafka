@@ -14,7 +14,7 @@ struct IHeaderAccessor
     virtual ~IHeaderAccessor() = default;
     virtual const HEADER& getHeaderAt(size_t index) const = 0;
     virtual HEADER& getHeaderAt(size_t index) = 0;
-    virtual bool isHeaderValidAt(size_t index) = 0;
+    virtual bool isHeaderValidAt(size_t index) const = 0;
 };
 
 template<typename KEY, typename PAYLOAD, typename HEADERS>
