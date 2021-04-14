@@ -966,6 +966,7 @@ MessageBatch ConsumerManagerImpl::messageBatchReceiveTask(ConsumerTopicEntry& en
         else {
             //break the call into smaller chunks so we don't block permanently if shutting down
             while (!entry._interrupt && ((ssize_t)batch.size() < entry._readSize)) {
+                using IterType = MessageBatch::iterator;
                 MessageBatch tempBatch = entry._consumer->poll_batch(entry._readSize, entry._minPollInterval);
                 if (batch.empty()) {
                     std::swap(batch, tempBatch);
@@ -974,8 +975,8 @@ MessageBatch ConsumerManagerImpl::messageBatchReceiveTask(ConsumerTopicEntry& en
                     //merge batches
                     batch.reserve(entry._readSize);
                     batch.insert(batch.end(),
-                                 std::move_iterator(tempBatch.begin()),
-                                 std::move_iterator(tempBatch.end()));
+                                 std::move_iterator<IterType>(tempBatch.begin()),
+                                 std::move_iterator<IterType>(tempBatch.end()));
                 }
             }
         }

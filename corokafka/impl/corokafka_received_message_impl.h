@@ -154,7 +154,11 @@ ReceivedMessageImpl<KEY,PAYLOAD,HEADERS>::~ReceivedMessageImpl()
         // auto-persistence is turned off or the offset has been persisted manually
         return;
     }
+#if (__cplusplus < 201703L)
     if (std::uncaught_exception() && !_offsetSettings._autoOffsetPersistOnException) {
+#else
+    if ((std::uncaught_exceptions() != 0) && !_offsetSettings._autoOffsetPersistOnException) {
+#endif
         return; // don't commit if we are being destroyed as the result of an exception
     }
     doCommit(_offsetSettings._autoCommitExec);
