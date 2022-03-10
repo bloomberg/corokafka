@@ -443,7 +443,6 @@ public:
             { ConsumerConfiguration::Options::receiveCallbackThreadRangeLow, 1 },
             { ConsumerConfiguration::Options::receiveCallbackThreadRangeHigh, 1 },
             { ConsumerConfiguration::Options::preserveMessageOrder, true },
-            { ConsumerConfiguration::Options::timeoutMs, "20000" }
         };
         ConsumerConfiguration consumerConfig{
             topicWithoutHeaders(),
@@ -477,7 +476,7 @@ public:
         std::this_thread::sleep_for(5s);
 
         // Create OffsetManager
-        d_offsetManager = std::make_unique<OffsetManager>(d_connector->consumer());
+        d_offsetManager = std::make_unique<OffsetManager>(d_connector->consumer(), -1ms);
     }
 
     ~OffsetManagerTester() { d_connector->shutdown(); }
