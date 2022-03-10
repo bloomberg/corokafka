@@ -443,7 +443,7 @@ public:
             { ConsumerConfiguration::Options::receiveCallbackThreadRangeLow, 1 },
             { ConsumerConfiguration::Options::receiveCallbackThreadRangeHigh, 1 },
             { ConsumerConfiguration::Options::preserveMessageOrder, true },
-            { ConsumerConfiguration::Options::timeoutMs, "5000" }
+            { ConsumerConfiguration::Options::timeoutMs, "20000" }
         };
         ConsumerConfiguration consumerConfig{
             topicWithoutHeaders(),
@@ -474,7 +474,7 @@ public:
 
         // Wait for connector to get connected
         using namespace std::chrono_literals;
-        std::this_thread::sleep_for(10s);
+        std::this_thread::sleep_for(5s);
 
         // Create OffsetManager
         d_offsetManager = std::make_unique<OffsetManager>(d_connector->consumer());
