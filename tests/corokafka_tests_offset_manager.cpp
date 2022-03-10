@@ -454,8 +454,9 @@ public:
         consumerConfig.setOffsetCommitCallback(
                 std::bind(&OffsetManagerTester::offsetCommitCallback, this, _1, _2, _3, _4));
         consumerConfig.setLogCallback(std::bind(&OffsetManagerTester::logCallback, this, _1, _2, _3, _4));
-        consumerConfig.assignInitialPartitions(PartitionStrategy::Static,
-                                               { { "", 0, RD_KAFKA_OFFSET_INVALID } });
+        consumerConfig.assignInitialPartitions(
+                PartitionStrategy::Static,
+                { { topicWithoutHeaders().topic(), 0, (int) OffsetPoint::AtEnd } });
 
         builder(consumerConfig);
         // Producer configuration
@@ -611,7 +612,7 @@ private:
             return {};
         }
         cppkafka::TopicPartitionList ret;
-        for (int i = 0; i < numOffsets; ++i)
+        for (unsigned int i = 0; i < numOffsets; ++i)
         {
             ret.emplace_back(d_offsets.front());
             d_offsets.erase(d_offsets.begin());

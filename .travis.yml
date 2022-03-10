@@ -96,4 +96,4 @@ script:
         -DCMAKE_BUILD_TYPE=Debug
         -G Ninja -S .
   - ninja CoroKafkaTests
-  - travis_wait 30 $EXEC -b localhost:9092 -k producer -t topic_with_headers -n topic_no_headers
+  - $EXEC -b localhost:9092 -k producer -t topic_with_headers -n topic_no_headers
