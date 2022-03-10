@@ -408,8 +408,7 @@ static int32_t partition0Callback(const ProducerMetadata &metadata,
 class OffsetManagerTester
 {
 public:
-    OffsetManagerTester(const quantum::Configuration& config)
-        : d_dispatcher{ config }
+    OffsetManagerTester()
     {
         using std::placeholders::_1;
         using std::placeholders::_2;
@@ -470,7 +469,7 @@ public:
         producerConfig.setPartitionerCallback(partition0Callback);
         builder(producerConfig);
 
-        d_connector = std::make_unique<Connector>(builder, d_dispatcher);
+        d_connector = std::make_unique<Connector>(builder, dispatcher());
 
         // Wait for connector to get connected
         using namespace std::chrono_literals;
@@ -498,6 +497,8 @@ public:
         auto offsets = extractOffsets(numOffsets);
         if (offsets.empty())
         {
+            // This will fail and cause the test to fail
+            EXPECT_EQ(numOffsets, d_offsets.size());
             return;
         }
 
@@ -509,7 +510,7 @@ public:
         std::vector<Bloomberg::quantum::ThreadContext<int>::Ptr> futures;
         for (const auto& offset : offsets)
         {
-            futures.emplace_back(d_dispatcher.post2(
+            futures.emplace_back(dispatcher().post2(
                     [this](Bloomberg::quantum::CoroContext<int>::Ptr ctx,
                            cppkafka::TopicPartition                  offset) -> int {
                         // Save the offset
@@ -543,7 +544,6 @@ public:
 
 private:
     // Members
-    quantum::Dispatcher d_dispatcher;
     // Pointers used for deferred initialization
     std::unique_ptr<Connector>     d_connector;
     std::unique_ptr<OffsetManager> d_offsetManager;
@@ -617,11 +617,9 @@ private:
     }
 };    // class OffsetManagerTester
 
-TEST(OffsetManager, saveOffset)
+TEST(OffsetManager, SaveOffsetRace)
 {
-    quantum::Configuration quantumConfig;
-    quantumConfig.setNumCoroutineThreads(3).setNumIoThreads(1);
-    OffsetManagerTester tester{ quantumConfig };
+    OffsetManagerTester tester;
 
     unsigned int numTests = 100;
 
