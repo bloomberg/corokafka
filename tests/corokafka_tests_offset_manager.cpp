@@ -442,7 +442,8 @@ public:
             { ConsumerConfiguration::Options::preprocessMessages, "false" },
             { ConsumerConfiguration::Options::receiveCallbackThreadRangeLow, 1 },
             { ConsumerConfiguration::Options::receiveCallbackThreadRangeHigh, 1 },
-            { ConsumerConfiguration::Options::preserveMessageOrder, true }
+            { ConsumerConfiguration::Options::preserveMessageOrder, true },
+            { ConsumerConfiguration::Options::timeoutMs, "5000" }
         };
         ConsumerConfiguration consumerConfig{
             topicWithoutHeaders(),
