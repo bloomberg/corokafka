@@ -474,7 +474,7 @@ public:
 
         // Wait for connector to get connected
         using namespace std::chrono_literals;
-        std::this_thread::sleep_for(5s);
+        std::this_thread::sleep_for(10s);
 
         // Create OffsetManager
         d_offsetManager = std::make_unique<OffsetManager>(d_connector->consumer());
