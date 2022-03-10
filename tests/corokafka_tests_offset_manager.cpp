@@ -410,6 +410,7 @@ class OffsetManagerTester
 public:
     OffsetManagerTester()
     {
+        std::cout << "OffsetManagerTester(): starting" << std::endl;
         using std::placeholders::_1;
         using std::placeholders::_2;
         using std::placeholders::_3;
@@ -468,21 +469,23 @@ public:
                                               topicOptions };
         producerConfig.setPartitionerCallback(partition0Callback);
         builder(producerConfig);
-
+        std::cout << "OffsetManagerTester(): config completed" << std::endl;
         d_connector = std::make_unique<Connector>(builder, dispatcher());
-
+        std::cout << "OffsetManagerTester(): connector created" << std::endl;
         // Wait for connector to get connected
         using namespace std::chrono_literals;
         std::this_thread::sleep_for(5s);
 
         // Create OffsetManager
         d_offsetManager = std::make_unique<OffsetManager>(d_connector->consumer(), -1ms);
+        std::cout << "OffsetManagerTester(): offsetManager created" << std::endl;
     }
 
     ~OffsetManagerTester() { d_connector->shutdown(); }
 
     void produce(const unsigned int numMessages) {
-        Key key{ 0 };
+        std::cout << "OffsetManagerTester::produce(): producing " << numMessages << std::endl;
+        Key     key{ 0 };
         Message payload;
         payload._message = { "test message" };
         for (unsigned int i = 0; i < numMessages; ++i)
@@ -490,6 +493,7 @@ public:
             payload._num = i;
             d_connector->producer().send(topicWithoutHeaders(), nullptr, key, payload);
         }
+        std::cout << "OffsetManagerTester::produce(): done" << std::endl;
     }
 
     void verifyRaceCondition(const unsigned int numOffsets)
