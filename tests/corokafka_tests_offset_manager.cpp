@@ -474,6 +474,14 @@ public:
         using namespace std::chrono_literals;
         std::this_thread::sleep_for(5s);
 
+        auto topicList = d_connector->consumer().getTopics();
+        for (const auto& topic : topicList)
+        {
+            std::cout << "Consuming " << topic << std::endl;
+            auto metadata = d_connector->consumer().getMetadata(topic);
+            std::cout << "partitions " << metadata.getPartitionAssignment() << std::endl;
+        }
+
         // Create OffsetManager
         d_offsetManager = std::make_unique<OffsetManager>(d_connector->consumer(), -1ms);
     }
@@ -487,7 +495,8 @@ public:
         for (unsigned int i = 0; i < numMessages; ++i)
         {
             payload._num = i;
-            d_connector->producer().send(topicWithoutHeaders(), nullptr, key, payload);
+            auto dr = d_connector->producer().send(topicWithoutHeaders(), nullptr, key, payload);
+            std::cout << "OffsetManagerTester::produce() dr=" << dr << std::endl;
         }
     }
 
@@ -555,12 +564,14 @@ private:
     {
         if (received.isEof())
         {
+            std::cout << "eof" << std::endl;
             return;
         }
         std::cout << "Received a message with offset " << received.getOffset() << std::endl;
         quantum::Mutex::Guard guard{ quantum::local::context(), d_offsetsMutex };
         d_offsets.emplace_back(cppkafka::TopicPartition{
                 received.getTopic(), received.getPartition(), received.getOffset() });
+        std::cout << "Now have " << d_offsets.size() << " total received" << std::endl;
     }
 
     void offsetCommitCallback(const ConsumerMetadata&             metadata,
@@ -621,7 +632,7 @@ TEST(OffsetManager, SaveOffsetRace)
 {
     OffsetManagerTester tester;
 
-    unsigned int numTests = 100;
+    unsigned int numTests = 10;
 
     tester.produce(numTests * 2);
 
