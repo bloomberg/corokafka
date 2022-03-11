@@ -417,7 +417,6 @@ public:
         }
 
         quantum::Mutex::Guard guard{ ctx, d_mutex };
-        std::cout << "Going to record commit() " << topicPartition << std::endl;
         d_committed = topicPartition;
 
         return {};
@@ -449,7 +448,7 @@ TEST(OffsetManager, SaveOffsetRace)
 
     OffsetManagerTestAdapter offsetManager(consumerManagerMock);
 
-    unsigned int numTests = 100;
+    unsigned int numTests = 1000;
 
     for (unsigned int i = 0; i < numTests; ++i)
     {
