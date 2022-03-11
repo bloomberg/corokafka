@@ -452,8 +452,6 @@ TEST(OffsetManager, SaveOffsetRace)
     EXPECT_CALL(metadataMock, getPartitionAssignment()).WillOnce(ReturnRef(BeginningAssignment));
 
     OffsetManagerTestAdapter offsetManager(consumerManagerMock);
-    offsetManager.resetPartitionOffsets(TopicName,
-                                        OffsetManagerImpl::ResetAction::DoNotFetchOffsets);
 
     unsigned int numTests = 10;
 
