@@ -449,9 +449,11 @@ TEST(OffsetManager, SaveOffsetRace)
     };
     EXPECT_CALL(metadataMock, queryCommittedOffsets()).WillOnce(Return(CommittedInvalid));
     EXPECT_CALL(metadataMock, queryOffsetWatermarks()).WillOnce(Return(watermarks));
-    EXPECT_CALL(metadataMock, getPartitionAssignment()).WillOnce(ReturnRef(StoredAssignment));
+    EXPECT_CALL(metadataMock, getPartitionAssignment()).WillOnce(ReturnRef(BeginningAssignment));
 
     OffsetManagerTestAdapter offsetManager(consumerManagerMock);
+    offsetManager.resetPartitionOffsets(TopicName,
+                                        OffsetManagerImpl::ResetAction::DoNotFetchOffsets);
 
     unsigned int numTests = 10;
 
