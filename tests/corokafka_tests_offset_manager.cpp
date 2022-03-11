@@ -1,15 +1,9 @@
 #include <corokafka/impl/corokafka_offset_manager_impl.h>
 #include <corokafka/mock/corokafka_consumer_manager_mock.h>
 
-#include <corokafka/corokafka_connector.h>
-#include <corokafka/utils/corokafka_offset_manager.h>
 #include <corokafka_tests_utils.h>
 
-#include <cppkafka/topic_partition_list.h>
-
-#include <chrono>
-#include <functional>
-#include <memory>
+#include <quantum/quantum_mutex.h>
 
 using testing::_;
 using testing::Return;
@@ -398,130 +392,75 @@ TEST(OffsetManager, ResetPartitionNoFetch)
     EXPECT_THROW(offsetManager.getCurrentOffset(QueryPartition), std::out_of_range);
 }
 
-static int32_t partition0Callback(const ProducerMetadata &metadata,
-                               const cppkafka::Buffer &key,
-                               int32_t partitionCount)
-{
-    return 0;
-}
-
-class OffsetManagerTester
+class ConsumerManagerOffsetRaceFake : public mocks::ConsumerManagerMock
 {
 public:
-    OffsetManagerTester()
+    template<typename TOPIC>
+    ConsumerManagerOffsetRaceFake(const TOPIC&              topic,
+                                  Configuration::OptionList options,
+                                  Configuration::OptionList topicOptions)
+        : mocks::ConsumerManagerMock{ topic, options, topicOptions }
+    {}
+    // Fake commit() - trust that topicPartitions is always size=1 for these tests
+    cppkafka::Error commit(const cppkafka::TopicPartitionList& topicPartitions,
+                           const void*                         opaque) override
     {
-        using std::placeholders::_1;
-        using std::placeholders::_2;
-        using std::placeholders::_3;
-        using std::placeholders::_4;
-
-        ConfigurationBuilder builder;
-        // Connector configuration
-        ConnectorConfiguration connConfig(
-                { { ConnectorConfiguration::Options::pollIntervalMs, 10 } });
-        builder(connConfig);
-
-        Configuration::OptionList topicOptions{ { TopicConfiguration::Options::brokerTimeoutMs,
-                                                 5000 } };
-        // Consumer configuration
-        Configuration::OptionList consumerOptions{
-            { "metadata.broker.list", programOptions()._broker },
-            { "client.id", "offset-manager-consumer" },
-            { "group.id", "offset-manager-group" },
-            { "enable.auto.offset.store", false },
-            //{ "enable.partition.eof", false },
-            { "enable.auto.commit", true },
-            { ConsumerConfiguration::Options::timeoutMs, 100 },
-            { ConsumerConfiguration::Options::pauseOnStart, false },
-            { ConsumerConfiguration::Options::readSize, 100 },
-            { ConsumerConfiguration::Options::pollStrategy, "batch" },
-            { ConsumerConfiguration::Options::offsetPersistStrategy, "store" },
-            { ConsumerConfiguration::Options::commitExec, "sync" },
-            { ConsumerConfiguration::Options::autoOffsetPersist, "true" },
-            { ConsumerConfiguration::Options::receiveInvokeThread, "coro" },
-            { ConsumerConfiguration::Options::preprocessMessages, "false" },
-            { ConsumerConfiguration::Options::receiveCallbackThreadRangeLow, 1 },
-            { ConsumerConfiguration::Options::receiveCallbackThreadRangeHigh, 1 },
-            { ConsumerConfiguration::Options::preserveMessageOrder, true },
-        };
-        ConsumerConfiguration consumerConfig{
-            topicWithoutHeaders(),
-            consumerOptions,
-            topicOptions,
-            std::bind(&OffsetManagerTester::receiveCallback, this, _1)
-        };
-        consumerConfig.setOffsetCommitCallback(
-                std::bind(&OffsetManagerTester::offsetCommitCallback, this, _1, _2, _3, _4));
-        consumerConfig.setLogCallback(std::bind(&OffsetManagerTester::logCallback, this, _1, _2, _3, _4));
-        consumerConfig.assignInitialPartitions(
-                PartitionStrategy::Static,
-                { { topicWithoutHeaders().topic(), 0, (int) OffsetPoint::AtEnd } });
-
-        builder(consumerConfig);
-        // Producer configuration
-        Configuration::OptionList producerOptions{
-            { "metadata.broker.list", programOptions()._broker },
-            { "client.id", "offset-manager-producer" },
-            { "enable.idempotence", true },
-        };
-        ProducerConfiguration producerConfig{ topicWithoutHeaders(),
-                                              producerOptions,
-                                              topicOptions };
-        producerConfig.setPartitionerCallback(partition0Callback);
-        builder(producerConfig);
-        d_connector = std::make_unique<Connector>(builder, dispatcher());
-
-        auto topicList = d_connector->consumer().getTopics();
-        for (const auto& topic : topicList)
+        auto ctx = quantum::local::context();
+        // yield if offset is even - to increase the odds of the race condition
+        if (topicPartitions[0].get_offset() % 2 == 0)
         {
-            std::cout << "Consuming " << topic << std::endl;
-            auto metadata = d_connector->consumer().getMetadata(topic);
-            std::cout << "partitions " << metadata.getPartitionAssignment() << std::endl;
+            if (ctx)
+            {
+                ctx->yield();
+            }
         }
 
-        // Create OffsetManager
-        using namespace std::chrono_literals;
-        d_offsetManager = std::make_unique<OffsetManager>(d_connector->consumer(), -1ms);
+        quantum::Mutex::Guard guard{ ctx, d_mutex };
+        d_committed = topicPartitions[0];
+
+        return {};
     }
 
-    ~OffsetManagerTester() { d_connector->shutdown(); }
-
-    void produce(const unsigned int numMessages)
+    int64_t getLastOffset()
     {
-        Key     key{ 0 };
-        Message payload;
-        payload._message = { "test message" };
-        for (unsigned int i = 0; i < numMessages; ++i)
-        {
-            payload._num = i;
-            auto dr = d_connector->producer().send(topicWithoutHeaders(), nullptr, key, payload);
-            std::cout << "OffsetManagerTester::produce() dr=" << dr << std::endl;
-        }
+        quantum::Mutex::Guard guard{ quantum::local::context(), d_mutex };
+        return d_committed.get_offset();
     }
 
-    void verifyRaceCondition(const unsigned int numOffsets)
+private:
+    quantum::Mutex           d_mutex;
+    cppkafka::TopicPartition d_committed;
+
+};    // ConsumerManagerOffsetRaceFake
+
+TEST(OffsetManager, SaveOffsetRace)
+{
+    NiceMock<ConsumerManagerOffsetRaceFake> consumerManagerMock(mocks::MockTopic{ TopicName },
+                                                                Configuration::OptionList{},
+                                                                Configuration::OptionList{});
+    // Expectations
+    auto& metadataMock = consumerManagerMock.consumerMetadataMock();
+    EXPECT_CALL(metadataMock, queryCommittedOffsets()).WillOnce(Return(Committed));
+    EXPECT_CALL(metadataMock, queryOffsetWatermarks()).WillOnce(Return(Watermarks));
+    EXPECT_CALL(metadataMock, getPartitionAssignment()).WillOnce(ReturnRef(StoredAssignment));
+
+    OffsetManagerTestAdapter offsetManager(consumerManagerMock);
+
+    unsigned int numTests = 10;
+
+    for (unsigned int i = 0; i < numTests; ++i)
     {
-        auto offsets = extractOffsets(numOffsets);
-        if (offsets.empty())
-        {
-            // This will fail and cause the test to fail
-            EXPECT_EQ(numOffsets, d_offsets.size());
-            return;
-        }
-
-        {
-            quantum::Mutex::Guard guard{ quantum::local::context(), d_offsetsMutex };
-            d_lastCommitted = std::nullopt;
-        }
-
+        unsigned int                 low  = i * 2;
+        unsigned int                 high = low + 1;
+        cppkafka::TopicPartitionList offsets{ { TopicName, 0, low }, { TopicName, 0, high } };
         std::vector<Bloomberg::quantum::ThreadContext<int>::Ptr> futures;
         for (const auto& offset : offsets)
         {
             futures.emplace_back(dispatcher().post2(
-                    [this](Bloomberg::quantum::CoroContext<int>::Ptr ctx,
-                           cppkafka::TopicPartition                  offset) -> int {
+                    [&offsetManager](Bloomberg::quantum::CoroContext<int>::Ptr ctx,
+                                     cppkafka::TopicPartition                  offset) -> int {
                         // Save the offset
-                        d_offsetManager->saveOffset(offset);
+                        offsetManager.saveOffset(offset);
                         return ctx->set(0);
                     },
                     offset));
@@ -532,112 +471,10 @@ public:
             future->get();
         }
 
-        using namespace std::chrono_literals;
-        
-        while(true)
-        {
-            {
-                quantum::Mutex::Guard guard{ quantum::local::context(), d_offsetsMutex };
-                if (d_lastCommitted)
-                {
-                    EXPECT_EQ(offsets.rbegin()->get_offset(), d_lastCommitted.value().get_offset());
-                    return;
-                }
-            }
-            
-            std::this_thread::sleep_for(1s);
-        }
-    }
-
-private:
-    // Members
-    // Pointers used for deferred initialization
-    std::unique_ptr<Connector>     d_connector;
-    std::unique_ptr<OffsetManager> d_offsetManager;
-    quantum::Mutex                 d_offsetsMutex;
-    cppkafka::TopicPartitionList   d_offsets;
-    std::optional<cppkafka::TopicPartition> d_lastCommitted;
-
-    // Functions
-    void receiveCallback(MessageWithoutHeaders received)
-    {
-        if (received.isEof())
-        {
-            std::cout << "eof" << std::endl;
-            return;
-        }
-        std::cout << "Received a message with offset " << received.getOffset() << std::endl;
-        quantum::Mutex::Guard guard{ quantum::local::context(), d_offsetsMutex };
-        d_offsets.emplace_back(cppkafka::TopicPartition{
-                received.getTopic(), received.getPartition(), received.getOffset() });
-        std::cout << "Now have " << d_offsets.size() << " total received" << std::endl;
-    }
-
-    void offsetCommitCallback(const ConsumerMetadata&             metadata,
-                              cppkafka::Error                     error,
-                              const cppkafka::TopicPartitionList& topicPartitions,
-                              const std::vector<void*>&           opaques)
-    {
-        for (const auto& topicPartition : topicPartitions)
-        {
-            if (topicPartition.get_offset() == RD_KAFKA_OFFSET_INVALID)
-            {
-                continue;
-            }
-            if (!error)
-            {
-                quantum::Mutex::Guard guard{ quantum::local::context(), d_offsetsMutex };
-                d_lastCommitted = topicPartition;
-            }
-        }
-    }
-
-    void logCallback(const Bloomberg::corokafka::Metadata& metadata,
-                     cppkafka::LogLevel                    level,
-                     const std::string&                    facility,
-                     const std::string&                    message)
-    {
-        static std::set<char> evens      = { '0', '2', '4', '6', '8' };
-        auto                  secondToLast = *(message.rbegin() + 1);
-        if ((facility == "OffsetManager:Commit") && (evens.count(secondToLast) == 1u))
-        {
-            auto ctx = Bloomberg::quantum::local::context();
-            if (ctx)
-            {
-                ctx->yield();
-            }
-        }
-    }
-
-    cppkafka::TopicPartitionList extractOffsets(const unsigned int numOffsets)
-    {
-        quantum::Mutex::Guard guard{ quantum::local::context(), d_offsetsMutex };
-        if (d_offsets.size() < numOffsets)
-        {
-            return {};
-        }
-        cppkafka::TopicPartitionList ret;
-        for (unsigned int i = 0; i < numOffsets; ++i)
-        {
-            ret.emplace_back(d_offsets.front());
-            d_offsets.erase(d_offsets.begin());
-        }
-
-        return ret;
-    }
-};    // class OffsetManagerTester
-
-TEST(OffsetManager, SaveOffsetRace)
-{
-    OffsetManagerTester tester;
-
-    unsigned int numTests = 10;
-
-    tester.produce(numTests * 2);
-
-    for (unsigned int i = 0; i < numTests; ++i)
-    {
-        //tester.verifyRaceCondition(2);
+        std::ostringstream stream;
+        stream << "Test #" << i << " Offsets [" << low << ", " << high << "]";
+        SCOPED_TRACE(stream.str());
+        EXPECT_EQ(high, consumerManagerMock.getLastOffset());
     }
 }
 
