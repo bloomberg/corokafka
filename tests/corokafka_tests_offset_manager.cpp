@@ -416,8 +416,17 @@ public:
         }
 
         quantum::Mutex::Guard guard{ ctx, d_mutex };
+        std::cout << "Going to record commit() " << topicPartitions[0] << std::endl;
         d_committed = topicPartitions[0];
 
+        return {};
+    }
+
+    cppkafka::Error commit(const cppkafka::TopicPartitionList& topicPartitions,
+                           ExecMode                            execMode,
+                           const void*                         opaque) override
+    {
+        std::cout << "commit() with ExecMode called" << std::endl;
         return {};
     }
 
