@@ -401,13 +401,14 @@ public:
                                   Configuration::OptionList topicOptions)
         : mocks::ConsumerManagerMock{ topic, options, topicOptions }
     {}
+
     // Fake commit() - trust that topicPartitions is always size=1 for these tests
-    cppkafka::Error commit(const cppkafka::TopicPartitionList& topicPartitions,
-                           const void*                         opaque) override
+    cppkafka::Error commit(const cppkafka::TopicPartition& topicPartition,
+                           const void*                     opaque) override
     {
         auto ctx = quantum::local::context();
         // yield if offset is even - to increase the odds of the race condition
-        if (topicPartitions[0].get_offset() % 2 == 0)
+        if (topicPartition.get_offset() % 2 == 0)
         {
             if (ctx)
             {
@@ -416,15 +417,15 @@ public:
         }
 
         quantum::Mutex::Guard guard{ ctx, d_mutex };
-        std::cout << "Going to record commit() " << topicPartitions[0] << std::endl;
-        d_committed = topicPartitions[0];
+        std::cout << "Going to record commit() " << topicPartition << std::endl;
+        d_committed = topicPartition;
 
         return {};
     }
 
-    cppkafka::Error commit(const cppkafka::TopicPartitionList& topicPartitions,
-                           ExecMode                            execMode,
-                           const void*                         opaque) override
+    cppkafka::Error commit(const cppkafka::TopicPartition& topicPartition,
+                           ExecMode                        execMode,
+                           const void*                     opaque) override
     {
         std::cout << "commit() with ExecMode called" << std::endl;
         return {};
