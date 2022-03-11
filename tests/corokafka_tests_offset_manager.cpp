@@ -449,7 +449,7 @@ TEST(OffsetManager, SaveOffsetRace)
 
     OffsetManagerTestAdapter offsetManager(consumerManagerMock);
 
-    unsigned int numTests = 10;
+    unsigned int numTests = 100;
 
     for (unsigned int i = 0; i < numTests; ++i)
     {
