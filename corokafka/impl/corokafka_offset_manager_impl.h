@@ -162,11 +162,9 @@ cppkafka::Error OffsetManagerImpl::saveOffsetImpl(const cppkafka::TopicPartition
         }
         OffsetRanges& ranges = getOffsetRanges(getTopicSettings(offset), offset);
         Range<int64_t> range(-1,-1);
-        {//locked scope
-            logOffsets("OffsetManager:Insert", offset);
-            quantum::Mutex::Guard guard(quantum::local::context(), ranges._offsetsMutex);
-            range = insertOffset(ranges, offset.get_offset());
-        }
+        logOffsets("OffsetManager:Insert", offset);
+        quantum::Mutex::Guard guard(quantum::local::context(), ranges._offsetsMutex);
+        range = insertOffset(ranges, offset.get_offset());
         //Commit range
         if (range.second != -1) {
             //This is a valid range

@@ -6,7 +6,7 @@ namespace Bloomberg {
 namespace corokafka {
 namespace tests {
 
-const int MaxLoops = 30; //arbitrary wait value
+const int MaxLoops = 60; //arbitrary wait value
 const int NumPartitions = 4;
 
 void waitUntilEof()
