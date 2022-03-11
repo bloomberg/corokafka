@@ -423,14 +423,6 @@ public:
         return {};
     }
 
-    cppkafka::Error commit(const cppkafka::TopicPartition& topicPartition,
-                           ExecMode                        execMode,
-                           const void*                     opaque) override
-    {
-        std::cout << "commit() with ExecMode called" << std::endl;
-        return {};
-    }
-
     int64_t getLastOffset()
     {
         quantum::Mutex::Guard guard{ quantum::local::context(), d_mutex };
@@ -450,7 +442,8 @@ TEST(OffsetManager, SaveOffsetRace)
                                                                 Configuration::OptionList{});
     // Expectations
     auto& metadataMock = consumerManagerMock.consumerMetadataMock();
-    EXPECT_CALL(metadataMock, queryCommittedOffsets()).WillOnce(Return(Committed));
+    const cppkafka::TopicPartitionList committedOffsets{ {  TopicName, 0, -1  } };
+    EXPECT_CALL(metadataMock, queryCommittedOffsets()).WillOnce(Return(committedOffsets));
     EXPECT_CALL(metadataMock, queryOffsetWatermarks()).WillOnce(Return(Watermarks));
     EXPECT_CALL(metadataMock, getPartitionAssignment()).WillOnce(ReturnRef(StoredAssignment));
 
