@@ -442,9 +442,13 @@ TEST(OffsetManager, SaveOffsetRace)
                                                                 Configuration::OptionList{});
     // Expectations
     auto& metadataMock = consumerManagerMock.consumerMetadataMock();
-    const cppkafka::TopicPartitionList committedOffsets{ {  TopicName, 0, -1  } };
-    EXPECT_CALL(metadataMock, queryCommittedOffsets()).WillOnce(Return(committedOffsets));
-    EXPECT_CALL(metadataMock, queryOffsetWatermarks()).WillOnce(Return(Watermarks));
+    const OffsetWatermarkList watermarks{
+        { Partition,
+          { cppkafka::TopicPartition::Offset::OFFSET_INVALID,
+            cppkafka::TopicPartition::Offset::OFFSET_INVALID } }
+    };
+    EXPECT_CALL(metadataMock, queryCommittedOffsets()).WillOnce(Return(CommittedInvalid));
+    EXPECT_CALL(metadataMock, queryOffsetWatermarks()).WillOnce(Return(watermarks));
     EXPECT_CALL(metadataMock, getPartitionAssignment()).WillOnce(ReturnRef(StoredAssignment));
 
     OffsetManagerTestAdapter offsetManager(consumerManagerMock);
