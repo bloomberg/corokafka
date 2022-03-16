@@ -159,8 +159,7 @@ TEST(OffsetManager, CommitAllCurrentOffsets)
     
     auto current = offsetManager.getCurrentOffset(QueryPartition);
     cppkafka::TopicPartition nextCurrent = current + 1;
-    cppkafka::TopicPartitionList currentList = {nextCurrent};
-    EXPECT_CALL(consumerManagerMock, commit(currentList, nullptr)).Times(1);
+    EXPECT_CALL(consumerManagerMock, commit(nextCurrent, nullptr)).Times(1);
     offsetManager.forceCommitCurrentOffset();
     
     //Make sure the current offset has also been changed but not the beginning offset
