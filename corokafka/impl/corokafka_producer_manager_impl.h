@@ -219,10 +219,9 @@ bool serializeHeaders(const TOPIC&, size_t, ProducerMessageBuilder<ByteArray>&)
 template <typename TOPIC, typename H, typename ... Hs>
 bool serializeHeaders(const TOPIC& topic, size_t i, ProducerMessageBuilder<ByteArray>& builder, const H& h, const Hs&...hs) {
     ByteArray b = Serialize<H>{}(h);
-    if (b.empty()) {
-        return false;
+    if (!b.empty()) {
+        builder.header(cppkafka::Header<ByteArray>{topic.headers().names()[i], std::move(b)});
     }
-    builder.header(cppkafka::Header<ByteArray>{topic.headers().names()[i], std::move(b)});
     //Serialize next header in the list
     return serializeHeaders(topic, ++i, builder, hs...);
 }
