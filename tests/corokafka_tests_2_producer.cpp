@@ -402,7 +402,17 @@ TEST(Producer, ValidateErrorCallback)
     counters.reset();
 }
 
+TEST(Producer, serializeHeaders)
+{
+    ProducerMessageBuilder<ByteArray> builder;
 
+    // One populated string, one empty string, one explicit null header
+    std::string header1{ "header-value" };
+    std::string header2{ "" };
+
+    EXPECT_TRUE(serializeHeaders(serializeOnlyTopic(), 0, builder, header1, header2, NullHeader{}));
+    EXPECT_EQ(1u, builder.header_list().size());
+}
 }
 }
 }
