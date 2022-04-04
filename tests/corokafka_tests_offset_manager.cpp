@@ -1,6 +1,10 @@
 #include <corokafka/impl/corokafka_offset_manager_impl.h>
 #include <corokafka/mock/corokafka_consumer_manager_mock.h>
 
+#include <corokafka_tests_utils.h>
+
+#include <quantum/quantum_mutex.h>
+
 using testing::_;
 using testing::Return;
 using testing::ReturnRef;
@@ -11,9 +15,8 @@ using testing::IsFalse;
 using testing::Matcher;
 using testing::NiceMock;
 
-namespace Bloomberg {
-namespace corokafka {
-namespace tests {
+namespace Bloomberg::corokafka::tests
+{
 
 const std::string TopicName = "MockTopic";
 const int Partition = 0;
@@ -156,8 +159,7 @@ TEST(OffsetManager, CommitAllCurrentOffsets)
     
     auto current = offsetManager.getCurrentOffset(QueryPartition);
     cppkafka::TopicPartition nextCurrent = current + 1;
-    cppkafka::TopicPartitionList currentList = {nextCurrent};
-    EXPECT_CALL(consumerManagerMock, commit(currentList, nullptr)).Times(1);
+    EXPECT_CALL(consumerManagerMock, commit(nextCurrent, nullptr)).Times(1);
     offsetManager.forceCommitCurrentOffset();
     
     //Make sure the current offset has also been changed but not the beginning offset
@@ -389,5 +391,94 @@ TEST(OffsetManager, ResetPartitionNoFetch)
     EXPECT_THROW(offsetManager.getCurrentOffset(QueryPartition), std::out_of_range);
 }
 
-}}}
+class ConsumerManagerOffsetRaceFake : public mocks::ConsumerManagerMock
+{
+public:
+    template<typename TOPIC>
+    ConsumerManagerOffsetRaceFake(const TOPIC&              topic,
+                                  Configuration::OptionList options,
+                                  Configuration::OptionList topicOptions)
+        : mocks::ConsumerManagerMock{ topic, options, topicOptions }
+    {}
+
+    // Fake commit() - trust that topicPartitions is always size=1 for these tests
+    cppkafka::Error commit(const cppkafka::TopicPartition& topicPartition,
+                           const void*                     opaque) override
+    {
+        using namespace std::chrono_literals;
+        auto ctx = quantum::local::context();
+        // yield if offset is even - to increase the odds of the race condition
+        if (topicPartition.get_offset() % 2 == 0)
+        {
+            if (ctx)
+            {
+                ctx->sleep(10ms);
+            }
+        }
+
+        quantum::Mutex::Guard guard{ ctx, d_mutex };
+        d_committed = topicPartition;
+
+        return {};
+    }
+
+    int64_t getLastOffset()
+    {
+        quantum::Mutex::Guard guard{ quantum::local::context(), d_mutex };
+        return d_committed.get_offset();
+    }
+
+private:
+    quantum::Mutex           d_mutex;
+    cppkafka::TopicPartition d_committed;
+
+};    // ConsumerManagerOffsetRaceFake
+
+TEST(OffsetManager, SaveOffsetRace)
+{
+    NiceMock<ConsumerManagerOffsetRaceFake> consumerManagerMock(mocks::MockTopic{ TopicName },
+                                                                Configuration::OptionList{},
+                                                                Configuration::OptionList{});
+    // Expectations
+    auto& metadataMock = consumerManagerMock.consumerMetadataMock();
+    const OffsetWatermarkList watermarks{ { Partition, { -1, -1 } } };
+    EXPECT_CALL(metadataMock, queryCommittedOffsets()).WillOnce(Return(CommittedInvalid));
+    EXPECT_CALL(metadataMock, queryOffsetWatermarks()).WillOnce(Return(watermarks));
+    EXPECT_CALL(metadataMock, getPartitionAssignment()).WillOnce(ReturnRef(BeginningAssignment));
+
+    OffsetManagerTestAdapter offsetManager(consumerManagerMock);
+
+    unsigned int numTests = 1000;
+
+    for (unsigned int i = 0; i < numTests; ++i)
+    {
+        unsigned int                 low  = i * 2;
+        unsigned int                 high = low + 1;
+        cppkafka::TopicPartitionList offsets{ { TopicName, 0, low }, { TopicName, 0, high } };
+        std::vector<Bloomberg::quantum::ThreadContext<int>::Ptr> futures;
+        for (const auto& offset : offsets)
+        {
+            futures.emplace_back(dispatcher().post2(
+                    [&offsetManager](Bloomberg::quantum::CoroContext<int>::Ptr ctx,
+                                     cppkafka::TopicPartition                  offset) -> int {
+                        // Save the offset
+                        offsetManager.saveOffset(offset);
+                        return ctx->set(0);
+                    },
+                    offset));
+        }
+
+        for (auto& future : futures)
+        {
+            future->get();
+        }
+
+        std::ostringstream stream;
+        stream << "Test #" << i << " Offsets [" << low << ", " << high << "]";
+        SCOPED_TRACE(stream.str());
+        EXPECT_EQ(high, consumerManagerMock.getLastOffset());
+    }
+}
+
+}   // namespace Bloomberg::corokafka::tests
 

@@ -63,6 +63,8 @@ public:
     /// @remark The offset specified indicates the 'next position to be read from'. It should typically be the last
     ///         message offset incremented by 1. This function will *not* perform any increments.
     /// @remark Offset must be > getCurrentOffset(). Committing a smaller offset has no effect.
+    /// @remark Synchronous commits may incur performance penalties if multiple coroutines or threads are processing messages
+    ///         for the same partition.
     cppkafka::Error saveOffset(const cppkafka::TopicPartition& offset) override;
     cppkafka::Error saveOffset(const cppkafka::TopicPartition& offset,
                                ExecMode execMode) override;
@@ -73,6 +75,8 @@ public:
     /// @returns Error.
     /// @remark This function *will* perform the offset increment automatically and will commit IMessage::getOffset()+1.
     /// @remark Message offset must be >= getCurrentOffset(). Committing a smaller offset has no effect.
+    /// @remark Synchronous commits may incur performance penalties if multiple coroutines or threads are processing messages
+    ///         for the same partition.
     cppkafka::Error saveOffset(const IMessage& message) override;
     cppkafka::Error saveOffset(const IMessage& message,
                                ExecMode execMode) override;
