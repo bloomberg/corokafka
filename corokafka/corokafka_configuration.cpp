@@ -232,7 +232,7 @@ void Configuration::parseOptions(const std::string& topic,
             }
             trim(const_cast<std::string&>(option.get_value()));
             if (option.get_value().empty()) {
-                throw InvalidOptionException(topic, option.get_value(), "Value is empty");
+                throw InvalidOptionException(topic, option.get_key(), "Value is empty");
             }
             const auto it = allowed.find(option.get_key());
             if (it == allowed.end()) {

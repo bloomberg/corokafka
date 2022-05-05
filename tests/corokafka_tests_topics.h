@@ -44,9 +44,11 @@ struct Message {
 using TestHeaders = Headers<Header1, Header2>;
 using TopicWithHeaders = Topic<Key, Message, TestHeaders>;
 using TopicWithoutHeaders = Topic<Key, Message>;
+using SerializeOnlyTopic = Topic<Key, Message, Headers<std::string, std::string, std::string>>;
 
 static constexpr const char* header1Str = "Header-1";
 static constexpr const char* header2Str = "Header-2";
+static constexpr const char* header3Str = "Header-3";
 
 // Create a topic which will be shared between producer and consumer.
 inline
@@ -57,6 +59,15 @@ const TopicWithHeaders& topicWithHeaders() {
 inline
 const TopicWithoutHeaders& topicWithoutHeaders() {
     static TopicWithoutHeaders topic(programOptions()._topicWithoutHeaders);
+    return topic;
+}
+
+inline
+const SerializeOnlyTopic& serializeOnlyTopic() {
+    static SerializeOnlyTopic topic{ "serialize-only",
+                               Header<std::string>{ header1Str },
+                               Header<std::string>{ header2Str },
+                               Header<std::string>{ header3Str } };
     return topic;
 }
 
@@ -119,6 +130,12 @@ struct Serialize<tests::Message>
         ret.insert(ret.end(), payload._message.begin(), payload._message.end());
         return ret;
     }
+};
+
+template<>
+struct Serialize<std::string>
+{
+    ByteArray operator()(const std::string& in) { return { in.cbegin(), in.cend() }; }
 };
 
 //======================================================================================================================

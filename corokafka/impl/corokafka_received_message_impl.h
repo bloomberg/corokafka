@@ -16,6 +16,7 @@
 #ifndef BLOOMBERG_COROKAFKA_RECEIVED_MESSAGE_IMPL_H
 #define BLOOMBERG_COROKAFKA_RECEIVED_MESSAGE_IMPL_H
 
+#include <corokafka/corokafka_deserializer.h>
 #include <corokafka/corokafka_exception.h>
 #include <corokafka/interface/corokafka_ireceived_message.h>
 
