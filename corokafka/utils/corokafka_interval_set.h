@@ -50,7 +50,7 @@ public:
 template<
     class T,
     class Compare = std::less<T>,
-    class Alloc   = std::allocator<std::pair<T,T> > >
+    class Alloc   = std::allocator<std::pair<const T,T> > >
 class IntervalSet : public std::map<T,T,Compare,Alloc>
 {
 public:
